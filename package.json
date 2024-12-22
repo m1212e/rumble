@@ -11,16 +11,17 @@
 		"@types/bun": "latest",
 		"@types/pg": "^8.11.10",
 		"drizzle-kit": "^0.30.1",
+		"lefthook": "^1.9.2",
 		"pg": "^8.13.1",
 		"tsup": "^8.3.5",
-		"tsx": "^4.19.2",
-		"lefthook": "^1.9.2"
+		"tsx": "^4.19.2"
 	},
 	"peerDependencies": {
 		"typescript": "^5.0.0",
 		"drizzle-orm": "^0.38.2"
 	},
 	"dependencies": {
+		"@pothos/plugin-drizzle": "^0.5.2",
 		"graphql-yoga": "^5.10.6",
 		"@pothos/core": "^4.3.0"
 	}
