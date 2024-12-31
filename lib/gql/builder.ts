@@ -8,6 +8,7 @@ export const rumble = async <
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
+	Schema,
 >({
 	db,
 	nativeServerOptions,
@@ -47,7 +48,7 @@ export const rumble = async <
 		// 		Output: any;
 		// 	};
 		// };
-		DrizzleSchema: DB["_"]["schema"];
+		DrizzleSchema: DB["_"]["fullSchema"];
 		DefaultFieldNullability: false;
 		DefaultArgumentNullability: false;
 		DefaultInputFieldRequiredness: true;

@@ -8,16 +8,16 @@ export type AbilityBuilder = ReturnType<typeof createAbilityBuilder>;
 
 type Condition<DBParameters, UserContext> =
 	| SimpleCondition<DBParameters>
-	| SyncFunctionCondition<DBParameters, UserContext>
-	| AsyncFunctionCondition<DBParameters, UserContext>;
+	| SyncFunctionCondition<DBParameters, UserContext>;
+// | AsyncFunctionCondition<DBParameters, UserContext>;
 
 type SimpleCondition<DBParameters> = DBParameters;
 type SyncFunctionCondition<DBParameters, UserContext> = (
 	context: UserContext,
 ) => DBParameters;
-type AsyncFunctionCondition<DBParameters, UserContext> = (
-	context: UserContext,
-) => Promise<DBParameters>;
+// type AsyncFunctionCondition<DBParameters, UserContext> = (
+// 	context: UserContext,
+// ) => Promise<DBParameters>;
 
 // type guards for the condition types
 function isSimpleCondition<DBParameters, UserContext>(
@@ -35,14 +35,14 @@ function isSyncFunctionCondition<DBParameters, UserContext>(
 	);
 }
 
-function isAsyncFunctionCondition<DBParameters, UserContext>(
-	condition: Condition<DBParameters, UserContext>,
-): condition is AsyncFunctionCondition<DBParameters, UserContext> {
-	return (
-		typeof condition === "function" &&
-		condition.constructor.name === "AsyncFunction"
-	);
-}
+// function isAsyncFunctionCondition<DBParameters, UserContext>(
+// 	condition: Condition<DBParameters, UserContext>,
+// ): condition is AsyncFunctionCondition<DBParameters, UserContext> {
+// 	return (
+// 		typeof condition === "function" &&
+// 		condition.constructor.name === "AsyncFunction"
+// 	);
+// }
 
 export const createAbilityBuilder = <
 	UserContext extends Record<string, any>,
@@ -66,7 +66,7 @@ export const createAbilityBuilder = <
 			[key in Action[number]]: (
 				| QueryConditionObject
 				| ((context: UserContext) => QueryConditionObject)
-				| ((context: UserContext) => Promise<QueryConditionObject>)
+				// | ((context: UserContext) => Promise<QueryConditionObject>)
 			)[];
 		};
 	} = {} as any;
@@ -106,7 +106,7 @@ export const createAbilityBuilder = <
 			} = {} as any;
 
 			const createEntityObject = (entityKey: DBEntityKey) => ({
-				filter: async (action: Action) => {
+				filter: (action: Action) => {
 					const conditionsPerEntity = registeredConditions[entityKey];
 					if (!conditionsPerEntity) {
 						throw "TODO (No allowed entry found for this condition) #1";
@@ -124,16 +124,16 @@ export const createAbilityBuilder = <
 						.filter(isSyncFunctionCondition)
 						.map((condition) => condition(userContext));
 
-					const asyncFunctionConditions = await Promise.all(
-						conditionsPerEntityAndAction
-							.filter(isAsyncFunctionCondition)
-							.map((condition) => condition(userContext)),
-					);
+					// const asyncFunctionConditions = await Promise.all(
+					// 	conditionsPerEntityAndAction
+					// 		.filter(isAsyncFunctionCondition)
+					// 		.map((condition) => condition(userContext)),
+					// );
 
 					const allConditionObjects = [
 						...simpleConditions,
 						...syncFunctionConditions,
-						...asyncFunctionConditions,
+						// ...asyncFunctionConditions,
 					];
 
 					let highestLimit = undefined;
