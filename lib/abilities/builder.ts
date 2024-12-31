@@ -1,4 +1,4 @@
-import { and } from "drizzle-orm";
+import { or } from "drizzle-orm";
 import type {
 	GenericDrizzleDbTypeConstraints,
 	QueryConditionObject,
@@ -66,13 +66,13 @@ export const createAbilityBuilder = <
 			[key in Action[number]]: (
 				| QueryConditionObject
 				| ((context: UserContext) => QueryConditionObject)
-				// | ((context: UserContext) => Promise<QueryConditionObject>)
 			)[];
+			// | ((context: UserContext) => Promise<QueryConditionObject>)
 		};
 	} = {} as any;
 
 	const createEntityObject = (entityKey: DBEntityKey) => ({
-		allow: (action: Action) => {
+		allow: (action: Action | Action[]) => {
 			type DBParameters = Parameters<DB["query"][DBEntityKey]["findMany"]>[0];
 
 			let conditionsPerEntity = registeredConditions[entityKey];
@@ -81,14 +81,21 @@ export const createAbilityBuilder = <
 				registeredConditions[entityKey] = conditionsPerEntity;
 			}
 
-			let conditionsPerEntityAndAction = conditionsPerEntity[action];
-			if (!conditionsPerEntityAndAction) {
-				conditionsPerEntityAndAction = [];
-				conditionsPerEntity[action] = conditionsPerEntityAndAction;
+			const actions = Array.isArray(action) ? action : [action];
+			for (const action of actions) {
+				let conditionsPerEntityAndAction = conditionsPerEntity[action];
+				if (!conditionsPerEntityAndAction) {
+					conditionsPerEntityAndAction = [];
+					conditionsPerEntity[action] = conditionsPerEntityAndAction;
+				}
 			}
+
 			return {
 				when: (condition: Condition<DBParameters, UserContext>) => {
-					conditionsPerEntityAndAction.push(condition);
+					for (const action of actions) {
+						const conditionsPerEntityAndAction = conditionsPerEntity[action];
+						conditionsPerEntityAndAction.push(condition);
+					}
 				},
 			};
 		},
@@ -169,7 +176,7 @@ export const createAbilityBuilder = <
 
 					const combinedWhere =
 						accumulatedWhereConditions.length > 0
-							? and(...accumulatedWhereConditions)
+							? or(...accumulatedWhereConditions)
 							: undefined;
 
 					return {

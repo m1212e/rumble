@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres
+    container_name: postgres-dev
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - rumble-dev:/var/lib/postgresql/data
+
+volumes:
+  rumble-dev:
