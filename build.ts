@@ -9,7 +9,7 @@ const libIndex = join(rumbleDir, "lib", "index.ts");
 
 if (await exists(outDir)) {
 	console.info("Cleaning outDir...");
-	await rm(outDir, { recursive: true });
+	await rm(outDir, { recursive: true, force: true });
 	console.info("Cleaned outDir!");
 }
 console.info("Creating outDir...");
