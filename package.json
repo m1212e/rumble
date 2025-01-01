@@ -1,5 +1,5 @@
 {
-	"name": "rumble",
+	"name": "@m1212e/rumble",
 	"module": "index.ts",
 	"type": "module",
 	"scripts": {
