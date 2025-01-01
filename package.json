@@ -6,7 +6,9 @@
 		"format": "bun run lint",
 		"lint": "bunx biome check --write .",
 		"dev:docker": "docker compose -f ./dev.docker-compose.yml up",
-		"dev:example": "bun ./example/src/main.ts"
+		"dev:example": "bun ./example/src/main.ts",
+		"dev:example:seed": "bun ./example/src/db/seed.ts",
+		"build": "bun build.ts"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",

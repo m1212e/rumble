@@ -73,12 +73,6 @@ export const rumble = async <
 	nativeBuilder.queryType({});
 	nativeBuilder.mutationType({});
 
-	const yoga = createYoga<RequestEvent>({
-		...nativeServerOptions,
-		schema: nativeBuilder.toSchema(),
-		context: makeContext,
-	});
-
 	return {
 		/**
      * The ability builder. Use it to declare whats allowed for each entity in your DB.
@@ -108,12 +102,17 @@ export const rumble = async <
      * 
      * ```ts
       import { createServer } from "node:http";
-     * const server = createServer(yoga);
+     * const server = createServer(yoga());
      server.listen(3000, () => {
           console.log("Visit http://localhost:3000/graphql");
      });
      * ```
      */
-		yoga,
+		yoga: () =>
+			createYoga<RequestEvent>({
+				...nativeServerOptions,
+				schema: nativeBuilder.toSchema(),
+				context: makeContext,
+			}),
 	};
 };
