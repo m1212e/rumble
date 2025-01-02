@@ -1,4 +1,6 @@
-import { or } from "drizzle-orm";
+import { SQL, or } from "drizzle-orm";
+import type { ExcludeFromUnionIfNotOnlyType } from "../helpers/unionTypeExclude";
+import type { ExcludeFirst } from "../helpers/unionTypeExtractor";
 import type {
 	GenericDrizzleDbTypeConstraints,
 	QueryConditionObject,
@@ -47,22 +49,21 @@ function isSyncFunctionCondition<DBParameters, UserContext>(
 export const createAbilityBuilder = <
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
-	Action extends string = "create" | "read" | "update" | "delete",
+	Action extends string,
 >({
 	db,
-	actions = ["create", "read", "update", "delete"] as Action[],
 }: {
 	db: DB;
-	actions?: Action[];
 }) => {
-	type DBEntityKey = keyof DB["query"];
+	type DBQueryKey = keyof DB["query"];
+	type DBParameters = Parameters<DB["query"][DBQueryKey]["findMany"]>[0];
 
 	const builder: {
-		[key in DBEntityKey]: ReturnType<typeof createEntityObject>;
+		[key in DBQueryKey]: ReturnType<typeof createEntityObject>;
 	} = {} as any;
 
 	const registeredConditions: {
-		[key in DBEntityKey]: {
+		[key in DBQueryKey]: {
 			[key in Action[number]]: (
 				| QueryConditionObject
 				| ((context: UserContext) => QueryConditionObject)
@@ -71,10 +72,8 @@ export const createAbilityBuilder = <
 		};
 	} = {} as any;
 
-	const createEntityObject = (entityKey: DBEntityKey) => ({
+	const createEntityObject = (entityKey: DBQueryKey) => ({
 		allow: (action: Action | Action[]) => {
-			type DBParameters = Parameters<DB["query"][DBEntityKey]["findMany"]>[0];
-
 			let conditionsPerEntity = registeredConditions[entityKey];
 			if (!conditionsPerEntity) {
 				conditionsPerEntity = {} as any;
@@ -101,7 +100,7 @@ export const createAbilityBuilder = <
 		},
 	});
 
-	for (const entityKey of Object.keys(db.query) as DBEntityKey[]) {
+	for (const entityKey of Object.keys(db.query) as DBQueryKey[]) {
 		builder[entityKey] = createEntityObject(entityKey);
 	}
 	return {
@@ -109,10 +108,10 @@ export const createAbilityBuilder = <
 		registeredConditions,
 		buildWithUserContext: (userContext: UserContext) => {
 			const builder: {
-				[key in DBEntityKey]: ReturnType<typeof createEntityObject>;
+				[key in DBQueryKey]: ReturnType<typeof createEntityObject>;
 			} = {} as any;
 
-			const createEntityObject = (entityKey: DBEntityKey) => ({
+			const createEntityObject = (entityKey: DBQueryKey) => ({
 				filter: (action: Action) => {
 					const conditionsPerEntity = registeredConditions[entityKey];
 					if (!conditionsPerEntity) {
@@ -187,7 +186,7 @@ export const createAbilityBuilder = <
 				},
 			});
 
-			for (const entityKey of Object.keys(db.query) as DBEntityKey[]) {
+			for (const entityKey of Object.keys(db.query) as DBQueryKey[]) {
 				builder[entityKey] = createEntityObject(entityKey);
 			}
 

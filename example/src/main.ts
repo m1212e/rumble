@@ -13,14 +13,15 @@ export const db = drizzle(
 	{ schema },
 );
 
-const { abilityBuilder, schemaBuilder, yoga } = await rumble({
-	db,
-	context(request) {
-		return {
-			userId: 2,
-		};
-	},
-});
+const { abilityBuilder, schemaBuilder, yoga, implementDefaultType } =
+	await rumble({
+		db,
+		context(request) {
+			return {
+				userId: 2,
+			};
+		},
+	});
 
 //
 //   DEFINING ABILITIES
@@ -42,17 +43,14 @@ abilityBuilder.posts
 //   DEFINE OBJECTS WITH THEIR FIELDS
 //
 
-const UserRef = schemaBuilder.drizzleObject("users", {
+// you can use the helper to implement a default version of your object based on the db schema.
+// It exposes all fields and restricts the query based on the abilities
+const UserRef = implementDefaultType({
 	name: "User",
-	fields: (t) => ({
-		id: t.exposeInt("id"),
-		name: t.exposeString("name"),
-		posts: t.relation("posts", {
-			query: (_args, ctx) => ctx.abilities.posts.filter("read"),
-		}),
-	}),
+	tableName: "users",
 });
 
+// alternatively you can define the object manually
 const PostRef = schemaBuilder.drizzleObject("posts", {
 	name: "Post",
 	fields: (t) => ({
@@ -65,7 +63,7 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 });
 
 //
-//   DEFINE ROOT QUERIES AND MUTAITONS
+//   DEFINE ROOT QUERIES AND MUTATOINS
 //
 
 schemaBuilder.queryFields((t) => {
@@ -76,6 +74,20 @@ schemaBuilder.queryFields((t) => {
 				return db.query.users.findMany({
 					...query,
 					...ctx.abilities.users.filter("read"),
+				});
+			},
+		}),
+	};
+});
+
+schemaBuilder.queryFields((t) => {
+	return {
+		findManyPosts: t.drizzleField({
+			type: [PostRef],
+			resolve: (query, root, args, ctx, info) => {
+				return db.query.posts.findMany({
+					...query,
+					...ctx.abilities.posts.filter("read"),
 				});
 			},
 		}),

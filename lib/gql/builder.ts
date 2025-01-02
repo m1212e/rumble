@@ -2,16 +2,20 @@ import SchemaBuilder from "@pothos/core";
 import DrizzlePlugin from "@pothos/plugin-drizzle";
 import { type YogaServerOptions, createYoga } from "graphql-yoga";
 import { createAbilityBuilder } from "../abilities/builder";
+import { RumbleError } from "../helpers/rumbleError";
 import type { GenericDrizzleDbTypeConstraints } from "../types/genericDrizzleDbType";
 
 export const rumble = async <
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
+	Action extends string = "create" | "read" | "update" | "delete",
 >({
 	db,
 	nativeServerOptions,
 	context: makeUserContext,
+	onlyQuery = false,
+	actions = ["create", "read", "update", "delete"] as Action[],
 }: {
 	/**
 	 * Your drizzle database instance
@@ -30,8 +34,17 @@ export const rumble = async <
 	context?:
 		| ((event: RequestEvent) => Promise<UserContext> | UserContext)
 		| undefined;
+	/**
+	 * If you only want to create queries and do not need mutations, enable this
+	 */
+	onlyQuery?: boolean;
+	/**
+	 * The actions that are available
+	 */
+	actions?: Action[];
 }) => {
-	const abilityBuilder = createAbilityBuilder<UserContext, DB>({
+	type DBQueryKey = keyof DB["query"];
+	const abilityBuilder = createAbilityBuilder<UserContext, DB, Action>({
 		db,
 	});
 
@@ -71,7 +84,89 @@ export const rumble = async <
 	});
 
 	nativeBuilder.queryType({});
-	nativeBuilder.mutationType({});
+
+	if (!onlyQuery) {
+		nativeBuilder.mutationType({});
+	}
+
+	const implementDefaultType = <
+		ExplicitTableName extends DBQueryKey,
+		RefName extends string,
+	>({
+		tableName,
+		name,
+		readAction = "read" as Action,
+	}: {
+		tableName: ExplicitTableName;
+		name: RefName;
+		readAction?: Action;
+	}) => {
+		const schema = db._.schema![tableName as any];
+		return nativeBuilder.drizzleObject(tableName as any, {
+			name,
+			fields: (t) => {
+				const mapSQLTypeStringToExposedPothosType = (
+					sqlType: string,
+					columnName: string,
+				) => {
+					switch (sqlType) {
+						case "serial":
+							// @ts-expect-error
+							return t.exposeInt(columnName);
+						case "int":
+							// @ts-expect-error
+							return t.exposeInt(columnName);
+						case "string":
+							// @ts-expect-error
+							return t.exposeString(columnName);
+						case "text":
+							// @ts-expect-error
+							return t.exposeString(columnName);
+						case "boolean":
+							// @ts-expect-error
+							return t.exposeBoolean(columnName);
+						default:
+							throw new RumbleError(
+								`Unknown SQL type: ${sqlType}. Please open an issue so it can be added.`,
+							);
+					}
+				};
+
+				const fields = Object.entries(schema.columns).reduce(
+					(acc, [key, value]) => {
+						acc[key] = mapSQLTypeStringToExposedPothosType(
+							value.getSQLType(),
+							value.name,
+						);
+						return acc;
+					},
+					{} as Record<
+						string,
+						ReturnType<typeof mapSQLTypeStringToExposedPothosType>
+					>,
+				);
+
+				const relations = Object.entries(schema.relations).reduce(
+					(acc, [key, value]) => {
+						acc[key] = t.relation(key, {
+							query: (_args: any, ctx: any) =>
+								ctx.abilities[tableName as any].filter(readAction),
+						} as any) as any;
+						return acc;
+					},
+					{} as Record<
+						string,
+						ReturnType<typeof mapSQLTypeStringToExposedPothosType>
+					>,
+				);
+
+				return {
+					...fields,
+					...relations,
+				} as any;
+			},
+		});
+	};
 
 	return {
 		/**
@@ -114,5 +209,9 @@ export const rumble = async <
 				schema: nativeBuilder.toSchema(),
 				context: makeContext,
 			}),
+		/**
+		 * A function for creating default objects for your schema
+		 */
+		implementDefaultType,
 	};
 };
