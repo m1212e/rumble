@@ -94,7 +94,7 @@ const UserRef = implementDefaultObject({
 });
 ```
 
-### Definign queries and mutations
+### Defining queries and mutations
 Now we can define some things you can do. Again we use pothos for that. So please refer to [the docs](https://pothos-graphql.dev/docs/plugins/drizzle) if something is unclear.
 ```ts
 schemaBuilder.queryFields((t) => {
