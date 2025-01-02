@@ -142,7 +142,8 @@ schemaBuilder.queryFields((t) => {
               // again, here we apply the abilities from above
               where: ctx.abilities.users.filter("read").where,
             })
-            // note that we need to manually raise an error if the value is not found since there is a type mismatch between GraphQL and the drizzle query result. 
+            // note that we need to manually raise an error if the value is not found
+            // since there is a type mismatch between GraphQL and the drizzle query result. 
             .then(assertFindFirstExists)
         );
       },
