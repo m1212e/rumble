@@ -1,4 +1,4 @@
-import SchemaBuilder from "@pothos/core";
+import SchemaBuilder, { FieldRef } from "@pothos/core";
 import DrizzlePlugin from "@pothos/plugin-drizzle";
 import { type YogaServerOptions, createYoga } from "graphql-yoga";
 import { createAbilityBuilder } from "../abilities/builder";
@@ -165,7 +165,7 @@ export const rumble = <
 					...relations,
 				} as any;
 			},
-		});
+		}) as any;
 	};
 
 	return {
