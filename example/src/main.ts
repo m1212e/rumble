@@ -13,15 +13,14 @@ export const db = drizzle(
 	{ schema },
 );
 
-const { abilityBuilder, schemaBuilder, yoga, implementDefaultType } =
-	await rumble({
-		db,
-		context(request) {
-			return {
-				userId: 2,
-			};
-		},
-	});
+const { abilityBuilder, schemaBuilder, yoga, implementDefaultObject } = rumble({
+	db,
+	context(request) {
+		return {
+			userId: 2,
+		};
+	},
+});
 
 //
 //   DEFINING ABILITIES
@@ -45,7 +44,7 @@ abilityBuilder.posts
 
 // you can use the helper to implement a default version of your object based on the db schema.
 // It exposes all fields and restricts the query based on the abilities
-const UserRef = implementDefaultType({
+const UserRef = implementDefaultObject({
 	name: "User",
 	tableName: "users",
 });

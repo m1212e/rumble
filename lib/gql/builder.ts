@@ -5,7 +5,7 @@ import { createAbilityBuilder } from "../abilities/builder";
 import { RumbleError } from "../helpers/rumbleError";
 import type { GenericDrizzleDbTypeConstraints } from "../types/genericDrizzleDbType";
 
-export const rumble = async <
+export const rumble = <
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
@@ -89,7 +89,7 @@ export const rumble = async <
 		nativeBuilder.mutationType({});
 	}
 
-	const implementDefaultType = <
+	const implementDefaultObject = <
 		ExplicitTableName extends DBQueryKey,
 		RefName extends string,
 	>({
@@ -212,6 +212,6 @@ export const rumble = async <
 		/**
 		 * A function for creating default objects for your schema
 		 */
-		implementDefaultType,
+		implementDefaultObject,
 	};
 };
