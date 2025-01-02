@@ -43,7 +43,6 @@ export const rumble = <
 	 */
 	actions?: Action[];
 }) => {
-	type DBQueryKey = keyof DB["query"];
 	const abilityBuilder = createAbilityBuilder<UserContext, DB, Action>({
 		db,
 	});
@@ -90,7 +89,7 @@ export const rumble = <
 	}
 
 	const implementDefaultObject = <
-		ExplicitTableName extends DBQueryKey,
+		ExplicitTableName extends Parameters<typeof nativeBuilder.drizzleObject>[0],
 		RefName extends string,
 	>({
 		tableName,
@@ -101,8 +100,8 @@ export const rumble = <
 		name: RefName;
 		readAction?: Action;
 	}) => {
-		const schema = db._.schema![tableName as any];
-		return nativeBuilder.drizzleObject(tableName as any, {
+		const schema = db._.schema![tableName];
+		return nativeBuilder.drizzleObject(tableName, {
 			name,
 			fields: (t) => {
 				const mapSQLTypeStringToExposedPothosType = (
@@ -150,7 +149,7 @@ export const rumble = <
 					(acc, [key, value]) => {
 						acc[key] = t.relation(key, {
 							query: (_args: any, ctx: any) =>
-								ctx.abilities[tableName as any].filter(readAction),
+								ctx.abilities[tableName].filter(readAction),
 						} as any) as any;
 						return acc;
 					},
