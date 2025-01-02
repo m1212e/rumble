@@ -163,9 +163,9 @@ export const rumble = <
 				return {
 					...fields,
 					...relations,
-				} as any;
+				};
 			},
-		}) as any;
+		});
 	};
 
 	return {
