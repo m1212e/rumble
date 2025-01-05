@@ -37,27 +37,6 @@ await build({
 });
 
 // ==============================
-//    Correct pothos reference
-// ==============================
-
-// iterate through all d.ts file of the output
-console.info("Correcting pothos reference...");
-for (const file of await readdir(outDir)) {
-	if (!file.endsWith(".d.ts")) {
-		continue;
-	}
-	const content = (await readFile(join(outDir, file))).toString();
-	await writeFile(
-		join(outDir, file),
-		content.replace(
-			"declare const drizzleTableKey: unique symbol;",
-			'import { drizzleTableKey } from "@pothos/plugin-drizzle"',
-		),
-	);
-}
-console.info("Corrected pothos reference!");
-
-// ==============================
 //      Create package.json
 // ==============================
 
