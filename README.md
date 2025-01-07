@@ -100,14 +100,15 @@ rumble also supports automatically implementing basic filtering args. Those curr
 const {
   // the input arg type, here we rename it to UserWhere
   inputType: UserWhere,
-  // since drizzle wants proper instantiated filter clauses with `eq` calls and references to each field we need a transformer function which converts the object received from gql to a drizzle filter
+  // since drizzle wants proper instantiated filter clauses with `eq` calls and references to each field
+  //  we need a transformer function which converts the object received from gql to a drizzle filter
   transformArgumentToQueryCondition: transformUserWhere,
 } = implementWhereArg({
   // for which table to implement this
   tableName: "users",
 });
 ```
-usage of the above argument type may look like this
+usage of the above argument type may look like this. This query will return all users which the currently logged in user, according to our defined abilities, is allowed to see AND which match the passed filter arguments.
 ```ts
 schemaBuilder.queryFields((t) => {
   return {
