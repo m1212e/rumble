@@ -1,4 +1,5 @@
-import { or } from "drizzle-orm";
+import { log } from "node:console";
+import { and, or } from "drizzle-orm";
 import type {
 	GenericDrizzleDbTypeConstraints,
 	QueryConditionObject,
@@ -110,7 +111,16 @@ export const createAbilityBuilder = <
 			} = {} as any;
 
 			const createEntityObject = (entityKey: DBQueryKey) => ({
-				filter: (action: Action) => {
+				filter: (
+					action: Action,
+					options?: {
+						/**
+						 * Additional conditions applied only for this call. Useful for injecting one time additional filters
+						 * for e.g. user args in a handler.
+						 */
+						inject?: QueryConditionObject;
+					},
+				) => {
 					const conditionsPerEntity = registeredConditions[entityKey];
 					if (!conditionsPerEntity) {
 						throw "TODO (No allowed entry found for this condition) #1";
@@ -152,9 +162,16 @@ export const createAbilityBuilder = <
 						}
 					}
 
+					if (options?.inject?.limit && highestLimit < options.inject.limit) {
+						highestLimit = options.inject.limit;
+					}
+
 					let combinedAllowedColumns: Record<string, any> | undefined =
 						undefined;
-					for (const conditionObject of allConditionObjects) {
+					for (const conditionObject of [
+						...allConditionObjects,
+						options?.inject ?? {},
+					]) {
 						if (conditionObject.columns) {
 							if (combinedAllowedColumns === undefined) {
 								combinedAllowedColumns = conditionObject.columns;
@@ -171,16 +188,25 @@ export const createAbilityBuilder = <
 						.filter((o) => o.where)
 						.map((o) => o.where);
 
-					const combinedWhere =
+					let combinedWhere =
 						accumulatedWhereConditions.length > 0
 							? or(...accumulatedWhereConditions)
 							: undefined;
 
-					return {
+					if (options?.inject?.where) {
+						combinedWhere = combinedWhere
+							? and(combinedWhere, options.inject.where)
+							: options.inject.where;
+					}
+
+					const ret = {
 						where: combinedWhere,
 						columns: combinedAllowedColumns,
 						limit: highestLimit,
 					};
+
+					//TODO make this typesafe per actual entity
+					return ret;
 				},
 			});
 

@@ -1,9 +1,13 @@
 import SchemaBuilder from "@pothos/core";
 import DrizzlePlugin from "@pothos/plugin-drizzle";
+import { and, eq } from "drizzle-orm";
 import { type YogaServerOptions, createYoga } from "graphql-yoga";
 import { createAbilityBuilder } from "../abilities/builder";
 import { RumbleError } from "../helpers/rumbleError";
-import type { GenericDrizzleDbTypeConstraints } from "../types/genericDrizzleDbType";
+import type {
+	GenericDrizzleDbTypeConstraints,
+	QueryConditionObject,
+} from "../types/genericDrizzleDbType";
 
 export const rumble = <
 	UserContext extends Record<string, any>,
@@ -70,16 +74,11 @@ export const rumble = <
 		// 	};
 		// };
 		DrizzleSchema: DB["_"]["fullSchema"];
-		DefaultFieldNullability: false;
-		DefaultArgumentNullability: false;
-		DefaultInputFieldRequiredness: true;
 	}>({
 		plugins: [DrizzlePlugin],
 		drizzle: {
 			client: db,
 		},
-		defaultFieldNullability: false,
-		defaultInputFieldRequiredness: true,
 	});
 
 	nativeBuilder.queryType({});
@@ -89,7 +88,7 @@ export const rumble = <
 	}
 
 	const implementDefaultObject = <
-		ExplicitTableName extends Parameters<typeof nativeBuilder.drizzleObject>[0],
+		ExplicitTableName extends keyof NonNullable<DB["_"]["schema"]>,
 		RefName extends string,
 	>({
 		tableName,
@@ -100,13 +99,19 @@ export const rumble = <
 		name: RefName;
 		readAction?: Action;
 	}) => {
-		const schema = db._.schema![tableName];
+		const schema = (db._.schema as NonNullable<DB["_"]["schema"]>)[tableName];
+
 		return nativeBuilder.drizzleObject(tableName, {
 			name,
 			fields: (t) => {
-				const mapSQLTypeStringToExposedPothosType = (
-					sqlType: string,
-					columnName: string,
+				const mapSQLTypeStringToExposedPothosType = <
+					Column extends keyof typeof schema.columns,
+					SQLType extends ReturnType<
+						(typeof schema.columns)[Column]["getSQLType"]
+					>,
+				>(
+					sqlType: SQLType,
+					columnName: Column,
 				) => {
 					switch (sqlType) {
 						case "serial":
@@ -135,12 +140,12 @@ export const rumble = <
 					(acc, [key, value]) => {
 						acc[key] = mapSQLTypeStringToExposedPothosType(
 							value.getSQLType(),
-							value.name,
+							key,
 						);
 						return acc;
 					},
 					{} as Record<
-						string,
+						keyof typeof schema.columns,
 						ReturnType<typeof mapSQLTypeStringToExposedPothosType>
 					>,
 				);
@@ -149,12 +154,12 @@ export const rumble = <
 					(acc, [key, value]) => {
 						acc[key] = t.relation(key, {
 							query: (_args: any, ctx: any) =>
-								ctx.abilities[tableName].filter(readAction),
+								ctx.abilities[key].filter(readAction),
 						} as any) as any;
 						return acc;
 					},
 					{} as Record<
-						string,
+						keyof typeof schema.relations,
 						ReturnType<typeof mapSQLTypeStringToExposedPothosType>
 					>,
 				);
@@ -165,6 +170,120 @@ export const rumble = <
 				};
 			},
 		});
+	};
+
+	const implementWhereArgType = <
+		ExplicitTableName extends keyof NonNullable<DB["_"]["schema"]>,
+		RefName extends string,
+	>({
+		tableName,
+		name,
+	}: {
+		tableName: ExplicitTableName;
+		name?: RefName | undefined;
+	}) => {
+		const schema = (db._.schema as NonNullable<DB["_"]["schema"]>)[tableName];
+
+		const inputType = nativeBuilder.inputType(
+			name ??
+				`${
+					String(tableName).charAt(0).toUpperCase() + String(tableName).slice(1)
+				}WhereInputArgument`,
+			{
+				fields: (t) => {
+					const mapSQLTypeStringToInputPothosType = <
+						Column extends keyof typeof schema.columns,
+						SQLType extends ReturnType<
+							(typeof schema.columns)[Column]["getSQLType"]
+						>,
+					>(
+						sqlType: SQLType,
+						columnName: Column,
+					) => {
+						switch (sqlType) {
+							case "serial":
+								// @ts-expect-error
+								return t.int(columnName, { required: false });
+							case "int":
+								// @ts-expect-error
+								return t.int(columnName, { required: false });
+							case "string":
+								// @ts-expect-error
+								return t.string(columnName, { required: false });
+							case "text":
+								// @ts-expect-error
+								return t.string(columnName, { required: false });
+							case "boolean":
+								// @ts-expect-error
+								return t.boolean(columnName, { required: false });
+							default:
+								throw new RumbleError(
+									`Unknown SQL type: ${sqlType} (input). Please open an issue so it can be added.`,
+								);
+						}
+					};
+
+					const fields = Object.entries(schema.columns).reduce(
+						(acc, [key, value]) => {
+							acc[key] = mapSQLTypeStringToInputPothosType(
+								value.getSQLType(),
+								key,
+							);
+							return acc;
+						},
+						{} as Record<
+							keyof typeof schema.columns,
+							ReturnType<typeof mapSQLTypeStringToInputPothosType>
+						>,
+					);
+
+					//     const relations = Object.entries(schema.relations).reduce(
+					//       (acc, [key, value]) => {
+					//         acc[key] = t.relation(key, {
+					//           query: (_args: any, ctx: any) =>
+					//             ctx.abilities[tableName].filter(readAction),
+					//         } as any) as any;
+					//         return acc;
+					//       },
+					//       {} as Record<
+					//         keyof typeof schema.relations,
+					//         ReturnType<typeof mapSQLTypeStringToExposedPothosType>
+					//       >
+					//     );
+
+					return {
+						...fields,
+						// ...relations,
+					};
+				},
+			},
+		);
+
+		const transformArgumentToQueryCondition = <
+			T extends typeof inputType.$inferInput,
+		>(
+			arg: T | null | undefined,
+		) => {
+			if (!arg) return undefined;
+			const mapColumnToQueryCondition = <
+				ColumnName extends keyof typeof schema.columns,
+			>(
+				columnname: ColumnName,
+			) => {
+				const column = schema.columns[columnname];
+				const filterValue = arg[columnname];
+				if (!filterValue) return;
+
+				return eq(column, filterValue);
+			};
+
+			const conditions = Object.keys(schema.columns).map(
+				mapColumnToQueryCondition,
+			);
+			return and(...conditions);
+		};
+
+		return { inputType, transformArgumentToQueryCondition };
 	};
 
 	return {
@@ -212,5 +331,9 @@ export const rumble = <
 		 * A function for creating default objects for your schema
 		 */
 		implementDefaultObject,
+		/**
+		 * A function for creating where args to filter entities
+		 */
+		implementWhereArg: implementWhereArgType,
 	};
 };

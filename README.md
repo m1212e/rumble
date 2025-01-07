@@ -94,6 +94,48 @@ const UserRef = implementDefaultObject({
 });
 ```
 
+#### Automatic arg implementation
+rumble also supports automatically implementing basic filtering args. Those currently only allow for equality filtering for each field. E.g. the user can pass an email or an id and retrieve only results matching these for equality. Implementation works like this
+```ts
+const {
+  // the input arg type, here we rename it to UserWhere
+  inputType: UserWhere,
+  // since drizzle wants proper instantiated filter clauses with `eq` calls and references to each field we need a transformer function which converts the object received from gql to a drizzle filter
+  transformArgumentToQueryCondition: transformUserWhere,
+} = implementWhereArg({
+  // for which table to implement this
+  tableName: "users",
+});
+```
+usage of the above argument type may look like this
+```ts
+schemaBuilder.queryFields((t) => {
+  return {
+    findManyUsers: t.drizzleField({
+      type: [UserRef],
+      args: {
+        // here we set our default type as type for the where argument
+        where: t.arg({ type: UserWhere }),
+      },
+      resolve: (query, root, args, ctx, info) => {
+        return db.query.users.findMany(
+          query(
+            ctx.abilities.users.filter("read", 
+            // this additional object offers temporarily injecting additional filters to our existing ability filters
+            {
+              // the inject field allows for temp, this time only filters to be added to our ability filters. They will only be applied for this specific call.
+              inject: { 
+                // where conditions which are injected will be applied with an AND rather than an OR so the injected filter will further restrict the existing restrictions rather than expanding them
+                where: transformUserWhere(args.where) },
+            })
+          )
+        );
+      },
+    }),
+  };
+});
+```
+
 ### Defining queries and mutations
 Now we can define some things you can do. Again we use pothos for that. So please refer to [the docs](https://pothos-graphql.dev/docs/plugins/drizzle) if something is unclear.
 ```ts

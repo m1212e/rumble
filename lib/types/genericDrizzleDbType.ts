@@ -1,10 +1,10 @@
 import type { DrizzleClient } from "@pothos/plugin-drizzle";
 
-export type QueryConditionObject = {
+export type QueryConditionObject = Partial<{
 	where: any;
 	columns: any;
 	limit: any;
-};
+}>;
 
 export type GenericDrizzleDbTypeConstraints = {
 	query: {

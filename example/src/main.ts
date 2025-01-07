@@ -13,7 +13,13 @@ export const db = drizzle(
 	{ schema },
 );
 
-const { abilityBuilder, schemaBuilder, yoga, implementDefaultObject } = rumble({
+const {
+	abilityBuilder,
+	schemaBuilder,
+	yoga,
+	implementDefaultObject,
+	implementWhereArg,
+} = rumble({
 	db,
 	context(request) {
 		return {
@@ -65,15 +71,28 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 //   DEFINE ROOT QUERIES AND MUTATOINS
 //
 
+const {
+	inputType: UserWhere,
+	transformArgumentToQueryCondition: transformUserWhere,
+} = implementWhereArg({
+	tableName: "users",
+});
+
 schemaBuilder.queryFields((t) => {
 	return {
 		findManyUsers: t.drizzleField({
 			type: [UserRef],
+			args: {
+				where: t.arg({ type: UserWhere }),
+			},
 			resolve: (query, root, args, ctx, info) => {
-				return db.query.users.findMany({
-					...query,
-					...ctx.abilities.users.filter("read"),
-				});
+				return db.query.users.findMany(
+					query(
+						ctx.abilities.users.filter("read", {
+							inject: { where: transformUserWhere(args.where) },
+						}),
+					),
+				);
 			},
 		}),
 	};
@@ -84,10 +103,9 @@ schemaBuilder.queryFields((t) => {
 		findManyPosts: t.drizzleField({
 			type: [PostRef],
 			resolve: (query, root, args, ctx, info) => {
-				return db.query.posts.findMany({
-					...query,
-					...ctx.abilities.posts.filter("read"),
-				});
+				return db.query.posts.findMany(
+					query(ctx.abilities.posts.filter("read")),
+				);
 			},
 		}),
 	};
@@ -100,10 +118,11 @@ schemaBuilder.queryFields((t) => {
 			resolve: (query, root, args, ctx, info) => {
 				return (
 					db.query.users
-						.findFirst({
-							...query,
-							where: ctx.abilities.users.filter("read").where,
-						})
+						.findFirst(
+							query({
+								where: ctx.abilities.users.filter("read").where,
+							}),
+						)
 						// note that we need to manually raise an error if the value is not found
 						.then(assertFindFirstExists)
 				);
