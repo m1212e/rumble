@@ -166,6 +166,7 @@ schemaBuilder.queryFields((t) => {
 							}),
 						)
 						// note that we need to manually raise an error if the value is not found
+            // since there is a type mismatch between drizzle and pothos
 						.then(assertFindFirstExists)
 				);
 			},
