@@ -141,88 +141,67 @@ schemaBuilder.queryFields((t) => {
 Now we can define some things you can do. Again we use pothos for that. So please refer to [the docs](https://pothos-graphql.dev/docs/plugins/drizzle) if something is unclear.
 ```ts
 schemaBuilder.queryFields((t) => {
-  return {
-    findManyUsers: t.drizzleField({
-      type: [UserRef],
-      resolve: (query, root, args, ctx, info) => {
-        return db.query.users.findMany({
-          ...query,
-          // this is how we can apply the abilities to the request
-          ...ctx.abilities.users.filter("read"),
-        });
-      },
-    }),
-  };
+	return {
+		findManyPosts: t.drizzleField({
+			type: [PostRef],
+			resolve: (query, root, args, ctx, info) => {
+				return db.query.posts.findMany(
+					query(ctx.abilities.posts.filter("read")),
+				);
+			},
+		}),
+	};
 });
 
 schemaBuilder.queryFields((t) => {
-  return {
-    findManyPosts: t.drizzleField({
-      type: [PostRef],
-      resolve: (query, root, args, ctx, info) => {
-        return db.query.posts.findMany({
-          ...query,
-          ...ctx.abilities.posts.filter("read"),
-        });
-      },
-    }),
-  };
+	return {
+		findFirstUser: t.drizzleField({
+			type: UserRef,
+			resolve: (query, root, args, ctx, info) => {
+				return (
+					db.query.users
+						.findFirst(
+							query({
+								where: ctx.abilities.users.filter("read").where,
+							}),
+						)
+						// note that we need to manually raise an error if the value is not found
+						.then(assertFindFirstExists)
+				);
+			},
+		}),
+	};
 });
 
-import {
-  assertFindFirstExists,
-  assertFirstEntryExists,
-} from "@m1212e/rumble";
-schemaBuilder.queryFields((t) => {
-  return {
-    findFirstUser: t.drizzleField({
-      type: UserRef,
-      resolve: (query, root, args, ctx, info) => {
-        return (
-          db.query.users
-            .findFirst({
-              ...query,
-              // again, here we apply the abilities from above
-              where: ctx.abilities.users.filter("read").where,
-            })
-            // note that we need to manually raise an error if the value is not found
-            // since there is a type mismatch between GraphQL and the drizzle query result. 
-            .then(assertFindFirstExists)
-        );
-      },
-    }),
-  };
-});
-```
-A mutation could look like this:
-```ts
+// mutation to update the username
 schemaBuilder.mutationFields((t) => {
-  return {
-    updateUsername: t.drizzleField({
-      type: UserRef,
-      args: {
-        userId: t.arg.int({ required: true }),
-        newName: t.arg.string({ required: true }),
-      },
-      resolve: (query, root, args, ctx, info) => {
-        return (
-          db
-            .update(schema.users)
-            .set({
-              name: args.newName,
-            })
-            .where(
-              and(
-                eq(schema.users.id, args.userId),
-                ctx.abilities.users.filter("update").where
-              )
-            )
-            .returning({ id: schema.users.id, name: schema.users.name })
-            // note the different error mapper
-            .then(assertFirstEntryExists)
-        );
-      },
-    }),
-  };
+	return {
+		updateUsername: t.drizzleField({
+			type: UserRef,
+			args: {
+				userId: t.arg.int({ required: true }),
+				newName: t.arg.string({ required: true }),
+			},
+			resolve: (query, root, args, ctx, info) => {
+				return (
+					db
+						.update(schema.users)
+						.set({
+							name: args.newName,
+						})
+						.where(
+							and(
+								eq(schema.users.id, args.userId),
+								ctx.abilities.users.filter("update").where,
+							),
+						)
+						.returning({ id: schema.users.id, name: schema.users.name })
+						// note the different error mapper
+						.then(assertFirstEntryExists)
+				);
+			},
+		}),
+	};
 });
+
 ```
