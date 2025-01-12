@@ -25,8 +25,8 @@
 		"drizzle-orm": "^0.38.3"
 	},
 	"dependencies": {
+		"@pothos/plugin-drizzle": "^0.6.0",
 		"@pothos/core": "^4.3.0",
-		"@pothos/plugin-drizzle": "^0.5.3",
-		"graphql-yoga": "^5.10.8"
+		"graphql-yoga": "^5.10.9"
 	}
 }
