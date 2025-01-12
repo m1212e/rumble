@@ -3,6 +3,7 @@ import DrizzlePlugin from "@pothos/plugin-drizzle";
 import { and, eq } from "drizzle-orm";
 import { type YogaServerOptions, createYoga } from "graphql-yoga";
 import { createAbilityBuilder } from "../abilities/builder";
+import { lazy } from "../helpers/lazy";
 import { RumbleError } from "../helpers/rumbleError";
 import type {
 	GenericDrizzleDbTypeConstraints,
@@ -172,6 +173,20 @@ export const rumble = <
 		});
 	};
 
+	const intWhereArgEquailityArgReference = lazy(() => {
+		return nativeBuilder.inputType("$IntWhereArgEquailityArgReference", {
+			fields: (t) => ({
+				equals: t.int({ required: false }),
+				in: t.intList({ required: false }),
+				notIn: t.intList({ required: false }),
+				gt: t.int({ required: false }),
+				gte: t.int({ required: false }),
+				lt: t.int({ required: false }),
+				lte: t.int({ required: false }),
+			}),
+		});
+	});
+
 	const implementWhereArgType = <
 		ExplicitTableName extends keyof NonNullable<DB["_"]["schema"]>,
 		RefName extends string,
@@ -203,7 +218,7 @@ export const rumble = <
 						switch (sqlType) {
 							case "serial":
 								// @ts-expect-error
-								return t.int(columnName, { required: false });
+								return t.field(columnName, { required: false });
 							case "int":
 								// @ts-expect-error
 								return t.int(columnName, { required: false });
