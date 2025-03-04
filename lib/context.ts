@@ -20,6 +20,15 @@ export type ContextFunctionType<
 	>
 >;
 
+export type ContextType<
+	UserContext extends Record<string, any>,
+	DB extends GenericDrizzleDbTypeConstraints,
+	RequestEvent extends Record<string, any>,
+	Action extends string,
+> = Awaited<
+	ReturnType<ContextFunctionType<UserContext, DB, RequestEvent, Action>>
+>;
+
 export const createContextFunction = <
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,

@@ -1,9 +1,10 @@
+import { EventEmitter } from "node:events";
 import SchemaBuilder from "@pothos/core";
 import DrizzlePlugin from "@pothos/plugin-drizzle";
-import type { ContextFunctionType } from "./context";
+import SmartSubscriptionsPlugin from "@pothos/plugin-smart-subscriptions";
+import type { ContextFunctionType, ContextType } from "./context";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import type { RumbleInput } from "./types/rumbleInput";
-// import SmartSubscriptionsPlugin from "@pothos/plugin-smart-subscriptions";
 
 export type SchemaBuilderType<
 	UserContext extends Record<string, any>,
@@ -34,11 +35,12 @@ export const createSchemaBuilder = <
 >({
 	db,
 	onlyQuery,
+	subscriptions,
 }: RumbleInput<UserContext, DB, RequestEvent, Action> & {
 	//   abilityBuilder: AbilityBuilder;
 }) => {
 	const builder = new SchemaBuilder<{
-		Context: Awaited<ReturnType<ContextFunction>>;
+		Context: ContextType<UserContext, DB, RequestEvent, Action>;
 		// Scalars: Scalars<Prisma.Decimal, Prisma.InputJsonValue | null, Prisma.InputJsonValue> & {
 		// 	File: {
 		// 		Input: File;
@@ -51,21 +53,27 @@ export const createSchemaBuilder = <
 		// };
 		DrizzleSchema: DB["_"]["fullSchema"];
 	}>({
-		plugins: [
-			DrizzlePlugin,
-			//  SmartSubscriptionsPlugin
-		],
+		plugins: [DrizzlePlugin, SmartSubscriptionsPlugin],
 		drizzle: {
 			client: db,
 		},
-		// smartSubscriptions: {
-		// subscribe: (
-		//   name: string,
-		//   context: Context,
-		//   cb: (err: unknown, data?: unknown) => void,
-		// ) => Promise<void> | void;
-		// unsubscribe: (name: string, context: Context) => Promise<void> | void;
-		// },
+		smartSubscriptions: subscriptions
+			? {
+					subscribe: subscriptions.subscribe,
+					unsubscribe: subscriptions.unsubscribe,
+				}
+			: (() => {
+					const defaultEventEmitter = new EventEmitter();
+
+					return {
+						subscribe: (name, context, cb) => {
+							defaultEventEmitter.on(name, cb);
+						},
+						unsubscribe: (name, context) => {
+							defaultEventEmitter.removeAllListeners(name);
+						},
+					};
+				})(),
 	});
 
 	builder.queryType({});

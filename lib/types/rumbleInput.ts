@@ -1,4 +1,5 @@
 import type { YogaServerOptions } from "graphql-yoga";
+import type { ContextType } from "../context";
 import type { GenericDrizzleDbTypeConstraints } from "./genericDrizzleDbType";
 
 export type RumbleInput<
@@ -32,4 +33,18 @@ export type RumbleInput<
 	 * The actions that are available
 	 */
 	actions?: Action[];
+	/**
+	 *
+	 */
+	subscriptions?: {
+		subscribe: (
+			name: string,
+			context: ContextType<UserContext, DB, RequestEvent, Action>,
+			cb: (err: unknown, data?: unknown) => void,
+		) => Promise<void> | void;
+		unsubscribe: (
+			name: string,
+			context: ContextType<UserContext, DB, RequestEvent, Action>,
+		) => Promise<void> | void;
+	};
 };
