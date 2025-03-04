@@ -1,6 +1,6 @@
-export { rumble } from "./gql/builder";
+export { rumble } from "./rumble";
 export {
 	assertFindFirstExists,
 	assertFirstEntryExists,
 } from "./helpers/helper";
-export { RumbleError } from "./helpers/rumbleError";
+export { RumbleError } from "./types/rumbleError";

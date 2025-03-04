@@ -3,9 +3,17 @@ import { and, or } from "drizzle-orm";
 import type {
 	GenericDrizzleDbTypeConstraints,
 	QueryConditionObject,
-} from "../types/genericDrizzleDbType";
+} from "./types/genericDrizzleDbType";
+import type { RumbleInput } from "./types/rumbleInput";
 
-export type AbilityBuilder = ReturnType<typeof createAbilityBuilder>;
+export type AbilityBuilderType<
+	UserContext extends Record<string, any>,
+	DB extends GenericDrizzleDbTypeConstraints,
+	RequestEvent extends Record<string, any>,
+	Action extends string,
+> = ReturnType<
+	typeof createAbilityBuilder<UserContext, DB, RequestEvent, Action>
+>;
 
 type Condition<DBParameters, UserContext> =
 	| SimpleCondition<DBParameters>
@@ -48,12 +56,11 @@ function isSyncFunctionCondition<DBParameters, UserContext>(
 export const createAbilityBuilder = <
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
+	RequestEvent extends Record<string, any>,
 	Action extends string,
 >({
 	db,
-}: {
-	db: DB;
-}) => {
+}: RumbleInput<UserContext, DB, RequestEvent, Action>) => {
 	type DBQueryKey = keyof DB["query"];
 	type DBParameters = Parameters<DB["query"][DBQueryKey]["findMany"]>[0];
 

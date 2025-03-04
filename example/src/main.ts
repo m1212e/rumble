@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { rumble } from "../../lib/gql/builder";
+import { rumble } from "../../lib";
 import {
 	assertFindFirstExists,
 	assertFirstEntryExists,
@@ -13,13 +13,7 @@ export const db = drizzle(
 	{ schema },
 );
 
-const {
-	abilityBuilder,
-	schemaBuilder,
-	yoga,
-	implementDefaultObject,
-	implementWhereArg,
-} = rumble({
+const { abilityBuilder, schemaBuilder, arg, object, yoga } = rumble({
 	db,
 	context(request) {
 		return {
@@ -50,7 +44,7 @@ abilityBuilder.posts
 
 // you can use the helper to implement a default version of your object based on the db schema.
 // It exposes all fields and restricts the query based on the abilities
-const UserRef = implementDefaultObject({
+const UserRef = object({
 	name: "User",
 	tableName: "users",
 });
@@ -74,7 +68,7 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 const {
 	inputType: UserWhere,
 	transformArgumentToQueryCondition: transformUserWhere,
-} = implementWhereArg({
+} = arg({
 	tableName: "users",
 });
 

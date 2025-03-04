@@ -1,4 +1,4 @@
-import { RumbleError } from "./rumbleError";
+import { RumbleError } from "../types/rumbleError";
 
 /**
  * 
