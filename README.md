@@ -25,7 +25,7 @@ export const db = drizzle(
   { schema }
 );
 
-const { abilityBuilder, schemaBuilder, yoga, implementDefaultObject } = rumble({ db });
+const { abilityBuilder } = rumble({ db });
 ```
 > If the creation of a drizzle instance with the schema definition seems unfamiliar to you, please see their excellent [getting started guide](https://orm.drizzle.team/docs/get-started)
 
@@ -85,124 +85,8 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 ```
 In the above object definition we tell pothos to expose the id and content so the fields will be just passed along from out database results and we define a relation to the posts author. We also restrict which author can be read. If the user which sends this request is not the author of a post, they cannot see the author and the request will fail. The `ctx.abilities.users.filter("read")` call simply injects the filter we defined in the abilities earlier and therefore restricts what can be returned.
 
-#### Automatic object implementation
-Since this can get a little extensive, especially for large models, rumble offers the `implementDefaultObject` helper. This does all of the above and will simply expose all fields and relations but with the ability restrictions applied.
-```ts
-const UserRef = implementDefaultObject({
-  name: "User",
-  tableName: "users",
-});
-```
+### Helpers
+rumble offers a set of helpers which make it easy to implement your api. Please see the [full example code](./example) for a more extensive demonstration of rumbles features.
 
-#### Automatic arg implementation
-rumble also supports automatically implementing basic filtering args. Those currently only allow for equality filtering for each field. E.g. the user can pass an email or an id and retrieve only results matching these for equality. Implementation works like this
-```ts
-const {
-  // the input arg type, here we rename it to UserWhere
-  inputType: UserWhere,
-  // since drizzle wants proper instantiated filter clauses with `eq` calls and references to each field
-  //  we need a transformer function which converts the object received from gql to a drizzle filter
-  transformArgumentToQueryCondition: transformUserWhere,
-} = implementWhereArg({
-  // for which table to implement this
-  tableName: "users",
-});
-```
-usage of the above argument type may look like this. This query will return all users which the currently logged in user, according to our defined abilities, is allowed to see AND which match the passed filter arguments.
-```ts
-schemaBuilder.queryFields((t) => {
-  return {
-    findManyUsers: t.drizzleField({
-      type: [UserRef],
-      args: {
-        // here we set our default type as type for the where argument
-        where: t.arg({ type: UserWhere }),
-      },
-      resolve: (query, root, args, ctx, info) => {
-        return db.query.users.findMany(
-          query(
-            ctx.abilities.users.filter("read", 
-            // this additional object offers temporarily injecting additional filters to our existing ability filters
-            {
-              // the inject field allows for temp, this time only filters to be added to our ability filters. They will only be applied for this specific call.
-              inject: { 
-                // where conditions which are injected will be applied with an AND rather than an OR so the injected filter will further restrict the existing restrictions rather than expanding them
-                where: transformUserWhere(args.where) },
-            })
-          )
-        );
-      },
-    }),
-  };
-});
-```
-
-### Defining queries and mutations
-Now we can define some things you can do. Again we use pothos for that. So please refer to [the docs](https://pothos-graphql.dev/docs/plugins/drizzle) if something is unclear.
-```ts
-schemaBuilder.queryFields((t) => {
-	return {
-		findManyPosts: t.drizzleField({
-			type: [PostRef],
-			resolve: (query, root, args, ctx, info) => {
-				return db.query.posts.findMany(
-					query(ctx.abilities.posts.filter("read")),
-				);
-			},
-		}),
-	};
-});
-
-schemaBuilder.queryFields((t) => {
-	return {
-		findFirstUser: t.drizzleField({
-			type: UserRef,
-			resolve: (query, root, args, ctx, info) => {
-				return (
-					db.query.users
-						.findFirst(
-							query({
-								where: ctx.abilities.users.filter("read").where,
-							}),
-						)
-						// note that we need to manually raise an error if the value is not found
-            // since there is a type mismatch between drizzle and pothos
-						.then(assertFindFirstExists)
-				);
-			},
-		}),
-	};
-});
-
-// mutation to update the username
-schemaBuilder.mutationFields((t) => {
-	return {
-		updateUsername: t.drizzleField({
-			type: UserRef,
-			args: {
-				userId: t.arg.int({ required: true }),
-				newName: t.arg.string({ required: true }),
-			},
-			resolve: (query, root, args, ctx, info) => {
-				return (
-					db
-						.update(schema.users)
-						.set({
-							name: args.newName,
-						})
-						.where(
-							and(
-								eq(schema.users.id, args.userId),
-								ctx.abilities.users.filter("update").where,
-							),
-						)
-						.returning({ id: schema.users.id, name: schema.users.name })
-						// note the different error mapper
-						.then(assertFirstEntryExists)
-				);
-			},
-		}),
-	};
-});
-
-```
+### Subscriptions
+rumble supports subscriptions right out of the box. When using the rumble helpers, you basically get subscriptions for free, no additional work required!
