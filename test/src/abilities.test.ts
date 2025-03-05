@@ -1,46 +1,46 @@
-import { expect, test } from "bun:test";
-import { buildHTTPExecutor } from "@graphql-tools/executor-http";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { parse } from "graphql";
-import { rumble } from "../../lib";
 import { makeSeededDBInstanceForTest } from "./db/db";
+import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
-test("allow simple read with helper implementation", async () => {
-	const { db, seedData } = await makeSeededDBInstanceForTest();
-	const { abilityBuilder, query, object, yoga } = rumble({
+describe("test rumble abilities", async () => {
+	let { db, seedData } = await makeSeededDBInstanceForTest();
+	let { rumble, executor } = makeRumbleSeedInstance(
 		db,
-		disableDefaultObjects: {
-			mutation: true,
-		},
+		seedData.users.at(0)?.id,
+	);
+
+	beforeAll(async () => {
+		const s = await makeSeededDBInstanceForTest();
+		db = s.db;
+		seedData = s.seedData;
+
+		const r = makeRumbleSeedInstance(db, seedData.users.at(0)?.id);
+		rumble = r.rumble;
+		executor = r.executor;
 	});
 
-	abilityBuilder.users.allow(["read"]);
+	test("allow simple read with helper implementation", async () => {
+		rumble.abilityBuilder.users.allow(["read"]);
 
-	object({ name: "User", tableName: "users" });
-	query({ tableName: "users" });
-
-	const yogaInstance = yoga();
-	const executor = buildHTTPExecutor({
-		fetch: yogaInstance.fetch,
-		endpoint: "http://yoga/graphql",
-	});
-
-	const result = await executor({
-		document: parse(/* GraphQL */ `
-      query {
-        findFirstUsers {
-          id
-          firstName
+		const r = await executor()({
+			document: parse(/* GraphQL */ `
+        query {
+          findFirstUsers {
+            id
+            firstName
+          }
         }
-      }
-    `),
-	});
+      `),
+		});
 
-	expect(result).toEqual({
-		data: {
-			findFirstUsers: {
-				id: seedData.users[0].id,
-				firstName: seedData.users[0].firstName,
+		expect(r).toEqual({
+			data: {
+				findFirstUsers: {
+					id: seedData.users[0].id,
+					firstName: seedData.users[0].firstName,
+				},
 			},
-		},
+		});
 	});
 });
