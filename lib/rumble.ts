@@ -2,6 +2,8 @@ import { createYoga } from "graphql-yoga";
 import { createAbilityBuilder } from "./abilityBuilder";
 import { createContextFunction } from "./context";
 import { createObjectImplementer } from "./object";
+import { createPubSubInstance } from "./pubsub";
+import { createQueryImplementer } from "./query";
 import { createSchemaBuilder } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import type { RumbleInput } from "./types/rumbleInput";
@@ -33,23 +35,33 @@ export const rumble = <
 		abilityBuilder,
 	});
 
-	const schemaBuilder = createSchemaBuilder<
+	const { makePubSubInstance, pubsub } = createPubSubInstance<
 		UserContext,
 		DB,
 		RequestEvent,
-		Action,
-		typeof context
-	>(rumbleInput);
+		Action
+	>({
+		...rumbleInput,
+	});
+
+	const { schemaBuilder } = createSchemaBuilder<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action
+	>({ ...rumbleInput, pubsub });
 
 	const object = createObjectImplementer<
 		UserContext,
 		DB,
 		RequestEvent,
 		Action,
-		typeof schemaBuilder
+		typeof schemaBuilder,
+		typeof makePubSubInstance
 	>({
 		...rumbleInput,
 		schemaBuilder,
+		makePubSubInstance,
 	});
 	const arg = createArgImplementer<
 		UserContext,
@@ -60,6 +72,20 @@ export const rumble = <
 	>({
 		...rumbleInput,
 		schemaBuilder,
+	});
+	const query = createQueryImplementer<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action,
+		typeof schemaBuilder,
+		typeof arg,
+		typeof makePubSubInstance
+	>({
+		...rumbleInput,
+		schemaBuilder,
+		argImplementer: arg,
+		makePubSubInstance,
 	});
 
 	const yoga = () =>
@@ -113,5 +139,14 @@ export const rumble = <
 		 * A function for creating where args to filter entities
 		 */
 		arg,
+		/**
+		 * A function for creating default READ queries.
+		 * Make sure the objects for the table you are creating the queries for are implemented
+		 */
+		query,
+		/**
+		 * A function for creating a pubsub instance for a table. Use this to publish or subscribe events
+		 */
+		pubsub: makePubSubInstance,
 	};
 };

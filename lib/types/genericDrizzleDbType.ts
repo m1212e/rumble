@@ -10,6 +10,7 @@ export type GenericDrizzleDbTypeConstraints = {
 	query: {
 		[key: string]: {
 			findMany: (P: QueryConditionObject) => any;
+			findFirst: (P: QueryConditionObject) => any;
 		};
 	};
 } & DrizzleClient;

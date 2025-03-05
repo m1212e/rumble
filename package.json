@@ -7,7 +7,7 @@
 		"lint": "bunx biome check --write .",
 		"dev:docker": "docker compose -f ./dev.docker-compose.yml up",
 		"dev:example": "bun ./example/src/main.ts",
-		"dev:example:seed": "bun ./example/src/db/seed.ts",
+		"dev:example:seed": "bun example/src/db/seed.ts",
 		"build": "bun build.ts"
 	},
 	"devDependencies": {
@@ -15,6 +15,7 @@
 		"@types/bun": "latest",
 		"@types/pg": "^8.11.11",
 		"drizzle-kit": "^0.30.5",
+		"drizzle-seed": "^0.3.1",
 		"lefthook": "^1.11.2",
 		"pg": "^8.13.3",
 		"tsup": "^8.4.0",

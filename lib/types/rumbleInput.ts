@@ -1,5 +1,4 @@
-import type { YogaServerOptions } from "graphql-yoga";
-import type { ContextType } from "../context";
+import type { YogaServerOptions, createPubSub } from "graphql-yoga";
 import type { GenericDrizzleDbTypeConstraints } from "./genericDrizzleDbType";
 
 export type RumbleInput<
@@ -26,25 +25,19 @@ export type RumbleInput<
 		| ((event: RequestEvent) => Promise<UserContext> | UserContext)
 		| undefined;
 	/**
-	 * If you only want to create queries and do not need mutations, enable this
+	 * If you only want to disable query, mutation or subscription default objects, you can do so here
 	 */
-	onlyQuery?: boolean;
+	disableDefaultObjects?: {
+		mutation?: boolean;
+		subscription?: boolean;
+		query?: boolean;
+	};
 	/**
 	 * The actions that are available
 	 */
 	actions?: Action[];
 	/**
-	 *
+	 * Customization for subscriptions. See https://the-guild.dev/graphql/yoga-server/docs/features/subscriptions#distributed-pubsub-for-production
 	 */
-	subscriptions?: {
-		subscribe: (
-			name: string,
-			context: ContextType<UserContext, DB, RequestEvent, Action>,
-			cb: (err: unknown, data?: unknown) => void,
-		) => Promise<void> | void;
-		unsubscribe: (
-			name: string,
-			context: ContextType<UserContext, DB, RequestEvent, Action>,
-		) => Promise<void> | void;
-	};
+	subscriptions?: Parameters<typeof createPubSub>;
 };

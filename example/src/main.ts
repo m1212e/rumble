@@ -2,10 +2,7 @@ import { createServer } from "node:http";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { rumble } from "../../lib";
-import {
-	assertFindFirstExists,
-	assertFirstEntryExists,
-} from "../../lib/helpers/helper";
+import { assertFirstEntryExists } from "../../lib/helpers/helper";
 import * as schema from "./db/schema";
 
 export const db = drizzle(
@@ -13,14 +10,15 @@ export const db = drizzle(
 	{ schema },
 );
 
-const { abilityBuilder, schemaBuilder, arg, object, yoga } = rumble({
-	db,
-	context(request) {
-		return {
-			userId: 2,
-		};
-	},
-});
+const { abilityBuilder, schemaBuilder, arg, object, query, yoga, pubsub } =
+	rumble({
+		db,
+		context(request) {
+			return {
+				userId: 2,
+			};
+		},
+	});
 
 //
 //   DEFINING ABILITIES
@@ -42,14 +40,7 @@ abilityBuilder.posts
 //   DEFINE OBJECTS WITH THEIR FIELDS
 //
 
-// you can use the helper to implement a default version of your object based on the db schema.
-// It exposes all fields and restricts the query based on the abilities
-const UserRef = object({
-	name: "User",
-	tableName: "users",
-});
-
-// alternatively you can define the object manually
+// you can define an object using pothos and its drizzle plugin like this
 const PostRef = schemaBuilder.drizzleObject("posts", {
 	name: "Post",
 	fields: (t) => ({
@@ -61,43 +52,35 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 	}),
 });
 
+// or you can use the helper to implement a default version of your object based on the db schema.
+// It exposes all fields and restricts the query based on the abilities
+const UserRef = object({
+	name: "User",
+	tableName: "users",
+});
+
 //
 //   DEFINE ROOT QUERIES AND MUTATOINS
 //
 
 const {
-	inputType: UserWhere,
-	transformArgumentToQueryCondition: transformUserWhere,
+	inputType: PostWhere,
+	transformArgumentToQueryCondition: transformPostWhere,
 } = arg({
-	tableName: "users",
+	tableName: "posts",
 });
 
-schemaBuilder.queryFields((t) => {
-	return {
-		findManyUsers: t.drizzleField({
-			type: [UserRef],
-			args: {
-				where: t.arg({ type: UserWhere }),
-			},
-			resolve: (query, root, args, ctx, info) => {
-				return db.query.users.findMany(
-					query(
-						ctx.abilities.users.filter("read", {
-							inject: { where: transformUserWhere(args.where) },
-						}),
-					),
-				);
-			},
-		}),
-	};
-});
-
+// same for queries, use pothos to define them
 schemaBuilder.queryFields((t) => {
 	return {
 		findManyPosts: t.drizzleField({
 			type: [PostRef],
+			args: {
+				where: t.arg({ type: PostWhere, required: false }),
+			},
 			resolve: (query, root, args, ctx, info) => {
 				return db.query.posts.findMany(
+					// here you can apply the ability filter defined above
 					query(ctx.abilities.posts.filter("read")),
 				);
 			},
@@ -105,24 +88,13 @@ schemaBuilder.queryFields((t) => {
 	};
 });
 
-schemaBuilder.queryFields((t) => {
-	return {
-		findFirstUser: t.drizzleField({
-			type: UserRef,
-			resolve: (query, root, args, ctx, info) => {
-				return (
-					db.query.users
-						.findFirst(
-							query({
-								where: ctx.abilities.users.filter("read").where,
-							}),
-						)
-						// note that we need to manually raise an error if the value is not found
-						.then(assertFindFirstExists)
-				);
-			},
-		}),
-	};
+// or alternatively use the helper to define a findFirst and findMany query based on the db schema automatically
+query({
+	tableName: "users",
+});
+
+const { updated: updatedUser } = pubsub({
+	tableName: "users",
 });
 
 // mutation to update the username
@@ -135,6 +107,7 @@ schemaBuilder.mutationFields((t) => {
 				newName: t.arg.string({ required: true }),
 			},
 			resolve: (query, root, args, ctx, info) => {
+				updatedUser(args.userId);
 				return (
 					db
 						.update(schema.users)

@@ -1,3 +1,4 @@
+import { type MakePubSubInstanceType, createPubSubInstance } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
@@ -14,11 +15,19 @@ export const createObjectImplementer = <
 		RequestEvent,
 		Action
 	>,
+	MakePubSubInstance extends MakePubSubInstanceType<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action
+	>,
 >({
 	db,
 	schemaBuilder,
+	makePubSubInstance,
 }: RumbleInput<UserContext, DB, RequestEvent, Action> & {
 	schemaBuilder: SchemaBuilder;
+	makePubSubInstance: MakePubSubInstance;
 }) => {
 	return <
 		ExplicitTableName extends keyof NonNullable<DB["_"]["schema"]>,
@@ -33,9 +42,34 @@ export const createObjectImplementer = <
 		readAction?: Action;
 	}) => {
 		const schema = (db._.schema as NonNullable<DB["_"]["schema"]>)[tableName];
+		const primaryKey = schema.primaryKey.at(0)?.name;
+		if (!primaryKey)
+			console.warn(
+				`Could not find primary key for ${tableName.toString()}. Cannot register subscriptions!`,
+			);
+
+		const { registerOnInstance } = makePubSubInstance({ tableName });
 
 		return schemaBuilder.drizzleObject(tableName, {
 			name,
+			subscribe: (subscriptions, element, context) => {
+				if (!primaryKey) return;
+				const primaryKeyValue = (element as any)[primaryKey];
+				if (!primaryKeyValue) {
+					console.warn(
+						`Could not find primary key value for ${JSON.stringify(
+							element,
+						)}. Cannot register subscription!`,
+					);
+					return;
+				}
+
+				registerOnInstance({
+					instance: subscriptions,
+					action: "updated",
+					specificEntityId: primaryKeyValue,
+				});
+			},
 			fields: (t) => {
 				const mapSQLTypeStringToExposedPothosType = <
 					Column extends keyof typeof schema.columns,
@@ -51,6 +85,9 @@ export const createObjectImplementer = <
 							// @ts-expect-error
 							return t.exposeInt(columnName);
 						case "int":
+							// @ts-expect-error
+							return t.exposeInt(columnName);
+						case "integer":
 							// @ts-expect-error
 							return t.exposeInt(columnName);
 						case "string":

@@ -1,8 +1,24 @@
 import { and, eq } from "drizzle-orm";
+import { capitalizeFirstLetter } from "./helpers/capitalize";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
 import type { RumbleInput } from "./types/rumbleInput";
+
+export type ArgImplementerType<
+	UserContext extends Record<string, any>,
+	DB extends GenericDrizzleDbTypeConstraints,
+	RequestEvent extends Record<string, any>,
+	Action extends string,
+> = ReturnType<
+	typeof createArgImplementer<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action,
+		SchemaBuilderType<UserContext, DB, RequestEvent, Action>
+	>
+>;
 
 export const createArgImplementer = <
 	UserContext extends Record<string, any>,
@@ -34,9 +50,7 @@ export const createArgImplementer = <
 		const schema = (db._.schema as NonNullable<DB["_"]["schema"]>)[tableName];
 		const inputType = schemaBuilder.inputType(
 			name ??
-				`${
-					String(tableName).charAt(0).toUpperCase() + String(tableName).slice(1)
-				}WhereInputArgument`,
+				`${capitalizeFirstLetter(tableName.toString())}WhereInputArgument`,
 			{
 				fields: (t) => {
 					const mapSQLTypeStringToInputPothosType = <
@@ -46,24 +60,20 @@ export const createArgImplementer = <
 						>,
 					>(
 						sqlType: SQLType,
-						columnName: Column,
 					) => {
 						switch (sqlType) {
 							case "serial":
-								// @ts-expect-error
-								return t.field(columnName, { required: false });
+								return t.int({ required: false });
 							case "int":
-								// @ts-expect-error
-								return t.int(columnName, { required: false });
+								return t.int({ required: false });
+							case "integer":
+								return t.int({ required: false });
 							case "string":
-								// @ts-expect-error
-								return t.string(columnName, { required: false });
+								return t.string({ required: false });
 							case "text":
-								// @ts-expect-error
-								return t.string(columnName, { required: false });
+								return t.string({ required: false });
 							case "boolean":
-								// @ts-expect-error
-								return t.boolean(columnName, { required: false });
+								return t.boolean({ required: false });
 							default:
 								throw new RumbleError(
 									`Unknown SQL type: ${sqlType} (input). Please open an issue so it can be added.`,
@@ -72,10 +82,7 @@ export const createArgImplementer = <
 					};
 					const fields = Object.entries(schema.columns).reduce(
 						(acc, [key, value]) => {
-							acc[key] = mapSQLTypeStringToInputPothosType(
-								value.getSQLType(),
-								key,
-							);
+							acc[key] = mapSQLTypeStringToInputPothosType(value.getSQLType());
 							return acc;
 						},
 						{} as Record<
@@ -103,6 +110,7 @@ export const createArgImplementer = <
 				},
 			},
 		);
+
 		const transformArgumentToQueryCondition = <
 			T extends typeof inputType.$inferInput,
 		>(
@@ -124,6 +132,17 @@ export const createArgImplementer = <
 			);
 			return and(...conditions);
 		};
-		return { inputType, transformArgumentToQueryCondition };
+
+		return {
+			/**
+			 * The input type used to pass arguments to resolvers
+			 */
+			inputType,
+			/**
+			 * Performs a conversion of an input argument passed to a resolver to a drizzle filter.
+			 * Make sure you use the correct converter for the input type.
+			 */
+			transformArgumentToQueryCondition,
+		};
 	};
 };

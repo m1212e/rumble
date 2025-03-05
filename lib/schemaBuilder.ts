@@ -1,8 +1,10 @@
-import { EventEmitter } from "node:events";
 import SchemaBuilder from "@pothos/core";
 import DrizzlePlugin from "@pothos/plugin-drizzle";
-import SmartSubscriptionsPlugin from "@pothos/plugin-smart-subscriptions";
-import type { ContextFunctionType, ContextType } from "./context";
+import SmartSubscriptionsPlugin, {
+	subscribeOptionsFromIterator,
+} from "@pothos/plugin-smart-subscriptions";
+import type { createPubSub } from "graphql-yoga";
+import type { ContextType } from "./context";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import type { RumbleInput } from "./types/rumbleInput";
 
@@ -12,35 +14,24 @@ export type SchemaBuilderType<
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 > = ReturnType<
-	typeof createSchemaBuilder<
-		UserContext,
-		DB,
-		RequestEvent,
-		Action,
-		ContextFunctionType<UserContext, DB, RequestEvent, Action>
-	>
->;
+	typeof createSchemaBuilder<UserContext, DB, RequestEvent, Action>
+>["schemaBuilder"];
 
 export const createSchemaBuilder = <
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
-	ContextFunction extends ContextFunctionType<
-		UserContext,
-		DB,
-		RequestEvent,
-		Action
-	>,
 >({
 	db,
-	onlyQuery,
-	subscriptions,
+	disableDefaultObjects,
+	pubsub,
 }: RumbleInput<UserContext, DB, RequestEvent, Action> & {
-	//   abilityBuilder: AbilityBuilder;
+	pubsub: ReturnType<typeof createPubSub>;
 }) => {
-	const builder = new SchemaBuilder<{
+	const schemaBuilder = new SchemaBuilder<{
 		Context: ContextType<UserContext, DB, RequestEvent, Action>;
+		//TODO set sensible defaults here
 		// Scalars: Scalars<Prisma.Decimal, Prisma.InputJsonValue | null, Prisma.InputJsonValue> & {
 		// 	File: {
 		// 		Input: File;
@@ -57,30 +48,24 @@ export const createSchemaBuilder = <
 		drizzle: {
 			client: db,
 		},
-		smartSubscriptions: subscriptions
-			? {
-					subscribe: subscriptions.subscribe,
-					unsubscribe: subscriptions.unsubscribe,
-				}
-			: (() => {
-					const defaultEventEmitter = new EventEmitter();
-
-					return {
-						subscribe: (name, context, cb) => {
-							defaultEventEmitter.on(name, cb);
-						},
-						unsubscribe: (name, context) => {
-							defaultEventEmitter.removeAllListeners(name);
-						},
-					};
-				})(),
+		smartSubscriptions: {
+			...subscribeOptionsFromIterator((name, context) => {
+				return pubsub.subscribe(name);
+			}),
+		},
 	});
 
-	builder.queryType({});
-
-	if (!onlyQuery) {
-		builder.mutationType({});
+	if (!disableDefaultObjects?.query) {
+		schemaBuilder.queryType({});
 	}
 
-	return builder;
+	if (!disableDefaultObjects?.subscription) {
+		schemaBuilder.subscriptionType({});
+	}
+
+	if (!disableDefaultObjects?.mutation) {
+		schemaBuilder.mutationType({});
+	}
+
+	return { schemaBuilder };
 };
