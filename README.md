@@ -86,7 +86,7 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 In the above object definition we tell pothos to expose the id and content so the fields will be just passed along from out database results and we define a relation to the posts author. We also restrict which author can be read. If the user which sends this request is not the author of a post, they cannot see the author and the request will fail. The `ctx.abilities.users.filter("read")` call simply injects the filter we defined in the abilities earlier and therefore restricts what can be returned.
 
 ### Helpers
-rumble offers a set of helpers which make it easy to implement your api. Please see the [full example code](./example) for a more extensive demonstration of rumbles features.
+rumble offers a set of helpers which make it easy to implement your api. Please see the [full example code](./example/src/main.ts) for a more extensive demonstration of rumbles features.
 
 ### Subscriptions
 rumble supports subscriptions right out of the box. When using the rumble helpers, you basically get subscriptions for free, no additional work required!
