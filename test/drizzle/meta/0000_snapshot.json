@@ -1,7 +1,7 @@
 {
 	"version": "6",
 	"dialect": "sqlite",
-	"id": "44efabe0-b847-4261-8322-fe891ba22c28",
+	"id": "d74f195c-54d6-474d-9543-a1e36de88622",
 	"prevId": "00000000-0000-0000-0000-000000000000",
 	"tables": {
 		"comments": {
@@ -9,10 +9,10 @@
 			"columns": {
 				"id": {
 					"name": "id",
-					"type": "integer",
+					"type": "text",
 					"primaryKey": true,
 					"notNull": true,
-					"autoincrement": true
+					"autoincrement": false
 				},
 				"text": {
 					"name": "text",
@@ -23,14 +23,14 @@
 				},
 				"post_id": {
 					"name": "post_id",
-					"type": "integer",
+					"type": "text",
 					"primaryKey": false,
 					"notNull": false,
 					"autoincrement": false
 				},
 				"owner_id": {
 					"name": "owner_id",
-					"type": "integer",
+					"type": "text",
 					"primaryKey": false,
 					"notNull": false,
 					"autoincrement": false
@@ -66,10 +66,10 @@
 			"columns": {
 				"id": {
 					"name": "id",
-					"type": "integer",
+					"type": "text",
 					"primaryKey": true,
 					"notNull": true,
-					"autoincrement": true
+					"autoincrement": false
 				},
 				"slug": {
 					"name": "slug",
@@ -87,7 +87,7 @@
 				},
 				"owner_id": {
 					"name": "owner_id",
-					"type": "integer",
+					"type": "text",
 					"primaryKey": false,
 					"notNull": false,
 					"autoincrement": false
@@ -125,10 +125,10 @@
 			"columns": {
 				"id": {
 					"name": "id",
-					"type": "integer",
+					"type": "text",
 					"primaryKey": true,
 					"notNull": true,
-					"autoincrement": true
+					"autoincrement": false
 				},
 				"first_name": {
 					"name": "first_name",
@@ -150,21 +150,6 @@
 					"primaryKey": false,
 					"notNull": true,
 					"autoincrement": false
-				},
-				"invitee": {
-					"name": "invitee",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"role": {
-					"name": "role",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false,
-					"default": "'guest'"
 				}
 			},
 			"indexes": {
@@ -174,17 +159,7 @@
 					"isUnique": true
 				}
 			},
-			"foreignKeys": {
-				"users_invitee_users_id_fk": {
-					"name": "users_invitee_users_id_fk",
-					"tableFrom": "users",
-					"tableTo": "users",
-					"columnsFrom": ["invitee"],
-					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
-				}
-			},
+			"foreignKeys": {},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {},
 			"checkConstraints": {}

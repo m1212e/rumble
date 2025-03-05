@@ -13,6 +13,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
 		"@faker-js/faker": "^9.5.1",
+		"@graphql-tools/executor-http": "^1.2.8",
 		"@types/bun": "latest",
 		"@types/pg": "^8.11.11",
 		"drizzle-kit": "^0.30.5",

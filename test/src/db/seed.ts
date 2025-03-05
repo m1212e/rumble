@@ -1,15 +1,14 @@
 import { join } from "node:path";
-import { reset } from "drizzle-seed";
-import { db } from "./db";
+import { faker } from "@faker-js/faker";
+import type { drizzle } from "drizzle-orm/bun-sqlite";
+import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import * as schema from "./schema";
 
-import { faker } from "@faker-js/faker";
-import { migrate } from "drizzle-orm/bun-sqlite/migrator";
-
-export async function seedTestData() {
+export async function seedTestDbInstance(
+	db: ReturnType<typeof drizzle<typeof schema>>,
+) {
 	console.info("Seeding...");
-	console.info("Resetting database...");
-	await reset(db, schema);
+	console.info("Migrating database...");
 	await migrate(db, {
 		migrationsFolder: join(import.meta.dir, "..", "..", "drizzle"),
 	});
