@@ -12,11 +12,11 @@ const SUBSCRIPTION_NOTIFIER_CREATED = "CREATED";
 function makePubSubKey({
 	action,
 	tableName,
-	specificEntityId,
+	primaryKey,
 }: {
 	tableName: string;
 	action: PubSubAction;
-	specificEntityId?: string;
+	primaryKey?: string;
 }) {
 	let actionKey: string;
 
@@ -35,7 +35,7 @@ function makePubSubKey({
 	}
 
 	return `${SUBSCRIPTION_NOTIFIER_RUMBLE_PREFIX}/${tableName}${
-		specificEntityId ? `/${specificEntityId}` : ""
+		primaryKey ? `/${primaryKey}` : ""
 	}/${actionKey}`;
 }
 
@@ -70,65 +70,65 @@ export const createPubSubInstance = <
 		/**
 		 * Subscribe to an entity/event of this table
 		 */
-		subscribe(params: { action: PubSubAction; specificEntityId?: any }) {
+		subscribe(params: { action: PubSubAction; primaryKey?: any }) {
 			return pubsub.subscribe(
 				makePubSubKey({
 					action: params.action,
 					tableName: tableName.toString(),
-					specificEntityId: params.specificEntityId,
+					primaryKey: params.primaryKey,
 				}),
 			);
 		},
 		registerOnInstance({
 			instance,
 			action,
-			specificEntityId,
+			primaryKey,
 		}: {
 			instance: { register: (id: string) => void };
 			action: PubSubAction;
-			specificEntityId?: string;
+			primaryKey?: string;
 		}) {
 			instance.register(
 				makePubSubKey({
 					tableName: tableName.toString(),
 					action,
-					specificEntityId,
+					primaryKey: primaryKey,
 				}),
 			);
 		},
 		/**
 		 * Call this when you created an entity of this table
 		 */
-		created(specificEntityId?: any) {
+		created(primaryKey?: any) {
 			return pubsub.publish(
 				makePubSubKey({
 					tableName: tableName.toString(),
 					action: "created",
-					specificEntityId,
+					primaryKey: primaryKey,
 				}),
 			);
 		},
 		/**
 		 * Call this when you removed an entity of this table
 		 */
-		removed(specificEntityId?: any) {
+		removed(primaryKey?: any) {
 			return pubsub.publish(
 				makePubSubKey({
 					tableName: tableName.toString(),
 					action: "removed",
-					specificEntityId,
+					primaryKey: primaryKey,
 				}),
 			);
 		},
 		/**
 		 * Call this when you updated an entity of this table
 		 */
-		updated(specificEntityId?: any) {
+		updated(primaryKey?: any) {
 			return pubsub.publish(
 				makePubSubKey({
 					tableName: tableName.toString(),
 					action: "updated",
-					specificEntityId,
+					primaryKey: primaryKey,
 				}),
 			);
 		},
