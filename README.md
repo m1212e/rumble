@@ -45,7 +45,7 @@ The `when` call accepts a variety of restrictions which have different effects. 
 #### Dynamic abilities
 Most of the time we want to allow things based on who the user is. If they are logged in they should be able to change their username. But only theirs, not the ones of any other users. For this, abilities allow for conditions based on the call context of a request. To use this, we need to create a context callback when initiating rumble first:
 ```ts
-const { abilityBuilder, schemaBuilder, yoga, implementDefaultObject } =
+const { abilityBuilder } =
   rumble({
     db,
     // the type of the request parameter may vary based on the HTTP library you are using.
