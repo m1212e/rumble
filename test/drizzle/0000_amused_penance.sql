@@ -1,6 +1,7 @@
 CREATE TABLE `comments` (
 	`id` text PRIMARY KEY NOT NULL,
 	`text` text(256),
+	`published` integer,
 	`post_id` text,
 	`owner_id` text,
 	FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON UPDATE no action ON DELETE no action,

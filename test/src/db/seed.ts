@@ -43,6 +43,7 @@ export async function seedTestDbInstance(
 			ownerId: users[count].id,
 			postId: posts[count].id,
 			text: faker.lorem.sentence(),
+			published: count % 2 === 0,
 		});
 	}
 

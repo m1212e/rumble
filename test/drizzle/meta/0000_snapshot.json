@@ -1,7 +1,7 @@
 {
 	"version": "6",
 	"dialect": "sqlite",
-	"id": "d74f195c-54d6-474d-9543-a1e36de88622",
+	"id": "7e63a34e-8c1f-4c57-88b8-82a65c1a277e",
 	"prevId": "00000000-0000-0000-0000-000000000000",
 	"tables": {
 		"comments": {
@@ -17,6 +17,13 @@
 				"text": {
 					"name": "text",
 					"type": "text(256)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"published": {
+					"name": "published",
+					"type": "integer",
 					"primaryKey": false,
 					"notNull": false,
 					"autoincrement": false

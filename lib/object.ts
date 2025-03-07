@@ -115,9 +115,14 @@ export const createObjectImplementer = <
 
 				const relations = Object.entries(schema.relations).reduce(
 					(acc, [key, value]) => {
+						console.log(value.referencedTableName);
+
 						acc[key] = t.relation(key, {
-							query: (_args: any, ctx: any) =>
-								ctx.abilities[key].filter(readAction),
+							query: (_args: any, ctx: any) => {
+								return ctx.abilities[value.referencedTableName].filter(
+									readAction,
+								);
+							},
 						} as any) as any;
 						return acc;
 					},

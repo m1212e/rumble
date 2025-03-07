@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { relations } from "drizzle-orm";
 import { sqliteTable as table } from "drizzle-orm/sqlite-core";
 import * as t from "drizzle-orm/sqlite-core";
 
@@ -30,6 +31,22 @@ export const posts = table(
 export const comments = table("comments", {
 	id: t.text().primaryKey(),
 	text: t.text({ length: 256 }),
+	published: t.integer({ mode: "boolean" }),
 	postId: t.text("post_id").references(() => posts.id),
 	ownerId: t.text("owner_id").references(() => users.id),
 });
+
+export const usersRelations = relations(users, ({ one, many }) => ({
+	posts: many(posts),
+	comments: many(comments),
+}));
+
+export const postsRelations = relations(posts, ({ one, many }) => ({
+	author: one(users, { fields: [posts.ownerId], references: [users.id] }),
+	comments: many(comments),
+}));
+
+export const commentsRelations = relations(comments, ({ one }) => ({
+	author: one(users, { fields: [comments.ownerId], references: [users.id] }),
+	post: one(posts, { fields: [comments.postId], references: [posts.id] }),
+}));

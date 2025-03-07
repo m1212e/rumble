@@ -1,5 +1,5 @@
-import { log } from "node:console";
-import { and, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
+import { RumbleError } from "../out";
 import type {
 	GenericDrizzleDbTypeConstraints,
 	QueryConditionObject,
@@ -63,6 +63,8 @@ export const createAbilityBuilder = <
 }: RumbleInput<UserContext, DB, RequestEvent, Action>) => {
 	type DBQueryKey = keyof DB["query"];
 	type DBParameters = Parameters<DB["query"][DBQueryKey]["findMany"]>[0];
+
+	const schema = db._.schema as NonNullable<DB["_"]["schema"]>;
 
 	const builder: {
 		[key in DBQueryKey]: ReturnType<typeof createEntityObject>;
@@ -128,14 +130,26 @@ export const createAbilityBuilder = <
 						inject?: QueryConditionObject;
 					},
 				) => {
-					const conditionsPerEntity = registeredConditions[entityKey];
+					let conditionsPerEntity = registeredConditions[entityKey];
 					if (!conditionsPerEntity) {
-						throw "TODO (No allowed entry found for this condition) #1";
+						conditionsPerEntity = {} as any;
 					}
 
-					const conditionsPerEntityAndAction = conditionsPerEntity[action];
-					if (!conditionsPerEntityAndAction) {
-						throw "TODO (No allowed entry found for this condition) #2";
+					let conditionsPerEntityAndAction = conditionsPerEntity[action];
+
+					if (!conditionsPerEntity || !conditionsPerEntityAndAction) {
+						const primaryKeyField = schema[entityKey].primaryKey.at(0);
+						if (!primaryKeyField) {
+							throw new RumbleError(
+								`No primary key found for entity ${entityKey.toString()}`,
+							);
+						}
+
+						conditionsPerEntityAndAction = [
+							{
+								where: and(eq(primaryKeyField, "1"), eq(primaryKeyField, "2")),
+							},
+						];
 					}
 
 					const simpleConditions =
