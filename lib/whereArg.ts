@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
+import { mapSQLTypeToTSType } from "./helpers/mapSQLTypeToTSType";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
@@ -61,16 +62,11 @@ export const createArgImplementer = <
 					>(
 						sqlType: SQLType,
 					) => {
-						switch (sqlType) {
-							case "serial":
-								return t.int({ required: false });
+						const gqlType = mapSQLTypeToTSType(sqlType);
+						switch (gqlType) {
 							case "int":
 								return t.int({ required: false });
-							case "integer":
-								return t.int({ required: false });
 							case "string":
-								return t.string({ required: false });
-							case "text":
 								return t.string({ required: false });
 							case "boolean":
 								return t.boolean({ required: false });

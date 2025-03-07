@@ -1,3 +1,4 @@
+import { mapSQLTypeToTSType } from "./helpers/mapSQLTypeToTSType";
 import { type MakePubSubInstanceType, createPubSubInstance } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
@@ -67,7 +68,7 @@ export const createObjectImplementer = <
 				registerOnInstance({
 					instance: subscriptions,
 					action: "updated",
-					specificEntityId: primaryKeyValue,
+					primaryKey: primaryKeyValue,
 				});
 			},
 			fields: (t) => {
@@ -80,20 +81,12 @@ export const createObjectImplementer = <
 					sqlType: SQLType,
 					columnName: Column,
 				) => {
-					switch (sqlType) {
-						case "serial":
-							// @ts-expect-error
-							return t.exposeInt(columnName);
+					const gqlType = mapSQLTypeToTSType(sqlType);
+					switch (gqlType) {
 						case "int":
 							// @ts-expect-error
 							return t.exposeInt(columnName);
-						case "integer":
-							// @ts-expect-error
-							return t.exposeInt(columnName);
 						case "string":
-							// @ts-expect-error
-							return t.exposeString(columnName);
-						case "text":
 							// @ts-expect-error
 							return t.exposeString(columnName);
 						case "boolean":
