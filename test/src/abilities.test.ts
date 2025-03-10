@@ -114,7 +114,7 @@ describe("test rumble abilities", async () => {
 		).toEqual(10);
 	});
 
-	test.only("deny indirect read with helper implementation on one to one", async () => {
+	test("deny indirect read with helper implementation on one to one", async () => {
 		rumble.abilityBuilder.comments.allow(["read"]);
 
 		const r = await executor()({
