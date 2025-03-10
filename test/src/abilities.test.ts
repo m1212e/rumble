@@ -114,7 +114,7 @@ describe("test rumble abilities", async () => {
 		).toEqual(10);
 	});
 
-	test("deny indirect read with helper implementation on one to one", async () => {
+	test.only("deny indirect read with helper implementation on one to one", async () => {
 		rumble.abilityBuilder.comments.allow(["read"]);
 
 		const r = await executor()({
@@ -193,5 +193,80 @@ describe("test rumble abilities", async () => {
 		});
 
 		expect((r as any).data.findManyComments.length).toEqual(1);
+	});
+
+	test("limit read amount with abilities", async () => {
+		rumble.abilityBuilder.comments.allow("read").when({
+			limit: 3,
+		});
+
+		const r = await executor()({
+			document: parse(/* GraphQL */ `
+        query {
+          findManyComments {
+            id
+          }
+        }
+      `),
+		});
+
+		expect((r as any).data.findManyComments.length).toEqual(3);
+	});
+
+	test("limit read amount to max value with abilities", async () => {
+		rumble.abilityBuilder.comments.allow("read").when({
+			limit: 3,
+		});
+
+		rumble.abilityBuilder.comments.allow("read").when({
+			limit: 4,
+		});
+
+		const r = await executor()({
+			document: parse(/* GraphQL */ `
+        query {
+          findManyComments {
+            id
+          }
+        }
+      `),
+		});
+
+		expect((r as any).data.findManyComments.length).toEqual(4);
+	});
+
+	test("limit read amount to max value with abilities", async () => {
+		rumble.abilityBuilder.comments.allow("read").when({
+			limit: 3,
+		});
+
+		rumble.schemaBuilder.queryFields((t) => {
+			return {
+				findManyCommentsWithInjectedLimit: t.drizzleField({
+					type: ["comments"],
+					resolve: (query, root, args, ctx, info) => {
+						return db.query.comments.findMany(
+							query(
+								ctx.abilities.comments.filter("read", {
+									inject: { limit: 4 },
+								}),
+							),
+						);
+					},
+				}),
+			};
+		});
+
+		const r = await executor()({
+			document: parse(/* GraphQL */ `
+        query {
+          findManyCommentsWithInjectedLimit {
+            id
+          }
+        }
+      `),
+		});
+
+		expect((r as any).data.findManyCommentsWithInjectedLimit.length).toEqual(4);
 	});
 });

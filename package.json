@@ -8,7 +8,8 @@
 		"dev:docker": "docker compose -f ./dev.docker-compose.yml up",
 		"dev:example": "bun ./example/src/main.ts",
 		"dev:example:seed": "bun example/src/db/seed.ts",
-		"build": "bun build.ts"
+		"build": "bun build.ts",
+		"typecheck": "tsc --noEmit"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
