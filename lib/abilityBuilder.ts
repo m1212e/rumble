@@ -149,7 +149,6 @@ export const createAbilityBuilder = <
 							{
 								where: and(eq(primaryKeyField, "1"), eq(primaryKeyField, "2")),
 							},
-							re,
 						];
 					}
 
