@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { parse } from "graphql";
+import { assertFirstEntryExists } from "../../lib";
 import { makeSeededDBInstanceForTest } from "./db/db";
 import * as schema from "./db/schema";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
@@ -236,22 +237,37 @@ describe("test rumble abilities", async () => {
 	});
 
 	test("limit read amount to max value with abilities", async () => {
-		rumble.abilityBuilder.comments.allow("read").when({
-			limit: 3,
-		});
+		rumble.abilityBuilder.comments.allow("read");
 
-		rumble.schemaBuilder.queryFields((t) => {
+		rumble.schemaBuilder.mutationFields((t) => {
 			return {
-				findManyCommentsWithInjectedLimit: t.drizzleField({
-					type: ["comments"],
+				updateComment: t.drizzleField({
+					args: {
+						id: t.arg.int({ required: true }),
+						newText: t.arg.string({ required: true }),
+					},
+					type: "comments",
 					resolve: (query, root, args, ctx, info) => {
-						return db.query.comments.findMany(
-							query(
-								ctx.abilities.comments.filter("read", {
-									inject: { limit: 4 },
-								}),
-							),
-						);
+						updatedComment(args.id);
+						return db
+							.update(schema.comments)
+							.set({
+								text: args.newText,
+							})
+							.where(
+								and(
+									eq(schema.comments.id, args.id),
+									ctx.abilities.comments.filter("update").where,
+								),
+							)
+							.returning({
+								id: schema.comments.id,
+								name: schema.comments.text,
+								published: schema.comments.published,
+								ownerId: schema.comments.ownerId,
+								postId: schema.comments.postId,
+							})
+							.then(assertFirstEntryExists);
 					},
 				}),
 			};
