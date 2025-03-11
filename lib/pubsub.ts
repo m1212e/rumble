@@ -68,17 +68,8 @@ export const createPubSubInstance = <
 		tableName: ExplicitTableName;
 	}) => ({
 		/**
-		 * Subscribe to an entity/event of this table
+		 * Call this when you want to register a subscription on an instance to this table
 		 */
-		subscribe(params: { action: PubSubAction; primaryKeyValue?: any }) {
-			return pubsub.subscribe(
-				makePubSubKey({
-					action: params.action,
-					tableName: tableName.toString(),
-					primaryKeyValue: params.primaryKeyValue,
-				}),
-			);
-		},
 		registerOnInstance({
 			instance,
 			action,

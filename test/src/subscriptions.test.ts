@@ -331,41 +331,51 @@ describe("test rumble subscriptions", async () => {
 					},
 					type: "comments",
 					resolve: async (query, root, args, ctx, info) => {
+						const comment = await db
+							.insert(schema.comments)
+							.values({
+								id: args.id,
+								text: args.text,
+							})
+							.returning()
+							.then(assertFirstEntryExists);
 						createdComment();
 
-						const comment = await db.insert(schema.comments).values({
-							id: args.id,
-							text: args.text,
-						});
-
-						await db
-							.delete(schema.comments)
-							.where(eq(schema.comments.id, comment.id));
-
-						return comment;
+						return await db.query.comments
+							.findFirst(
+								query({
+									where: ctx.abilities.comments.filter("read", {
+										inject: {
+											where: eq(schema.comments.id, comment.id),
+										},
+									}).where,
+								}),
+							)
+							.then(assertFindFirstExists);
 					},
 				}),
 			};
 		});
 
-		const commentId = seedData.comments[0].id;
+		const commentId = faker.database.mongodbObjectId();
+		const text = faker.lorem.sentence();
 		const { executor, yogaInstance } = build();
 		const sub = await executor({
 			document: parse(/* GraphQL */ `
-                subscription FindFirstComment {
-                  findManyComments(where: { id: "${commentId}" }) {
-                    id
-                    text
-                  }
-                }
-              `),
+        subscription FindFirstComment {
+          findManyComments {
+            id
+            text
+          }
+        }
+      `),
 		});
 
 		setTimeout(async () => {
 			const r = await executor({
 				document: parse(/* GraphQL */ `
               mutation SetTextOnComment {
-                deleteComment(id: "${commentId}") {
+                createComment(id: "${commentId}", text: "${text}") {
                   id
                   text
                 }
@@ -383,24 +393,11 @@ describe("test rumble subscriptions", async () => {
 			iterationCounter++;
 
 			if (iterationCounter === 1) {
-				expect(message).toEqual({
-					data: {
-						findManyComments: [
-							{
-								id: commentId,
-								text: seedData.comments[0].text,
-							},
-						],
-					},
-				});
+				expect(message.data.findManyComments.length).toEqual(10);
 			}
 
 			if (iterationCounter === 2) {
-				expect(message).toEqual({
-					data: {
-						findManyComments: [],
-					},
-				});
+				expect(message.data.findManyComments.length).toEqual(11);
 				break;
 			}
 		}

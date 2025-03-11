@@ -306,5 +306,5 @@ schemaBuilder.mutationFields((t) => {
 // we can start the server
 const server = createServer(yoga());
 server.listen(3000, () => {
-	console.log("Visit http://localhost:3000/graphql");
+	console.info("Visit http://localhost:3000/graphql");
 });

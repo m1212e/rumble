@@ -2,16 +2,16 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { reset } from "drizzle-seed";
 import * as schema from "./schema";
 
-console.log("Seeding...");
+console.info("Seeding...");
 
 const db = drizzle("postgres://postgres:postgres@localhost:5432/postgres", {
 	schema,
 });
 
-console.log("Resetting database...");
+console.info("Resetting database...");
 await reset(db, schema);
 
-console.log("Seeding users...");
+console.info("Seeding users...");
 // users
 await db.insert(schema.users).values({
 	name: "John Doe",
@@ -22,7 +22,7 @@ await db.insert(schema.users).values({
 	id: 2,
 });
 
-console.log("Seeding posts...");
+console.info("Seeding posts...");
 // posts
 await db.insert(schema.posts).values({
 	content: "Hello world",
@@ -33,5 +33,5 @@ await db.insert(schema.posts).values({
 	authorId: 2,
 });
 
-console.log("Done seeding!");
+console.info("Done seeding!");
 process.exit(0);

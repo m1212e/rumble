@@ -96,13 +96,20 @@ export const createQueryImplementer = <
 							where: t.arg({ type: WhereArg, required: false }),
 						},
 						resolve: (query, root, args, ctx, info) => {
-							return db.query[tableName as any].findMany(
-								query(
-									ctx.abilities[tableName as any].filter(listAction, {
-										inject: { where: transformWhere(args.where) },
-									}),
-								),
+							const filter = ctx.abilities[tableName as any].filter(
+								readAction,
+								{
+									inject: { where: transformWhere(args.where) },
+								},
 							);
+
+							const queryInstance = query(filter as any);
+
+							if (filter.columns) {
+								queryInstance.columns = filter.columns;
+							}
+
+							return db.query[tableName as any].findMany(queryInstance);
 						},
 					}),
 				[`findFirst${capitalizeFirstLetter(tableName.toString())}`]:
@@ -113,14 +120,21 @@ export const createQueryImplementer = <
 							where: t.arg({ type: WhereArg, required: false }),
 						},
 						resolve: (query, root, args, ctx, info) => {
+							const filter = ctx.abilities[tableName as any].filter(
+								readAction,
+								{
+									inject: { where: transformWhere(args.where) },
+								},
+							);
+
+							const queryInstance = query(filter as any);
+
+							if (filter.columns) {
+								queryInstance.columns = filter.columns;
+							}
+
 							return db.query[tableName as any]
-								.findFirst(
-									query(
-										ctx.abilities[tableName as any].filter(readAction, {
-											inject: { where: transformWhere(args.where) },
-										}) as any,
-									),
-								)
+								.findFirst(queryInstance)
 								.then(assertFindFirstExists);
 						},
 					}),

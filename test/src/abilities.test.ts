@@ -241,4 +241,37 @@ describe("test rumble abilities", async () => {
 
 		expect((r as any).data.findManyComments.length).toEqual(4);
 	});
+
+	test("allow simple read with helper implementation with column restrictions", async () => {
+		rumble.abilityBuilder.users.allow(["read"]).when({
+			columns: {
+				id: false,
+				firstName: true,
+				email: true,
+			},
+		});
+
+		const { executor, yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          findFirstUsers {
+            id
+            firstName
+            email
+          }
+        }
+      `),
+		});
+
+		expect(r).toEqual({
+			data: {
+				findFirstUsers: {
+					id: null,
+					firstName: seedData.users[0].firstName,
+					email: seedData.users[0].email,
+				},
+			},
+		});
+	});
 });
