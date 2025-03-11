@@ -59,8 +59,9 @@ const { abilityBuilder, schemaBuilder, arg, object, query, pubsub, yoga } =
 */
 
 // users can edit themselves
-abilityBuilder.users.allow(["read", "update", "delete"]);
-// .when(({ userId }) => ({ where: eq(schema.users.id, userId) }));
+abilityBuilder.users
+	.allow(["read", "update", "delete"])
+	.when(({ userId }) => ({ where: eq(schema.users.id, userId) }));
 
 // everyone can read posts
 abilityBuilder.posts.allow("read");
@@ -263,7 +264,7 @@ schemaBuilder.mutationFields((t) => {
 				name: t.arg.string({ required: true }),
 			},
 			resolve: async (query, root, args, ctx, info) => {
-				// check if the user is allowed to add a user
+				// TODO: check if the user is allowed to add a user
 
 				const newUser = await db
 					.insert(schema.users)
@@ -276,8 +277,8 @@ schemaBuilder.mutationFields((t) => {
 					})
 					.then(assertFirstEntryExists);
 
-				// this notifies all subscribers that the user has been added
-				createdUser(newUser.id);
+				// this notifies all subscribers that a user has been added
+				createdUser();
 
 				return db.query.users
 					.findFirst(

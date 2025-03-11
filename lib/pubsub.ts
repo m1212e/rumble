@@ -88,49 +88,44 @@ export const createPubSubInstance = <
 			action: PubSubAction;
 			primaryKeyValue?: string;
 		}) {
-			instance.register(
-				makePubSubKey({
-					tableName: tableName.toString(),
-					action,
-					primaryKeyValue,
-				}),
-			);
+			const key = makePubSubKey({
+				tableName: tableName.toString(),
+				action,
+				primaryKeyValue,
+			});
+			instance.register(key);
 		},
 		/**
 		 * Call this when you created an entity of this table
 		 */
-		created(primaryKeyValue?: any) {
-			return pubsub.publish(
-				makePubSubKey({
-					tableName: tableName.toString(),
-					action: "created",
-					primaryKeyValue,
-				}),
-			);
+		created() {
+			const key = makePubSubKey({
+				tableName: tableName.toString(),
+				action: "created",
+			});
+			return pubsub.publish(key);
 		},
 		/**
 		 * Call this when you removed an entity of this table
 		 */
 		removed(primaryKeyValue?: any) {
-			return pubsub.publish(
-				makePubSubKey({
-					tableName: tableName.toString(),
-					action: "removed",
-					primaryKeyValue,
-				}),
-			);
+			const key = makePubSubKey({
+				tableName: tableName.toString(),
+				action: "removed",
+				// primaryKeyValue,
+			});
+			return pubsub.publish(key);
 		},
 		/**
 		 * Call this when you updated an entity of this table
 		 */
 		updated(primaryKeyValue?: any) {
-			return pubsub.publish(
-				makePubSubKey({
-					tableName: tableName.toString(),
-					action: "updated",
-					primaryKeyValue,
-				}),
-			);
+			const key = makePubSubKey({
+				tableName: tableName.toString(),
+				action: "updated",
+				primaryKeyValue,
+			});
+			return pubsub.publish(key);
 		},
 	});
 

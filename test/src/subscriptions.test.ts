@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { faker } from "@faker-js/faker";
 import { and, eq } from "drizzle-orm";
 import { parse } from "graphql";
-import { assertFirstEntryExists } from "../../lib";
+import { assertFindFirstExists, assertFirstEntryExists } from "../../lib";
 import { makeSeededDBInstanceForTest } from "./db/db";
 import * as schema from "./db/schema";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
@@ -229,19 +229,26 @@ describe("test rumble subscriptions", async () => {
 						id: t.arg.string({ required: true }),
 					},
 					type: "comments",
-					resolve: (query, root, args, ctx, info) => {
+					resolve: async (query, root, args, ctx, info) => {
 						deletedComment();
-						return db
+
+						const comment = await db.query.comments
+							.findFirst(
+								query({
+									where: ctx.abilities.comments.filter("delete", {
+										inject: {
+											where: eq(schema.comments.id, args.id),
+										},
+									}).where,
+								}),
+							)
+							.then(assertFindFirstExists);
+
+						await db
 							.delete(schema.comments)
-							.where(eq(schema.comments.id, args.id))
-							.returning({
-								id: schema.comments.id,
-								published: schema.comments.published,
-								ownerId: schema.comments.ownerId,
-								postId: schema.comments.postId,
-								text: schema.comments.text,
-							})
-							.then(assertFirstEntryExists);
+							.where(eq(schema.comments.id, comment.id));
+
+						return comment;
 					},
 				}),
 			};
@@ -304,6 +311,100 @@ describe("test rumble subscriptions", async () => {
 			}
 		}
 
-		expect(iterationCounter).toEqual(3);
+		expect(iterationCounter).toEqual(2);
+	});
+
+	test("deliver subscription creations on list of entities", async () => {
+		rumble.abilityBuilder.comments.allow("read");
+		rumble.abilityBuilder.comments.allow("delete");
+
+		const { created: createdComment } = rumble.pubsub({
+			tableName: "comments",
+		});
+
+		rumble.schemaBuilder.mutationFields((t) => {
+			return {
+				createComment: t.drizzleField({
+					args: {
+						id: t.arg.string({ required: true }),
+						text: t.arg.string({ required: true }),
+					},
+					type: "comments",
+					resolve: async (query, root, args, ctx, info) => {
+						createdComment();
+
+						const comment = await db.insert(schema.comments).values({
+							id: args.id,
+							text: args.text,
+						});
+
+						await db
+							.delete(schema.comments)
+							.where(eq(schema.comments.id, comment.id));
+
+						return comment;
+					},
+				}),
+			};
+		});
+
+		const commentId = seedData.comments[0].id;
+		const { executor, yogaInstance } = build();
+		const sub = await executor({
+			document: parse(/* GraphQL */ `
+                subscription FindFirstComment {
+                  findManyComments(where: { id: "${commentId}" }) {
+                    id
+                    text
+                  }
+                }
+              `),
+		});
+
+		setTimeout(async () => {
+			const r = await executor({
+				document: parse(/* GraphQL */ `
+              mutation SetTextOnComment {
+                deleteComment(id: "${commentId}") {
+                  id
+                  text
+                }
+              }
+            `),
+			});
+
+			if (r.errors) {
+				throw r.errors;
+			}
+		}, 300);
+
+		let iterationCounter = 0;
+		for await (const message of sub) {
+			iterationCounter++;
+
+			if (iterationCounter === 1) {
+				expect(message).toEqual({
+					data: {
+						findManyComments: [
+							{
+								id: commentId,
+								text: seedData.comments[0].text,
+							},
+						],
+					},
+				});
+			}
+
+			if (iterationCounter === 2) {
+				expect(message).toEqual({
+					data: {
+						findManyComments: [],
+					},
+				});
+				break;
+			}
+		}
+
+		expect(iterationCounter).toEqual(2);
 	});
 });
