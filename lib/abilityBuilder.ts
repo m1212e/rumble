@@ -1,9 +1,9 @@
 import { and, eq, or } from "drizzle-orm";
-import { RumbleError } from "../out";
 import type {
 	GenericDrizzleDbTypeConstraints,
 	QueryConditionObject,
 } from "./types/genericDrizzleDbType";
+import { RumbleError } from "./types/rumbleError";
 import type { RumbleInput } from "./types/rumbleInput";
 
 export type AbilityBuilderType<
