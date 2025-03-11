@@ -2,7 +2,10 @@ import { createServer } from "node:http";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { rumble } from "../../lib";
-import { assertFirstEntryExists } from "../../lib/helpers/helper";
+import {
+	assertFindFirstExists,
+	assertFirstEntryExists,
+} from "../../lib/helpers/helper";
 import * as schema from "./db/schema";
 
 /*
@@ -56,9 +59,8 @@ const { abilityBuilder, schemaBuilder, arg, object, query, pubsub, yoga } =
 */
 
 // users can edit themselves
-abilityBuilder.users
-	.allow(["read", "update", "delete"])
-	.when(({ userId }) => ({ where: eq(schema.users.id, userId) }));
+abilityBuilder.users.allow(["read", "update", "delete"]);
+// .when(({ userId }) => ({ where: eq(schema.users.id, userId) }));
 
 // everyone can read posts
 abilityBuilder.posts.allow("read");
@@ -209,7 +211,9 @@ query({
 // right out of the box, so all READ queries will automatically get notified if necessary
 // the only thing you have to do is to call the pubsub helper with the table name
 // and embed the helper into your mutations
-const { updated: updatedUser } = pubsub({ tableName: "users" });
+const { updated: updatedUser, created: createdUser } = pubsub({
+	tableName: "users",
+});
 
 schemaBuilder.mutationFields((t) => {
 	return {
@@ -219,25 +223,72 @@ schemaBuilder.mutationFields((t) => {
 				userId: t.arg.int({ required: true }),
 				newName: t.arg.string({ required: true }),
 			},
-			resolve: (query, root, args, ctx, info) => {
+			resolve: async (query, root, args, ctx, info) => {
 				// this notifies all subscribers that the user has been updated
 				updatedUser(args.userId);
-				return (
-					db
-						.update(schema.users)
-						.set({
-							name: args.newName,
-						})
-						.where(
-							and(
+
+				await db
+					.update(schema.users)
+					.set({
+						name: args.newName,
+					})
+					.where(
+						and(
+							eq(schema.users.id, args.userId),
+							ctx.abilities.users.filter("update").where,
+						),
+					);
+
+				return db.query.users
+					.findFirst(
+						query({
+							where: and(
+								ctx.abilities.users.filter("read").where,
 								eq(schema.users.id, args.userId),
-								ctx.abilities.users.filter("update").where,
 							),
-						)
-						.returning({ id: schema.users.id, name: schema.users.name })
-						// note the mapper
-						.then(assertFirstEntryExists)
-				);
+						}),
+					)
+					.then(assertFindFirstExists);
+			},
+		}),
+	};
+});
+
+schemaBuilder.mutationFields((t) => {
+	return {
+		addUser: t.drizzleField({
+			type: UserRef,
+			args: {
+				id: t.arg.int({ required: true }),
+				name: t.arg.string({ required: true }),
+			},
+			resolve: async (query, root, args, ctx, info) => {
+				// check if the user is allowed to add a user
+
+				const newUser = await db
+					.insert(schema.users)
+					.values({
+						id: args.id,
+						name: args.name,
+					})
+					.returning({
+						id: schema.users.id,
+					})
+					.then(assertFirstEntryExists);
+
+				// this notifies all subscribers that the user has been added
+				createdUser(newUser.id);
+
+				return db.query.users
+					.findFirst(
+						query({
+							where: and(
+								ctx.abilities.users.filter("read").where,
+								eq(schema.users.id, newUser.id),
+							),
+						}),
+					)
+					.then(assertFindFirstExists);
 			},
 		}),
 	};

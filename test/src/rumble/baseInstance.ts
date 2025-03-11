@@ -64,13 +64,13 @@ export function makeRumbleSeedInstance(
 
 	return {
 		rumble: r,
-		executor: () => {
+		build: () => {
 			const yogaInstance = r.yoga();
 			const executor = buildHTTPExecutor({
 				fetch: yogaInstance.fetch,
 				endpoint: "http://yoga/graphql",
 			});
-			return executor;
+			return { executor, yogaInstance };
 		},
 	};
 }

@@ -20,7 +20,9 @@ export const posts = table(
 		id: t.text().primaryKey(),
 		slug: t.text().$default(() => faker.lorem.slug()),
 		title: t.text(),
-		ownerId: t.text("owner_id").references(() => users.id),
+		ownerId: t.text("owner_id").references(() => users.id, {
+			onDelete: "cascade",
+		}),
 	},
 	(table) => [
 		t.uniqueIndex("slug_idx").on(table.slug),
@@ -32,8 +34,12 @@ export const comments = table("comments", {
 	id: t.text().primaryKey(),
 	text: t.text({ length: 256 }),
 	published: t.integer({ mode: "boolean" }),
-	postId: t.text("post_id").references(() => posts.id),
-	ownerId: t.text("owner_id").references(() => users.id),
+	postId: t.text("post_id").references(() => posts.id, {
+		onDelete: "cascade",
+	}),
+	ownerId: t.text("owner_id").references(() => users.id, {
+		onDelete: "cascade",
+	}),
 });
 
 export const usersRelations = relations(users, ({ one, many }) => ({

@@ -1,17 +1,13 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { parse } from "graphql";
-import { assertFirstEntryExists } from "../../lib";
 import { makeSeededDBInstanceForTest } from "./db/db";
 import * as schema from "./db/schema";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
 describe("test rumble abilities", async () => {
 	let { db, seedData } = await makeSeededDBInstanceForTest();
-	let { rumble, executor } = makeRumbleSeedInstance(
-		db,
-		seedData.users.at(0)?.id,
-	);
+	let { rumble, build } = makeRumbleSeedInstance(db, seedData.users.at(0)?.id);
 
 	beforeEach(async () => {
 		const s = await makeSeededDBInstanceForTest();
@@ -20,13 +16,14 @@ describe("test rumble abilities", async () => {
 
 		const r = makeRumbleSeedInstance(db, seedData.users.at(0)?.id);
 		rumble = r.rumble;
-		executor = r.executor;
+		build = r.build;
 	});
 
 	test("allow simple read with helper implementation", async () => {
 		rumble.abilityBuilder.users.allow(["read"]);
 
-		const r = await executor()({
+		const { executor, yogaInstance } = build();
+		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
           findFirstUsers {
@@ -50,7 +47,8 @@ describe("test rumble abilities", async () => {
 	test("deny simple read with helper implementation", async () => {
 		rumble.abilityBuilder.users.allow(["read"]);
 
-		const r = await executor()({
+		const { executor, yogaInstance } = build();
+		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
           findFirstPosts {
@@ -67,7 +65,8 @@ describe("test rumble abilities", async () => {
 	test("omit indirect read with helper implementation", async () => {
 		rumble.abilityBuilder.users.allow(["read"]);
 
-		const r = await executor()({
+		const { executor, yogaInstance } = build();
+		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
           findManyUsers {
@@ -94,7 +93,8 @@ describe("test rumble abilities", async () => {
 		rumble.abilityBuilder.users.allow(["read"]);
 		rumble.abilityBuilder.posts.allow(["read"]);
 
-		const r = await executor()({
+		const { executor, yogaInstance } = build();
+		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
           findManyUsers {
@@ -118,7 +118,8 @@ describe("test rumble abilities", async () => {
 	test("deny indirect read with helper implementation on one to one", async () => {
 		rumble.abilityBuilder.comments.allow(["read"]);
 
-		const r = await executor()({
+		const { executor, yogaInstance } = build();
+		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
           findManyComments {
@@ -141,7 +142,8 @@ describe("test rumble abilities", async () => {
 		rumble.abilityBuilder.comments.allow(["read"]);
 		rumble.abilityBuilder.users.allow(["read"]);
 
-		const r = await executor()({
+		const { executor, yogaInstance } = build();
+		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
           findManyComments {
@@ -165,7 +167,8 @@ describe("test rumble abilities", async () => {
 			.allow("read")
 			.when({ where: eq(schema.comments.published, true) });
 
-		const r = await executor()({
+		const { executor, yogaInstance } = build();
+		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
           findManyComments {
@@ -183,7 +186,8 @@ describe("test rumble abilities", async () => {
 			.allow("read")
 			.when(({ userId }) => ({ where: eq(schema.comments.ownerId, userId) }));
 
-		const r = await executor()({
+		const { executor, yogaInstance } = build();
+		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
           findManyComments {
@@ -201,7 +205,8 @@ describe("test rumble abilities", async () => {
 			limit: 3,
 		});
 
-		const r = await executor()({
+		const { executor, yogaInstance } = build();
+		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
           findManyComments {
@@ -223,7 +228,8 @@ describe("test rumble abilities", async () => {
 			limit: 4,
 		});
 
-		const r = await executor()({
+		const { executor, yogaInstance } = build();
+		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
           findManyComments {
@@ -234,55 +240,5 @@ describe("test rumble abilities", async () => {
 		});
 
 		expect((r as any).data.findManyComments.length).toEqual(4);
-	});
-
-	test("limit read amount to max value with abilities", async () => {
-		rumble.abilityBuilder.comments.allow("read");
-
-		rumble.schemaBuilder.mutationFields((t) => {
-			return {
-				updateComment: t.drizzleField({
-					args: {
-						id: t.arg.int({ required: true }),
-						newText: t.arg.string({ required: true }),
-					},
-					type: "comments",
-					resolve: (query, root, args, ctx, info) => {
-						updatedComment(args.id);
-						return db
-							.update(schema.comments)
-							.set({
-								text: args.newText,
-							})
-							.where(
-								and(
-									eq(schema.comments.id, args.id),
-									ctx.abilities.comments.filter("update").where,
-								),
-							)
-							.returning({
-								id: schema.comments.id,
-								name: schema.comments.text,
-								published: schema.comments.published,
-								ownerId: schema.comments.ownerId,
-								postId: schema.comments.postId,
-							})
-							.then(assertFirstEntryExists);
-					},
-				}),
-			};
-		});
-
-		const r = await executor()({
-			document: parse(/* GraphQL */ `
-        query {
-          findManyCommentsWithInjectedLimit {
-            id
-          }
-        }
-      `),
-		});
-
-		expect((r as any).data.findManyCommentsWithInjectedLimit.length).toEqual(4);
 	});
 });

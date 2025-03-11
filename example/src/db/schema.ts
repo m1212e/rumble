@@ -14,7 +14,9 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 export const posts = pgTable("posts", {
 	id: serial("id").primaryKey(),
 	content: text("content").notNull(),
-	authorId: integer("author_id").references(() => users.id),
+	authorId: integer("author_id").references(() => users.id, {
+		onDelete: "cascade",
+	}),
 });
 
 export const postsRelations = relations(posts, ({ one, many }) => ({

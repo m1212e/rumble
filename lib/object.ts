@@ -68,7 +68,7 @@ export const createObjectImplementer = <
 				registerOnInstance({
 					instance: subscriptions,
 					action: "updated",
-					primaryKey: primaryKeyValue,
+					primaryKeyValue: primaryKeyValue,
 				});
 			},
 			fields: (t) => {

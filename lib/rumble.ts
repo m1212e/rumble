@@ -13,7 +13,7 @@ export const rumble = <
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
-	Action extends string = "read" | "create" | "update" | "delete",
+	Action extends string = "read" | "update" | "delete",
 >(
 	rumbleInput: RumbleInput<UserContext, DB, RequestEvent, Action>,
 ) => {
