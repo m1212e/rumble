@@ -7,7 +7,9 @@ export function mapSQLTypeToTSType(sqlType: string): GraphQLType {
 		return "int";
 	}
 
-	if (["string", "text", "varchar", "char", "text(256)"].includes(sqlType)) {
+	if (
+		["string", "text", "varchar", "char", "text(256)", "uuid"].includes(sqlType)
+	) {
 		return "string";
 	}
 
@@ -16,6 +18,6 @@ export function mapSQLTypeToTSType(sqlType: string): GraphQLType {
 	}
 
 	throw new RumbleError(
-		`Unknown SQL type: ${sqlType}. Please open an issue so it can be added.`,
+		`RumbleError: Unknown SQL type '${sqlType}'. Please open an issue so it can be added.`,
 	);
 }

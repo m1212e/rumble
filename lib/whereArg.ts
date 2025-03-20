@@ -70,10 +70,6 @@ export const createArgImplementer = <
 								return t.string({ required: false });
 							case "boolean":
 								return t.boolean({ required: false });
-							default:
-								throw new RumbleError(
-									`Unknown SQL type: ${sqlType} (input). Please open an issue so it can be added.`,
-								);
 						}
 					};
 					const fields = Object.entries(schema.columns).reduce(

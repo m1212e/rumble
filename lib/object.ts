@@ -92,10 +92,6 @@ export const createObjectImplementer = <
 						case "boolean":
 							// @ts-expect-error
 							return t.exposeBoolean(columnName);
-						default:
-							throw new RumbleError(
-								`Unknown SQL type: ${sqlType}. Please open an issue so it can be added.`,
-							);
 					}
 				};
 
