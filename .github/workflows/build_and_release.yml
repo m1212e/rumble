@@ -6,7 +6,7 @@ on:
 
 jobs:
   test_and_build:
-    name: Build client
+    name: Build and publish client
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
