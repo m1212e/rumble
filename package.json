@@ -2,6 +2,7 @@
 	"name": "@m1212e/rumble",
 	"module": "index.ts",
 	"type": "module",
+	"repository": "https://github.com/m1212e/rumble",
 	"scripts": {
 		"format": "bun run lint",
 		"lint": "bunx biome check --write .",
