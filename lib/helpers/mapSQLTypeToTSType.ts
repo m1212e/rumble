@@ -1,20 +1,71 @@
+import type { SchemaBuilderType } from "../schemaBuilder";
+import type { GenericDrizzleDbTypeConstraints } from "../types/genericDrizzleDbType";
 import { RumbleError } from "../types/rumbleError";
 
-type GraphQLType = "int" | "string" | "boolean";
+export function mapSQLTypeToGraphQLType<
+	UserContext extends Record<string, any>,
+	DB extends GenericDrizzleDbTypeConstraints,
+	RequestEvent extends Record<string, any>,
+	Action extends string,
+	SchemaBuilder extends SchemaBuilderType<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action
+	>,
+>(sqlType: string) {
+	type ReturnType = Parameters<
+		Parameters<Parameters<SchemaBuilder["queryField"]>[1]>[0]["field"]
+	>[0]["type"];
 
-export function mapSQLTypeToTSType(sqlType: string): GraphQLType {
-	if (["serial", "int", "integer"].includes(sqlType)) {
-		return "int";
-	}
+	let ret: ReturnType | undefined = undefined;
+	// Int
+	// Float
+	// String
+	// ID
+	// Boolean
+	// DateTime
+	// Date
+	// JSON
 
 	if (
-		["string", "text", "varchar", "char", "text(256)", "uuid"].includes(sqlType)
+		["serial", "int", "integer", "tinyint", "smallint", "mediumint"].includes(
+			sqlType,
+		)
 	) {
-		return "string";
+		ret = "Int";
 	}
 
-	if (sqlType === "boolean") {
-		return "boolean";
+	if (["real", "decimal", "real", "double", "float"].includes(sqlType)) {
+		ret = "Float";
+	}
+
+	if (["string", "text", "varchar", "char", "text(256)"].includes(sqlType)) {
+		ret = "String";
+	}
+
+	if (["uuid"].includes(sqlType)) {
+		ret = "ID";
+	}
+
+	if (["boolean"].includes(sqlType)) {
+		ret = "Boolean";
+	}
+
+	if (["timestamp", "datetime"].includes(sqlType)) {
+		ret = "DateTime";
+	}
+
+	if (["date"].includes(sqlType)) {
+		ret = "Date";
+	}
+
+	if (["json"].includes(sqlType)) {
+		ret = "JSON";
+	}
+
+	if (ret !== undefined) {
+		return ret;
 	}
 
 	throw new RumbleError(

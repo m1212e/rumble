@@ -3,6 +3,11 @@ import DrizzlePlugin from "@pothos/plugin-drizzle";
 import SmartSubscriptionsPlugin, {
 	subscribeOptionsFromIterator,
 } from "@pothos/plugin-smart-subscriptions";
+import {
+	DateResolver,
+	DateTimeISOResolver,
+	JSONResolver,
+} from "graphql-scalars";
 import type { createPubSub } from "graphql-yoga";
 import type { ContextType } from "./context";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
@@ -31,18 +36,21 @@ export const createSchemaBuilder = <
 }) => {
 	const schemaBuilder = new SchemaBuilder<{
 		Context: ContextType<UserContext, DB, RequestEvent, Action>;
-		//TODO set sensible defaults here
-		// Scalars: Scalars<Prisma.Decimal, Prisma.InputJsonValue | null, Prisma.InputJsonValue> & {
-		// 	File: {
-		// 		Input: File;
-		// 		Output: never;
-		// 	};
-		// 	JSONObject: {
-		// 		Input: any;
-		// 		Output: any;
-		// 	};
-		// };
 		DrizzleSchema: DB["_"]["fullSchema"];
+		Scalars: {
+			JSON: {
+				Input: unknown;
+				Output: unknown;
+			};
+			Date: {
+				Input: Date;
+				Output: Date;
+			};
+			DateTime: {
+				Input: Date;
+				Output: Date;
+			};
+		};
 	}>({
 		plugins: [DrizzlePlugin, SmartSubscriptionsPlugin],
 		drizzle: {
@@ -54,6 +62,10 @@ export const createSchemaBuilder = <
 			}),
 		},
 	});
+
+	schemaBuilder.addScalarType("JSON", JSONResolver);
+	schemaBuilder.addScalarType("Date", DateResolver);
+	schemaBuilder.addScalarType("DateTime", DateTimeISOResolver);
 
 	if (!disableDefaultObjects?.query) {
 		schemaBuilder.queryType({});

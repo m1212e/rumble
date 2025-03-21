@@ -32,6 +32,7 @@
 		"@pothos/core": "^4.5.0",
 		"@pothos/plugin-drizzle": "^0.7.0",
 		"@pothos/plugin-smart-subscriptions": "^4.1.1",
+		"graphql-scalars": "^1.24.2",
 		"graphql-yoga": "^5.12.2"
 	}
 }

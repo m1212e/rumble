@@ -90,8 +90,8 @@ describe("test rumble subscriptions", async () => {
             `),
 			});
 
-			if (r.errors) {
-				throw r.errors;
+			if ((r as any).errors) {
+				throw (r as any).errors;
 			}
 		}, 300);
 
@@ -186,8 +186,8 @@ describe("test rumble subscriptions", async () => {
             `),
 			});
 
-			if (r.errors) {
-				throw r.errors;
+			if ((r as any).errors) {
+				throw (r as any).errors;
 			}
 		}, 300);
 
@@ -279,8 +279,8 @@ describe("test rumble subscriptions", async () => {
             `),
 			});
 
-			if (r.errors) {
-				throw r.errors;
+			if ((r as any).errors) {
+				throw (r as any).errors;
 			}
 		}, 300);
 
@@ -383,8 +383,8 @@ describe("test rumble subscriptions", async () => {
             `),
 			});
 
-			if (r.errors) {
-				throw r.errors;
+			if ((r as any).errors) {
+				throw (r as any).errors;
 			}
 		}, 300);
 

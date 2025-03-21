@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
-import { mapSQLTypeToTSType } from "./helpers/mapSQLTypeToTSType";
+import { mapSQLTypeToGraphQLType } from "./helpers/mapSQLTypeToTSType";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
@@ -62,14 +62,34 @@ export const createArgImplementer = <
 					>(
 						sqlType: SQLType,
 					) => {
-						const gqlType = mapSQLTypeToTSType(sqlType);
+						const gqlType = mapSQLTypeToGraphQLType(sqlType);
 						switch (gqlType) {
-							case "int":
+							case "Int":
 								return t.int({ required: false });
-							case "string":
+							case "String":
 								return t.string({ required: false });
-							case "boolean":
+							case "Boolean":
 								return t.boolean({ required: false });
+							case "Date":
+								return t.field({
+									type: "Date",
+								});
+							case "DateTime":
+								return t.field({
+									type: "DateTime",
+								});
+							case "Float":
+								return t.float({ required: false });
+							case "ID":
+								return t.id({ required: false });
+							case "JSON":
+								return t.field({
+									type: "JSON",
+								});
+							default:
+								throw new RumbleError(
+									`Unsupported argument type ${gqlType} for column ${sqlType}`,
+								);
 						}
 					};
 					const fields = Object.entries(schema.columns).reduce(

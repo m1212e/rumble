@@ -1,4 +1,4 @@
-import { mapSQLTypeToTSType } from "./helpers/mapSQLTypeToTSType";
+import { mapSQLTypeToGraphQLType } from "./helpers/mapSQLTypeToTSType";
 import { type MakePubSubInstanceType, createPubSubInstance } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
@@ -81,17 +81,42 @@ export const createObjectImplementer = <
 					sqlType: SQLType,
 					columnName: Column,
 				) => {
-					const gqlType = mapSQLTypeToTSType(sqlType);
+					const gqlType = mapSQLTypeToGraphQLType(sqlType);
 					switch (gqlType) {
-						case "int":
+						case "Int":
 							// @ts-expect-error
 							return t.exposeInt(columnName);
-						case "string":
+						case "String":
 							// @ts-expect-error
 							return t.exposeString(columnName);
-						case "boolean":
+						case "Boolean":
 							// @ts-expect-error
 							return t.exposeBoolean(columnName);
+						case "Date":
+							return t.field({
+								type: "Date",
+								resolve: (element) => (element as any)[columnName] as Date,
+							});
+						case "DateTime":
+							return t.field({
+								type: "DateTime",
+								resolve: (element) => (element as any)[columnName] as Date,
+							});
+						case "Float":
+							// @ts-expect-error
+							return t.exposeFloat(columnName);
+						case "ID":
+							// @ts-expect-error
+							return t.exposeID(columnName);
+						case "JSON":
+							return t.field({
+								type: "JSON",
+								resolve: (element) => (element as any)[columnName] as unknown,
+							});
+						default:
+							throw new RumbleError(
+								`Unsupported object type ${gqlType} for column ${columnName}`,
+							);
 					}
 				};
 
