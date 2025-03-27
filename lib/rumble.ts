@@ -1,4 +1,7 @@
-import { createYoga } from "graphql-yoga";
+import {
+	type YogaServerOptions,
+	createYoga as nativeCreateYoga,
+} from "graphql-yoga";
 import { createAbilityBuilder } from "./abilityBuilder";
 import { createContextFunction } from "./context";
 import { createObjectImplementer } from "./object";
@@ -88,9 +91,13 @@ export const rumble = <
 		makePubSubInstance,
 	});
 
-	const yoga = () =>
-		createYoga<RequestEvent>({
-			...rumbleInput.nativeServerOptions,
+	const createYoga = (
+		args:
+			| Omit<YogaServerOptions<RequestEvent, any>, "schema" | "context">
+			| undefined,
+	) =>
+		nativeCreateYoga<RequestEvent>({
+			...args,
 			schema: schemaBuilder.toSchema(),
 			context,
 		});
@@ -118,19 +125,19 @@ export const rumble = <
 		 */
 		schemaBuilder,
 		/**
-       * The native yoga instance. Can be used to run an actual HTTP server.
+       * Creates the native yoga instance. Can be used to run an actual HTTP server.
        * 
        * @example
        * 
        * ```ts
         import { createServer } from "node:http";
-       * const server = createServer(yoga());
+       * const server = createServer(createYoga());
        server.listen(3000, () => {
             console.info("Visit http://localhost:3000/graphql");
        });
        * ```
        */
-		yoga,
+		createYoga,
 		/**
 		 * A function for creating default objects for your schema
 		 */

@@ -12,12 +12,6 @@ export type RumbleInput<
 	 */
 	db: DB;
 	/**
-	 * Optional options for the native GraphQL Yoga server
-	 */
-	nativeServerOptions?:
-		| Omit<YogaServerOptions<RequestEvent, any>, "schema" | "context">
-		| undefined;
-	/**
 	 * A function for providing context for each request based on the incoming HTTP Request.
 	 * The type of the parameter equals the HTTPRequest type of your chosen server.
 	 */
