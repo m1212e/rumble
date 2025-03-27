@@ -26,8 +26,8 @@
 		"tsx": "^4.19.3"
 	},
 	"peerDependencies": {
-		"typescript": "^5.8.2",
-		"drizzle-orm": "^0.40.0"
+		"typescript": "^5",
+		"drizzle-orm": "^0.40"
 	},
 	"dependencies": {
 		"@pothos/core": "^4.5.0",
