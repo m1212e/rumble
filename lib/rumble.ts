@@ -92,7 +92,7 @@ export const rumble = <
 	});
 
 	const createYoga = (
-		args:
+		args?:
 			| Omit<YogaServerOptions<RequestEvent, any>, "schema" | "context">
 			| undefined,
 	) =>

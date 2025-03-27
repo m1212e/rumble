@@ -134,7 +134,7 @@ describe("test rumble abilities", async () => {
 
 		expect((r as any).data.findManyComments.length).toEqual(10);
 		expect(
-			(r as any).data.findManyComments.filter((u) => u.author).length,
+			(r as any).data.findManyComments.filter((u: any) => u.author).length,
 		).toEqual(0);
 	});
 

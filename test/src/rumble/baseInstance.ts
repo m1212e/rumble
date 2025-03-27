@@ -65,7 +65,7 @@ export function makeRumbleSeedInstance(
 	return {
 		rumble: r,
 		build: () => {
-			const yogaInstance = r.yoga();
+			const yogaInstance = r.createYoga();
 			const executor = buildHTTPExecutor({
 				fetch: yogaInstance.fetch,
 				endpoint: "http://yoga/graphql",

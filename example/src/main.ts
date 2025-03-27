@@ -30,22 +30,29 @@ export const db = drizzle(
 
 */
 
-const { abilityBuilder, schemaBuilder, arg, object, query, pubsub, yoga } =
-	rumble({
-		// here we pass the db instance from above
-		db,
-		// this is how we can define a context callback
-		// it takes a request object as an argument and returns the objects you want in the request context
-		// similar to the context callback in express or similar frameworks
-		// the type of the request parameter may vary based on the HTTP library you are using
-		context(request) {
-			return {
-				// for our usecase we simply mock a user ID to be set in the context
-				// this will allow us to perform permission checks based on who the user is
-				userId: 2,
-			};
-		},
-	});
+const {
+	abilityBuilder,
+	schemaBuilder,
+	arg,
+	object,
+	query,
+	pubsub,
+	createYoga,
+} = rumble({
+	// here we pass the db instance from above
+	db,
+	// this is how we can define a context callback
+	// it takes a request object as an argument and returns the objects you want in the request context
+	// similar to the context callback in express or similar frameworks
+	// the type of the request parameter may vary based on the HTTP library you are using
+	context(request) {
+		return {
+			// for our usecase we simply mock a user ID to be set in the context
+			// this will allow us to perform permission checks based on who the user is
+			userId: 2,
+		};
+	},
+});
 
 /*
 
@@ -304,7 +311,7 @@ schemaBuilder.mutationFields((t) => {
 
 // when we are done defining the objects, queries and mutations,
 // we can start the server
-const server = createServer(yoga());
+const server = createServer(createYoga());
 server.listen(3000, () => {
 	console.info("Visit http://localhost:3000/graphql");
 });
