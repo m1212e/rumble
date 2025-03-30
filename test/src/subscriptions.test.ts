@@ -20,6 +20,7 @@ describe("test rumble subscriptions", async () => {
 		rumble = r.rumble;
 		build = r.build;
 	});
+
 	test("deliver subscription updates on specific entity", async () => {
 		rumble.abilityBuilder.comments.allow("read");
 		rumble.abilityBuilder.comments.allow("update");

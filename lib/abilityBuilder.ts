@@ -24,7 +24,7 @@ type Condition<DBParameters, UserContext> =
 type SimpleCondition<DBParameters> = DBParameters;
 type SyncFunctionCondition<DBParameters, UserContext> = (
 	context: UserContext,
-) => DBParameters;
+) => DBParameters | undefined;
 // type AsyncFunctionCondition<DBParameters, UserContext> = (
 // 	context: UserContext,
 // ) => Promise<DBParameters>;
@@ -73,10 +73,12 @@ export const createAbilityBuilder = <
 
 	const registeredConditions: {
 		[key in DBQueryKey]: {
-			[key in Action[number]]: (
-				| QueryConditionObject
-				| ((context: UserContext) => QueryConditionObject)
-			)[];
+			[key in Action[number]]:
+				| (
+						| QueryConditionObject
+						| ((context: UserContext) => QueryConditionObject | undefined)
+				  )[]
+				| "wildcard";
 			// | ((context: UserContext) => Promise<QueryConditionObject>)
 		};
 	} = {} as any;
@@ -93,7 +95,7 @@ export const createAbilityBuilder = <
 			for (const action of actions) {
 				let conditionsPerEntityAndAction = conditionsPerEntity[action];
 				if (!conditionsPerEntityAndAction) {
-					conditionsPerEntityAndAction = [];
+					conditionsPerEntityAndAction = "wildcard";
 					conditionsPerEntity[action] = conditionsPerEntityAndAction;
 				}
 			}
@@ -101,8 +103,16 @@ export const createAbilityBuilder = <
 			return {
 				when: (condition: Condition<DBParameters, UserContext>) => {
 					for (const action of actions) {
+						if (conditionsPerEntity[action] === "wildcard") {
+							conditionsPerEntity[action] = [];
+						}
 						const conditionsPerEntityAndAction = conditionsPerEntity[action];
-						conditionsPerEntityAndAction.push(condition);
+						(
+							conditionsPerEntityAndAction as Exclude<
+								typeof conditionsPerEntityAndAction,
+								"wildcard"
+							>
+						).push(condition);
 					}
 				},
 			};
@@ -138,7 +148,18 @@ export const createAbilityBuilder = <
 
 					let conditionsPerEntityAndAction = conditionsPerEntity[action];
 
-					if (!conditionsPerEntity || !conditionsPerEntityAndAction) {
+					// in case we have a wildcard ability, skip the rest and only apply the injected
+					// filters, if any
+					if (conditionsPerEntityAndAction === "wildcard") {
+						return {
+							where: undefined,
+							columns: undefined,
+							limit: undefined,
+							...options?.inject,
+						};
+					}
+
+					const getBlockEverythingFilter = () => {
 						const primaryKeyField = schema[entityKey].primaryKey.at(0);
 						if (!primaryKeyField) {
 							throw new RumbleError(
@@ -152,14 +173,16 @@ export const createAbilityBuilder = <
 						);
 
 						// when the user has no permission for anything, ensure returns nothing
-						conditionsPerEntityAndAction = [
-							{
-								where: and(
-									eq(primaryKeyField, distinctValues.value1),
-									eq(primaryKeyField, distinctValues.value2),
-								),
-							},
-						];
+						return {
+							where: and(
+								eq(primaryKeyField, distinctValues.value1),
+								eq(primaryKeyField, distinctValues.value2),
+							),
+						};
+					};
+
+					if (!conditionsPerEntity || !conditionsPerEntityAndAction) {
+						conditionsPerEntityAndAction = [getBlockEverythingFilter()];
 					}
 
 					const simpleConditions =
@@ -181,9 +204,14 @@ export const createAbilityBuilder = <
 						// ...asyncFunctionConditions,
 					];
 
+					// if we don't have any permitted filters and don't have a wildcard, then block everything
+					if (allConditionObjects.filter((o) => o !== undefined).length === 0) {
+						allConditionObjects.push(getBlockEverythingFilter());
+					}
+
 					let highestLimit = undefined;
 					for (const conditionObject of allConditionObjects) {
-						if (conditionObject.limit) {
+						if (conditionObject?.limit) {
 							if (
 								highestLimit === undefined ||
 								conditionObject.limit > highestLimit
@@ -203,7 +231,7 @@ export const createAbilityBuilder = <
 						...allConditionObjects,
 						options?.inject ?? {},
 					]) {
-						if (conditionObject.columns) {
+						if (conditionObject?.columns) {
 							if (combinedAllowedColumns === undefined) {
 								combinedAllowedColumns = conditionObject.columns;
 							} else {
@@ -216,8 +244,8 @@ export const createAbilityBuilder = <
 					}
 
 					const accumulatedWhereConditions = allConditionObjects
-						.filter((o) => o.where)
-						.map((o) => o.where);
+						.filter((o) => o?.where)
+						.map((o) => o?.where);
 
 					let combinedWhere =
 						accumulatedWhereConditions.length > 0

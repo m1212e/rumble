@@ -181,6 +181,52 @@ describe("test rumble abilities", async () => {
 		expect((r as any).data.findManyComments.length).toEqual(5);
 	});
 
+	test("deny with dynamic specific condition", async () => {
+		rumble.abilityBuilder.comments.allow("read").when(() => {
+			// here we could do
+			// if(users.isLoggedIn()) {
+			//   return { where: eq(schema.comments.ownerId, userId) };
+			// }
+
+			// in case we are not logged in we return nothing which MUST evaluate to not allowing things
+			// instead of allowing everything like rumble.abilityBuilder.comments.allow("read") would do
+			return undefined;
+		});
+
+		const { executor, yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          findManyComments {
+            id
+          }
+        }
+      `),
+		});
+
+		expect((r as any).data.findManyComments.length).toEqual(0);
+	});
+
+	test("deny read with dynamic specific condition AND static condition with diverging permissions", async () => {
+		rumble.abilityBuilder.comments.allow("read").when(() => {
+			return undefined;
+		});
+		rumble.abilityBuilder.comments.allow("read");
+
+		const { executor, yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          findManyComments {
+            id
+          }
+        }
+      `),
+		});
+
+		expect((r as any).data.findManyComments.length).toEqual(0);
+	});
+
 	test("allow read only with specific condition based on request context", async () => {
 		rumble.abilityBuilder.comments
 			.allow("read")
