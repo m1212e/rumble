@@ -93,7 +93,7 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 	name: "Post",
 	fields: (t) => ({
 		id: t.exposeInt("id"),
-		content: t.exposeString("content"),
+		content: t.exposeString("content", { nullable: false }),
 		author: t.relation("author", {
 			// this is how you can apply the above abilities to the queries
 			// you define the action you want the filters for by passing it to the filter call

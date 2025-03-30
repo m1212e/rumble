@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
+import type { PossibleSQLType } from "./helpers/sqlTypes/types";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
@@ -62,7 +63,7 @@ export const createArgImplementer = <
 					>(
 						sqlType: SQLType,
 					) => {
-						const gqlType = mapSQLTypeToGraphQLType(sqlType);
+						const gqlType = mapSQLTypeToGraphQLType(sqlType as PossibleSQLType);
 						switch (gqlType) {
 							case "Int":
 								return t.int({ required: false });
@@ -73,10 +74,12 @@ export const createArgImplementer = <
 							case "Date":
 								return t.field({
 									type: "Date",
+									required: false,
 								});
 							case "DateTime":
 								return t.field({
 									type: "DateTime",
+									required: false,
 								});
 							case "Float":
 								return t.float({ required: false });
@@ -85,6 +88,7 @@ export const createArgImplementer = <
 							case "JSON":
 								return t.field({
 									type: "JSON",
+									required: false,
 								});
 							default:
 								throw new RumbleError(

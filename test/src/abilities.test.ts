@@ -288,7 +288,7 @@ describe("test rumble abilities", async () => {
 		expect((r as any).data.findManyComments.length).toEqual(4);
 	});
 
-	test("allow simple read with helper implementation with column restrictions", async () => {
+	test("error simple read with helper implementation with column restrictions", async () => {
 		rumble.abilityBuilder.users.allow(["read"]).when({
 			columns: {
 				id: false,
@@ -310,14 +310,7 @@ describe("test rumble abilities", async () => {
       `),
 		});
 
-		expect(r).toEqual({
-			data: {
-				findFirstUsers: {
-					id: null,
-					firstName: seedData.users[0].firstName,
-					email: seedData.users[0].email,
-				},
-			},
-		});
+		expect((r as any).errors.length).toEqual(1);
+		expect((r as any).errors.at(0).path).toEqual(["findFirstUsers", "id"]);
 	});
 });

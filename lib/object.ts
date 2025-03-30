@@ -1,4 +1,5 @@
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
+import type { PossibleSQLType } from "./helpers/sqlTypes/types";
 import { type MakePubSubInstanceType, createPubSubInstance } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
@@ -80,38 +81,42 @@ export const createObjectImplementer = <
 				>(
 					sqlType: SQLType,
 					columnName: Column,
+					nullable: boolean,
 				) => {
-					const gqlType = mapSQLTypeToGraphQLType(sqlType);
+					const gqlType = mapSQLTypeToGraphQLType(sqlType as PossibleSQLType);
 					switch (gqlType) {
 						case "Int":
 							// @ts-expect-error
-							return t.exposeInt(columnName);
+							return t.exposeInt(columnName, { nullable });
 						case "String":
 							// @ts-expect-error
-							return t.exposeString(columnName);
+							return t.exposeString(columnName, { nullable });
 						case "Boolean":
 							// @ts-expect-error
-							return t.exposeBoolean(columnName);
+							return t.exposeBoolean(columnName, { nullable });
 						case "Date":
 							return t.field({
 								type: "Date",
 								resolve: (element) => (element as any)[columnName] as Date,
+								nullable,
 							});
 						case "DateTime":
 							return t.field({
 								type: "DateTime",
 								resolve: (element) => (element as any)[columnName] as Date,
+								nullable,
 							});
 						case "Float":
 							// @ts-expect-error
-							return t.exposeFloat(columnName);
+							return t.exposeFloat(columnName, { nullable });
 						case "ID":
 							// @ts-expect-error
-							return t.exposeID(columnName);
+							return t.exposeID(columnName, { nullable });
 						case "JSON":
 							return t.field({
 								type: "JSON",
 								resolve: (element) => (element as any)[columnName] as unknown,
+								nullable,
 							});
 						default:
 							throw new RumbleError(
@@ -122,9 +127,11 @@ export const createObjectImplementer = <
 
 				const fields = Object.entries(schema.columns).reduce(
 					(acc, [key, value]) => {
+						value.notNull;
 						acc[key] = mapSQLTypeStringToExposedPothosType(
 							value.getSQLType(),
 							key,
+							!value.notNull,
 						);
 						return acc;
 					},
