@@ -1,4 +1,4 @@
-import { mapSQLTypeToGraphQLType } from "./helpers/mapSQLTypeToTSType";
+import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import { type MakePubSubInstanceType, createPubSubInstance } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";

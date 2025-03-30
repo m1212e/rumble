@@ -1,4 +1,5 @@
 import { and, eq, or } from "drizzle-orm";
+import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
 import type {
 	GenericDrizzleDbTypeConstraints,
 	QueryConditionObject,
@@ -145,9 +146,18 @@ export const createAbilityBuilder = <
 							);
 						}
 
+						// we want a filter that excludes everything
+						const distinctValues = createDistinctValuesFromSQLType(
+							primaryKeyField.getSQLType(),
+						);
+
+						// when the user has no permission for anything, ensure returns nothing
 						conditionsPerEntityAndAction = [
 							{
-								where: and(eq(primaryKeyField, "1"), eq(primaryKeyField, "2")),
+								where: and(
+									eq(primaryKeyField, distinctValues.value1),
+									eq(primaryKeyField, distinctValues.value2),
+								),
 							},
 						];
 					}

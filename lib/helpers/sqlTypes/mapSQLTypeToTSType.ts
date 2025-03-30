@@ -1,6 +1,6 @@
-import type { SchemaBuilderType } from "../schemaBuilder";
-import type { GenericDrizzleDbTypeConstraints } from "../types/genericDrizzleDbType";
-import { RumbleError } from "../types/rumbleError";
+import type { SchemaBuilderType } from "../../schemaBuilder";
+import type { GenericDrizzleDbTypeConstraints } from "../../types/genericDrizzleDbType";
+import { type PossibleSQLType, UnknownTypeRumbleError } from "./types";
 
 export function mapSQLTypeToGraphQLType<
 	UserContext extends Record<string, any>,
@@ -13,20 +13,12 @@ export function mapSQLTypeToGraphQLType<
 		RequestEvent,
 		Action
 	>,
->(sqlType: string) {
+>(sqlType: PossibleSQLType) {
 	type ReturnType = Parameters<
 		Parameters<Parameters<SchemaBuilder["queryField"]>[1]>[0]["field"]
 	>[0]["type"];
 
 	let ret: ReturnType | undefined = undefined;
-	// Int
-	// Float
-	// String
-	// ID
-	// Boolean
-	// DateTime
-	// Date
-	// JSON
 
 	if (
 		["serial", "int", "integer", "tinyint", "smallint", "mediumint"].includes(
@@ -36,7 +28,7 @@ export function mapSQLTypeToGraphQLType<
 		ret = "Int";
 	}
 
-	if (["real", "decimal", "real", "double", "float"].includes(sqlType)) {
+	if (["real", "decimal", "double", "float"].includes(sqlType)) {
 		ret = "Float";
 	}
 
@@ -68,7 +60,5 @@ export function mapSQLTypeToGraphQLType<
 		return ret;
 	}
 
-	throw new RumbleError(
-		`RumbleError: Unknown SQL type '${sqlType}'. Please open an issue so it can be added.`,
-	);
+	throw UnknownTypeRumbleError(sqlType, "SQL to GQL");
 }

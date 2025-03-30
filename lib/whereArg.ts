@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
-import { mapSQLTypeToGraphQLType } from "./helpers/mapSQLTypeToTSType";
+import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
