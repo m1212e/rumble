@@ -1,3 +1,4 @@
+import { One } from "drizzle-orm";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
 import { type MakePubSubInstanceType, createPubSubInstance } from "./pubsub";
@@ -159,10 +160,17 @@ export const createObjectImplementer = <
 							tableName: value.referencedTableName,
 						});
 
+						// many relations will return an empty array so we just don't set them nullable
+						let nullable = false;
+						if (value instanceof One) {
+							nullable = value.isNullable;
+						}
+
 						acc[key] = t.relation(key, {
 							args: {
 								where: t.arg({ type: WhereArg, required: false }),
 							},
+							nullable,
 							query: (args: any, ctx: any) => {
 								return ctx.abilities[value.referencedTableName].filter(
 									readAction,
