@@ -115,7 +115,7 @@ describe("test rumble abilities", async () => {
 		).toEqual(10);
 	});
 
-	test("deny indirect read with helper implementation on one to one", async () => {
+	test("error indirect read with helper implementation on one to one with error on non nullable relationship", async () => {
 		rumble.abilityBuilder.comments.allow(["read"]);
 
 		const { executor, yogaInstance } = build();
@@ -138,6 +138,26 @@ describe("test rumble abilities", async () => {
 			0,
 			"author",
 		]);
+	});
+
+	test("deny indirect read with helper implementation on one to one with error on nullable relationship", async () => {
+		rumble.abilityBuilder.comments.allow(["read"]);
+
+		const { executor, yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          findManyComments {
+            id
+            post {
+              id
+            }
+          }
+        }
+      `),
+		});
+
+		expect((r as any).data.findManyComments.length).toEqual(10);
 	});
 
 	test("allow indirect read with helper implementation on one to one", async () => {

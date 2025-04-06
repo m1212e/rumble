@@ -37,9 +37,12 @@ export const comments = table("comments", {
 	postId: t.text("post_id").references(() => posts.id, {
 		onDelete: "cascade",
 	}),
-	ownerId: t.text("owner_id").references(() => users.id, {
-		onDelete: "cascade",
-	}),
+	ownerId: t
+		.text("owner_id")
+		.notNull()
+		.references(() => users.id, {
+			onDelete: "cascade",
+		}),
 });
 
 export const usersRelations = relations(users, ({ one, many }) => ({
