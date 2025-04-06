@@ -50,7 +50,7 @@ export const createObjectImplementer = <
 		readAction = "read" as Action,
 	}: {
 		tableName: ExplicitTableName;
-		name: RefName;
+		name?: RefName;
 		readAction?: Action;
 	}) => {
 		const schema = (db._.schema as NonNullable<DB["_"]["schema"]>)[tableName];
