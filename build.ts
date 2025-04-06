@@ -96,5 +96,16 @@ const readme = await readFile(join(rumbleDir, "README.md"), {
 await writeFile(join(outDir, "README.md"), readme, { encoding: "utf-8" });
 console.info("Copied README.md!");
 
+// ==============================
+//       Copy LICENSE
+// ==============================
+
+console.info("Copying LICENSE...");
+const license = await readFile(join(rumbleDir, "LICENSE"), {
+	encoding: "utf-8",
+});
+await writeFile(join(outDir, "LICENSE"), license, { encoding: "utf-8" });
+console.info("Copied LICENSE!");
+
 console.info("Done!");
 process.exit(0);

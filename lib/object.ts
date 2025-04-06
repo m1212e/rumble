@@ -163,7 +163,9 @@ export const createObjectImplementer = <
 						// many relations will return an empty array so we just don't set them nullable
 						let nullable = false;
 						if (value instanceof One) {
-							nullable = value.isNullable;
+							// we invert this for now
+							// TODO: https://github.com/drizzle-team/drizzle-orm/issues/2365#issuecomment-2781607008
+							nullable = !value.isNullable;
 						}
 
 						acc[key] = t.relation(key, {
