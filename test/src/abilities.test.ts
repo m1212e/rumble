@@ -132,10 +132,12 @@ describe("test rumble abilities", async () => {
       `),
 		});
 
-		expect((r as any).data.findManyComments.length).toEqual(10);
-		expect(
-			(r as any).data.findManyComments.filter((u: any) => u.author).length,
-		).toEqual(0);
+		expect((r as any).errors.length).toEqual(1);
+		expect((r as any).errors.at(0).path).toEqual([
+			"findManyComments",
+			0,
+			"author",
+		]);
 	});
 
 	test("allow indirect read with helper implementation on one to one", async () => {
