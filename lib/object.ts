@@ -5,6 +5,7 @@ import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
 import type { RumbleInput } from "./types/rumbleInput";
+import type { ArgImplementerType } from "./whereArg";
 
 export const createObjectImplementer = <
 	UserContext extends Record<string, any>,
@@ -12,6 +13,12 @@ export const createObjectImplementer = <
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	SchemaBuilder extends SchemaBuilderType<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action
+	>,
+	ArgImplementer extends ArgImplementerType<
 		UserContext,
 		DB,
 		RequestEvent,
@@ -27,8 +34,10 @@ export const createObjectImplementer = <
 	db,
 	schemaBuilder,
 	makePubSubInstance,
+	argImplementer,
 }: RumbleInput<UserContext, DB, RequestEvent, Action> & {
 	schemaBuilder: SchemaBuilder;
+	argImplementer: ArgImplementer;
 	makePubSubInstance: MakePubSubInstance;
 }) => {
 	return <
@@ -143,10 +152,23 @@ export const createObjectImplementer = <
 
 				const relations = Object.entries(schema.relations).reduce(
 					(acc, [key, value]) => {
+						const {
+							inputType: WhereArg,
+							transformArgumentToQueryCondition: transformWhere,
+						} = argImplementer({
+							tableName: value.referencedTableName,
+						});
+
 						acc[key] = t.relation(key, {
-							query: (_args: any, ctx: any) => {
+							args: {
+								where: t.arg({ type: WhereArg, required: false }),
+							},
+							query: (args: any, ctx: any) => {
 								return ctx.abilities[value.referencedTableName].filter(
 									readAction,
+									{
+										inject: { where: transformWhere(args.where) },
+									},
 								);
 							},
 						} as any) as any;

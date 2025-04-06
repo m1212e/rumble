@@ -39,7 +39,9 @@ export const createArgImplementer = <
 }: RumbleInput<UserContext, DB, RequestEvent, Action> & {
 	schemaBuilder: SchemaBuilder;
 }) => {
-	return <
+	const referenceStorage = new Map<string, any>();
+
+	const argImplementer = <
 		ExplicitTableName extends keyof NonNullable<DB["_"]["schema"]>,
 		RefName extends string,
 	>({
@@ -50,10 +52,18 @@ export const createArgImplementer = <
 		name?: RefName | undefined;
 	}) => {
 		const schema = (db._.schema as NonNullable<DB["_"]["schema"]>)[tableName];
-		const inputType = schemaBuilder.inputType(
+		const inputTypeName =
 			name ??
-				`${capitalizeFirstLetter(tableName.toString())}WhereInputArgument`,
-			{
+			`${capitalizeFirstLetter(tableName.toString())}WhereInputArgument`;
+
+		let ret: ReturnType<typeof implement> | undefined =
+			referenceStorage.get(inputTypeName);
+		if (ret) {
+			return ret;
+		}
+
+		const implement = () => {
+			const inputType = schemaBuilder.inputType(inputTypeName, {
 				fields: (t) => {
 					const mapSQLTypeStringToInputPothosType = <
 						Column extends keyof typeof schema.columns,
@@ -124,41 +134,47 @@ export const createArgImplementer = <
 						// ...relations,
 					};
 				},
-			},
-		);
+			});
 
-		const transformArgumentToQueryCondition = <
-			T extends typeof inputType.$inferInput,
-		>(
-			arg: T | null | undefined,
-		) => {
-			if (!arg) return undefined;
-			const mapColumnToQueryCondition = <
-				ColumnName extends keyof typeof schema.columns,
+			const transformArgumentToQueryCondition = <
+				T extends typeof inputType.$inferInput,
 			>(
-				columnname: ColumnName,
+				arg: T | null | undefined,
 			) => {
-				const column = schema.columns[columnname];
-				const filterValue = arg[columnname];
-				if (!filterValue) return;
-				return eq(column, filterValue);
+				if (!arg) return undefined;
+				const mapColumnToQueryCondition = <
+					ColumnName extends keyof typeof schema.columns,
+				>(
+					columnname: ColumnName,
+				) => {
+					const column = schema.columns[columnname];
+					const filterValue = arg[columnname];
+					if (!filterValue) return;
+					return eq(column, filterValue);
+				};
+				const conditions = Object.keys(schema.columns).map(
+					mapColumnToQueryCondition,
+				);
+				return and(...conditions);
 			};
-			const conditions = Object.keys(schema.columns).map(
-				mapColumnToQueryCondition,
-			);
-			return and(...conditions);
+
+			return {
+				/**
+				 * The input type used to pass arguments to resolvers
+				 */
+				inputType,
+				/**
+				 * Performs a conversion of an input argument passed to a resolver to a drizzle filter.
+				 * Make sure you use the correct converter for the input type.
+				 */
+				transformArgumentToQueryCondition,
+			};
 		};
 
-		return {
-			/**
-			 * The input type used to pass arguments to resolvers
-			 */
-			inputType,
-			/**
-			 * Performs a conversion of an input argument passed to a resolver to a drizzle filter.
-			 * Make sure you use the correct converter for the input type.
-			 */
-			transformArgumentToQueryCondition,
-		};
+		ret = implement();
+		referenceStorage.set(inputTypeName, ret);
+		return ret;
 	};
+
+	return argImplementer;
 };

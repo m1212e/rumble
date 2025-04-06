@@ -53,19 +53,6 @@ export const rumble = <
 		RequestEvent,
 		Action
 	>({ ...rumbleInput, pubsub });
-
-	const object = createObjectImplementer<
-		UserContext,
-		DB,
-		RequestEvent,
-		Action,
-		typeof schemaBuilder,
-		typeof makePubSubInstance
-	>({
-		...rumbleInput,
-		schemaBuilder,
-		makePubSubInstance,
-	});
 	const arg = createArgImplementer<
 		UserContext,
 		DB,
@@ -75,6 +62,20 @@ export const rumble = <
 	>({
 		...rumbleInput,
 		schemaBuilder,
+	});
+	const object = createObjectImplementer<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action,
+		typeof schemaBuilder,
+		typeof arg,
+		typeof makePubSubInstance
+	>({
+		...rumbleInput,
+		schemaBuilder,
+		makePubSubInstance,
+		argImplementer: arg,
 	});
 	const query = createQueryImplementer<
 		UserContext,

@@ -71,7 +71,6 @@ export const createQueryImplementer = <
 			transformArgumentToQueryCondition: transformWhere,
 		} = argImplementer({
 			tableName: tableName,
-			name: `${tableName.toString()}Where_DefaultRumbleQueryArgument`,
 		});
 
 		const { registerOnInstance } = makePubSubInstance({ tableName });
@@ -81,6 +80,7 @@ export const createQueryImplementer = <
 				[`findMany${capitalizeFirstLetter(tableName.toString())}`]:
 					t.drizzleField({
 						type: [tableName],
+						nullable: false,
 						smartSubscription: true,
 						subscribe: (subscriptions, root, args, ctx, info) => {
 							registerOnInstance({
@@ -115,6 +115,7 @@ export const createQueryImplementer = <
 				[`findFirst${capitalizeFirstLetter(tableName.toString())}`]:
 					t.drizzleField({
 						type: tableName,
+						nullable: false,
 						smartSubscription: true,
 						args: {
 							where: t.arg({ type: WhereArg, required: false }),
