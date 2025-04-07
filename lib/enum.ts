@@ -1,10 +1,10 @@
 import type { MySqlEnumColumnBuilderInitial } from "drizzle-orm/mysql-core";
 import type { PgEnum } from "drizzle-orm/pg-core";
 import type { SingleStoreEnumColumnBuilderInitial } from "drizzle-orm/singlestore-core";
-import { RumbleError } from "../out";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
+import { RumbleError } from "./types/rumbleError";
 import type { RumbleInput } from "./types/rumbleInput";
 
 export function isRuntimeEnumSchemaType(schemaType: any): boolean {
