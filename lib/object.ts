@@ -1,5 +1,10 @@
 import { One } from "drizzle-orm";
-import { type EnumImplementerType, isRuntimeEnumSchemaType } from "./enum";
+import {
+	type EnumImplementerType,
+	isRuntimeEnumSchemaType,
+	mapRuntimeEnumSchemaType,
+} from "./enum";
+import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
 import { type MakePubSubInstanceType, createPubSubInstance } from "./pubsub";
@@ -62,8 +67,15 @@ export const createObjectImplementer = <
 		name?: RefName;
 		readAction?: Action;
 	}) => {
-		const schema = (db._.schema as NonNullable<DB["_"]["schema"]>)[tableName];
-		const primaryKey = schema.primaryKey.at(0)?.name;
+		const tableSchema = (db._.schema as NonNullable<DB["_"]["schema"]>)[
+			tableName
+		];
+		if (!tableSchema) {
+			throw new RumbleError(
+				`Could not find schema for ${tableName.toString()} (object)`,
+			);
+		}
+		const primaryKey = tableSchema.primaryKey.at(0)?.name;
 		if (!primaryKey)
 			console.warn(
 				`Could not find primary key for ${tableName.toString()}. Cannot register subscriptions!`,
@@ -72,7 +84,7 @@ export const createObjectImplementer = <
 		const { registerOnInstance } = makePubSubInstance({ tableName });
 
 		return schemaBuilder.drizzleObject(tableName, {
-			name,
+			name: name ?? capitalizeFirstLetter(tableName.toString()),
 			subscribe: (subscriptions, element, context) => {
 				if (!primaryKey) return;
 				const primaryKeyValue = (element as any)[primaryKey];
@@ -93,9 +105,9 @@ export const createObjectImplementer = <
 			},
 			fields: (t) => {
 				const mapSQLTypeStringToExposedPothosType = <
-					Column extends keyof typeof schema.columns,
+					Column extends keyof typeof tableSchema.columns,
 					SQLType extends ReturnType<
-						(typeof schema.columns)[Column]["getSQLType"]
+						(typeof tableSchema.columns)[Column]["getSQLType"]
 					>,
 				>(
 					sqlType: SQLType,
@@ -144,11 +156,12 @@ export const createObjectImplementer = <
 					}
 				};
 
-				const fields = Object.entries(schema.columns).reduce(
+				const fields = Object.entries(tableSchema.columns).reduce(
 					(acc, [key, value]) => {
 						if (isRuntimeEnumSchemaType(value)) {
+							const enumVal = mapRuntimeEnumSchemaType(value);
 							const enumImpl = enumImplementer({
-								enumName: value.name as any,
+								enumName: enumVal.enumName as any,
 							});
 
 							acc[key] = t.field({
@@ -166,18 +179,19 @@ export const createObjectImplementer = <
 						return acc;
 					},
 					{} as Record<
-						keyof typeof schema.columns,
+						keyof typeof tableSchema.columns,
 						ReturnType<typeof mapSQLTypeStringToExposedPothosType>
 					>,
 				);
 
-				const relations = Object.entries(schema.relations).reduce(
+				const relations = Object.entries(tableSchema.relations).reduce(
 					(acc, [key, value]) => {
 						const {
 							inputType: WhereArg,
 							transformArgumentToQueryCondition: transformWhere,
 						} = argImplementer({
 							tableName: value.referencedTableName,
+							nativeTableName: value.referencedTableName,
 						});
 
 						// many relations will return an empty array so we just don't set them nullable
@@ -205,7 +219,7 @@ export const createObjectImplementer = <
 						return acc;
 					},
 					{} as Record<
-						keyof typeof schema.relations,
+						keyof typeof tableSchema.relations,
 						ReturnType<typeof mapSQLTypeStringToExposedPothosType>
 					>,
 				);

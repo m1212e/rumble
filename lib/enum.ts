@@ -1,3 +1,4 @@
+import { toCamelCase } from "drizzle-orm/casing";
 import type { MySqlEnumColumnBuilderInitial } from "drizzle-orm/mysql-core";
 import type { PgEnum } from "drizzle-orm/pg-core";
 import type { SingleStoreEnumColumnBuilderInitial } from "drizzle-orm/singlestore-core";
@@ -7,8 +8,24 @@ import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbTy
 import { RumbleError } from "./types/rumbleError";
 import type { RumbleInput } from "./types/rumbleInput";
 
+/**
+ * Checks if a schema type is an enum
+ */
 export function isRuntimeEnumSchemaType(schemaType: any): boolean {
-	return Array.isArray(schemaType.enumValues);
+	const enumSchema = mapRuntimeEnumSchemaType(schemaType);
+	return (
+		enumSchema.enumValues !== undefined &&
+		enumSchema.enumName !== undefined &&
+		typeof enumSchema.enumName === "string" &&
+		Array.isArray(enumSchema.enumValues)
+	);
+}
+
+/**
+ * Puts an enum schema object in a uniform shape
+ */
+export function mapRuntimeEnumSchemaType(schemaType: any) {
+	return schemaType.enum ?? schemaType;
 }
 
 type EnumTypes =
@@ -88,19 +105,24 @@ export const createEnumImplementer = <
 		} else if (enumValuesParam) {
 			enumSchema = Object.values(fullSchema)
 				.filter(isRuntimeEnumSchemaType)
+				.map(mapRuntimeEnumSchemaType)
 				.find((e: any) => e.enumValues === enumValuesParam) as any;
 		} else if (enumName) {
 			enumSchema = Object.values(fullSchema)
 				.filter(isRuntimeEnumSchemaType)
+				.map(mapRuntimeEnumSchemaType)
 				.find((e: any) => e.enumName === enumName) as any;
-		} else {
+		}
+
+		if (!enumSchema) {
 			throw new RumbleError(
 				`Could not determine enum structure! (${String(enumVariableName)}, ${enumValuesParam}, ${enumName})`,
 			);
 		}
 
 		const graphqlImplementationName =
-			name ?? `${capitalizeFirstLetter(enumSchema.enumName.toString())}Enum`;
+			name ??
+			`${capitalizeFirstLetter(toCamelCase(enumSchema.enumName.toString()))}Enum`;
 
 		let ret: ReturnType<typeof implement> | undefined = referenceStorage.get(
 			graphqlImplementationName,

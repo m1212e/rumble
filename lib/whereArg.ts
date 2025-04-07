@@ -1,5 +1,10 @@
 import { and, eq } from "drizzle-orm";
-import { type EnumImplementerType, isRuntimeEnumSchemaType } from "./enum";
+import { toCamelCase } from "drizzle-orm/casing";
+import {
+	type EnumImplementerType,
+	isRuntimeEnumSchemaType,
+	mapRuntimeEnumSchemaType,
+} from "./enum";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
@@ -57,14 +62,31 @@ export const createArgImplementer = <
 	>({
 		tableName,
 		name,
+		nativeTableName,
 	}: {
 		tableName: ExplicitTableName;
 		name?: RefName | undefined;
+		nativeTableName?: string;
 	}) => {
-		const schema = (db._.schema as NonNullable<DB["_"]["schema"]>)[tableName];
+		let tableSchema = (db._.schema as NonNullable<DB["_"]["schema"]>)[
+			tableName
+		];
+		if (nativeTableName) {
+			const found: any = Object.values(db._.schema as any).find(
+				(schema: any) => schema.dbName === nativeTableName,
+			);
+			if (found) {
+				tableSchema = found;
+			}
+		}
+		if (!tableSchema) {
+			throw new RumbleError(
+				`Could not find schema for ${tableName.toString()} (whereArg)`,
+			);
+		}
 		const inputTypeName =
 			name ??
-			`${capitalizeFirstLetter(tableName.toString())}WhereInputArgument`;
+			`${capitalizeFirstLetter(toCamelCase(tableName.toString()))}WhereInputArgument`;
 
 		let ret: ReturnType<typeof implement> | undefined =
 			referenceStorage.get(inputTypeName);
@@ -76,9 +98,9 @@ export const createArgImplementer = <
 			const inputType = schemaBuilder.inputType(inputTypeName, {
 				fields: (t) => {
 					const mapSQLTypeStringToInputPothosType = <
-						Column extends keyof typeof schema.columns,
+						Column extends keyof typeof tableSchema.columns,
 						SQLType extends ReturnType<
-							(typeof schema.columns)[Column]["getSQLType"]
+							(typeof tableSchema.columns)[Column]["getSQLType"]
 						>,
 					>(
 						sqlType: SQLType,
@@ -116,11 +138,12 @@ export const createArgImplementer = <
 								);
 						}
 					};
-					const fields = Object.entries(schema.columns).reduce(
+					const fields = Object.entries(tableSchema.columns).reduce(
 						(acc, [key, value]) => {
 							if (isRuntimeEnumSchemaType(value)) {
+								const enumVal = mapRuntimeEnumSchemaType(value);
 								const enumImpl = enumImplementer({
-									enumName: value.name as any,
+									enumName: enumVal.enumName as any,
 								});
 
 								acc[key] = t.field({
@@ -136,7 +159,7 @@ export const createArgImplementer = <
 							return acc;
 						},
 						{} as Record<
-							keyof typeof schema.columns,
+							keyof typeof tableSchema.columns,
 							ReturnType<typeof mapSQLTypeStringToInputPothosType>
 						>,
 					);
@@ -167,16 +190,16 @@ export const createArgImplementer = <
 			) => {
 				if (!arg) return undefined;
 				const mapColumnToQueryCondition = <
-					ColumnName extends keyof typeof schema.columns,
+					ColumnName extends keyof typeof tableSchema.columns,
 				>(
 					columnname: ColumnName,
 				) => {
-					const column = schema.columns[columnname];
+					const column = tableSchema.columns[columnname];
 					const filterValue = arg[columnname];
 					if (!filterValue) return;
 					return eq(column, filterValue);
 				};
-				const conditions = Object.keys(schema.columns).map(
+				const conditions = Object.keys(tableSchema.columns).map(
 					mapColumnToQueryCondition,
 				);
 				return and(...conditions);

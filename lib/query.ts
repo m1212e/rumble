@@ -3,6 +3,7 @@ import { assertFindFirstExists } from "./helpers/helper";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
+import { RumbleError } from "./types/rumbleError";
 import type { RumbleInput } from "./types/rumbleInput";
 import type { ArgImplementerType } from "./whereArg";
 
@@ -59,8 +60,15 @@ export const createQueryImplementer = <
 		 */
 		listAction?: Action;
 	}) => {
-		const schema = (db._.schema as NonNullable<DB["_"]["schema"]>)[tableName];
-		const primaryKey = schema.primaryKey.at(0)?.name;
+		const tableSchema = (db._.schema as NonNullable<DB["_"]["schema"]>)[
+			tableName
+		];
+		if (!tableSchema) {
+			throw new RumbleError(
+				`Could not find schema for ${tableName.toString()} (query)`,
+			);
+		}
+		const primaryKey = tableSchema.primaryKey.at(0)?.name;
 		if (!primaryKey)
 			console.warn(
 				`Could not find primary key for ${tableName.toString()}. Cannot register subscriptions!`,
