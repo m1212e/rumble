@@ -1,10 +1,13 @@
-import { boolean, integer, pgTable, serial, text } from "drizzle-orm/pg-core";
+import { integer, pgEnum, pgTable, serial, text } from "drizzle-orm/pg-core";
 
 import { relations } from "drizzle-orm";
+
+export const moodEnum = pgEnum("mood", ["sad", "ok", "happy"] as const);
 
 export const users = pgTable("users", {
 	id: serial("id").primaryKey(),
 	name: text("name").notNull(),
+	mood: moodEnum("mood").default("ok"),
 });
 
 export const usersRelations = relations(users, ({ one, many }) => ({

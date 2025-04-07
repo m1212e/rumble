@@ -1,11 +1,4 @@
-import {
-	exists,
-	mkdir,
-	readFile,
-	readdir,
-	rm,
-	writeFile,
-} from "node:fs/promises";
+import { exists, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { build } from "tsup";
 import packagejson from "./package.json";
@@ -34,6 +27,10 @@ await build({
 	treeshake: true,
 	globalName: "rumble",
 	splitting: true,
+	external: [
+		...Object.keys(packagejson.dependencies),
+		...Object.keys(packagejson.peerDependencies),
+	],
 });
 
 // ==============================

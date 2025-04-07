@@ -1,4 +1,5 @@
 import { One } from "drizzle-orm";
+import { type EnumImplementerType, isRuntimeEnumSchemaType } from "./enum";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
 import { type MakePubSubInstanceType, createPubSubInstance } from "./pubsub";
@@ -25,6 +26,12 @@ export const createObjectImplementer = <
 		RequestEvent,
 		Action
 	>,
+	EnumImplementer extends EnumImplementerType<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action
+	>,
 	MakePubSubInstance extends MakePubSubInstanceType<
 		UserContext,
 		DB,
@@ -36,9 +43,11 @@ export const createObjectImplementer = <
 	schemaBuilder,
 	makePubSubInstance,
 	argImplementer,
+	enumImplementer,
 }: RumbleInput<UserContext, DB, RequestEvent, Action> & {
 	schemaBuilder: SchemaBuilder;
 	argImplementer: ArgImplementer;
+	enumImplementer: EnumImplementer;
 	makePubSubInstance: MakePubSubInstance;
 }) => {
 	return <
@@ -137,12 +146,23 @@ export const createObjectImplementer = <
 
 				const fields = Object.entries(schema.columns).reduce(
 					(acc, [key, value]) => {
-						value.notNull;
-						acc[key] = mapSQLTypeStringToExposedPothosType(
-							value.getSQLType(),
-							key,
-							!value.notNull,
-						);
+						if (isRuntimeEnumSchemaType(value)) {
+							const enumImpl = enumImplementer({
+								enumName: value.name as any,
+							});
+
+							acc[key] = t.field({
+								type: enumImpl,
+								resolve: (element) => (element as any)[key] as unknown,
+								nullable: !value.notNull,
+							});
+						} else {
+							acc[key] = mapSQLTypeStringToExposedPothosType(
+								value.getSQLType(),
+								key,
+								!value.notNull,
+							);
+						}
 						return acc;
 					},
 					{} as Record<

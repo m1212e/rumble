@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import { type EnumImplementerType, isRuntimeEnumSchemaType } from "./enum";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
@@ -18,7 +19,8 @@ export type ArgImplementerType<
 		DB,
 		RequestEvent,
 		Action,
-		SchemaBuilderType<UserContext, DB, RequestEvent, Action>
+		SchemaBuilderType<UserContext, DB, RequestEvent, Action>,
+		EnumImplementerType<UserContext, DB, RequestEvent, Action>
 	>
 >;
 
@@ -33,10 +35,18 @@ export const createArgImplementer = <
 		RequestEvent,
 		Action
 	>,
+	EnumImplementer extends EnumImplementerType<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action
+	>,
 >({
 	db,
 	schemaBuilder,
+	enumImplementer,
 }: RumbleInput<UserContext, DB, RequestEvent, Action> & {
+	enumImplementer: EnumImplementer;
 	schemaBuilder: SchemaBuilder;
 }) => {
 	const referenceStorage = new Map<string, any>();
@@ -108,7 +118,21 @@ export const createArgImplementer = <
 					};
 					const fields = Object.entries(schema.columns).reduce(
 						(acc, [key, value]) => {
-							acc[key] = mapSQLTypeStringToInputPothosType(value.getSQLType());
+							if (isRuntimeEnumSchemaType(value)) {
+								const enumImpl = enumImplementer({
+									enumName: value.name as any,
+								});
+
+								acc[key] = t.field({
+									type: enumImpl,
+									required: false,
+								});
+							} else {
+								acc[key] = mapSQLTypeStringToInputPothosType(
+									value.getSQLType(),
+								);
+							}
+
 							return acc;
 						},
 						{} as Record<

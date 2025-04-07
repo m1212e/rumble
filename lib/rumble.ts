@@ -4,6 +4,7 @@ import {
 } from "graphql-yoga";
 import { createAbilityBuilder } from "./abilityBuilder";
 import { createContextFunction } from "./context";
+import { createEnumImplementer } from "./enum";
 import { createObjectImplementer } from "./object";
 import { createPubSubInstance } from "./pubsub";
 import { createQueryImplementer } from "./query";
@@ -53,7 +54,7 @@ export const rumble = <
 		RequestEvent,
 		Action
 	>({ ...rumbleInput, pubsub });
-	const arg = createArgImplementer<
+	const enum_ = createEnumImplementer<
 		UserContext,
 		DB,
 		RequestEvent,
@@ -63,6 +64,18 @@ export const rumble = <
 		...rumbleInput,
 		schemaBuilder,
 	});
+	const arg = createArgImplementer<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action,
+		typeof schemaBuilder,
+		typeof enum_
+	>({
+		...rumbleInput,
+		schemaBuilder,
+		enumImplementer: enum_,
+	});
 	const object = createObjectImplementer<
 		UserContext,
 		DB,
@@ -70,12 +83,14 @@ export const rumble = <
 		Action,
 		typeof schemaBuilder,
 		typeof arg,
+		typeof enum_,
 		typeof makePubSubInstance
 	>({
 		...rumbleInput,
 		schemaBuilder,
 		makePubSubInstance,
 		argImplementer: arg,
+		enumImplementer: enum_,
 	});
 	const query = createQueryImplementer<
 		UserContext,
@@ -156,5 +171,11 @@ export const rumble = <
 		 * A function for creating a pubsub instance for a table. Use this to publish or subscribe events
 		 */
 		pubsub: makePubSubInstance,
+		/**
+		 * A function to implement enums for graphql usage.
+		 * The other helpers use this helper internally so in most cases you do not have to
+		 * call this helper directly, unless you need the reference to an enum type
+		 */
+		enum_,
 	};
 };
