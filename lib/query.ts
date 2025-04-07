@@ -105,7 +105,7 @@ export const createQueryImplementer = <
 						},
 						resolve: (query, root, args, ctx, info) => {
 							const filter = ctx.abilities[tableName as any].filter(
-								readAction,
+								listAction,
 								{
 									inject: { where: transformWhere(args.where) },
 								},
