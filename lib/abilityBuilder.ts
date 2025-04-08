@@ -164,10 +164,12 @@ export const createAbilityBuilder = <
 					// filters, if any
 					if (conditionsPerEntityAndAction === "wildcard") {
 						return {
-							where: undefined,
-							columns: undefined,
-							limit: undefined,
-							...options?.inject,
+							// the undefined type casts are not exactly correct
+							// but prevent TS from doing weird things with the return
+							// types of the query function with these filters applied
+							where: options?.inject?.where as undefined,
+							columns: options?.inject?.columns as undefined,
+							limit: options?.inject?.limit as undefined,
 						};
 					}
 
