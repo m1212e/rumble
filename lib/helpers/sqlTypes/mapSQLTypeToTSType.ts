@@ -1,3 +1,4 @@
+import type SchemaBuilder from "@pothos/core";
 import type { SchemaBuilderType } from "../../schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "../../types/genericDrizzleDbType";
 import { type PossibleSQLType, UnknownTypeRumbleError } from "./types";
@@ -7,11 +8,13 @@ export function mapSQLTypeToGraphQLType<
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 	SchemaBuilder extends SchemaBuilderType<
 		UserContext,
 		DB,
 		RequestEvent,
-		Action
+		Action,
+		PothosConfig
 	>,
 >(sqlType: PossibleSQLType) {
 	type ReturnType = Parameters<

@@ -1,3 +1,4 @@
+import type SchemaBuilder from "@pothos/core";
 import { and, eq, or } from "drizzle-orm";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
 import type {
@@ -12,8 +13,15 @@ export type AbilityBuilderType<
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 > = ReturnType<
-	typeof createAbilityBuilder<UserContext, DB, RequestEvent, Action>
+	typeof createAbilityBuilder<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action,
+		PothosConfig
+	>
 >;
 
 type Condition<DBParameters, UserContext> =
@@ -59,9 +67,10 @@ export const createAbilityBuilder = <
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 >({
 	db,
-}: RumbleInput<UserContext, DB, RequestEvent, Action>) => {
+}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>) => {
 	type DBQueryKey = keyof DB["query"];
 	type DBParameters = Parameters<DB["query"][DBQueryKey]["findMany"]>[0];
 

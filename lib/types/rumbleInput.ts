@@ -1,3 +1,4 @@
+import type SchemaBuilder from "@pothos/core";
 import type { YogaServerOptions, createPubSub } from "graphql-yoga";
 import type { GenericDrizzleDbTypeConstraints } from "./genericDrizzleDbType";
 
@@ -6,6 +7,7 @@ export type RumbleInput<
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 > = {
 	/**
 	 * Your drizzle database instance
@@ -34,4 +36,8 @@ export type RumbleInput<
 	 * Customization for subscriptions. See https://the-guild.dev/graphql/yoga-server/docs/features/subscriptions#distributed-pubsub-for-production
 	 */
 	subscriptions?: Parameters<typeof createPubSub>;
+	/**
+	 * Options passed along to the pothos schema builder.
+	 */
+	pothosConfig?: PothosConfig;
 };

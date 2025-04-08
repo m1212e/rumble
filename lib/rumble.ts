@@ -1,3 +1,4 @@
+import type SchemaBuilder from "@pothos/core";
 import {
 	type YogaServerOptions,
 	createYoga as nativeCreateYoga,
@@ -17,15 +18,17 @@ export const rumble = <
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 	Action extends string = "read" | "update" | "delete",
 >(
-	rumbleInput: RumbleInput<UserContext, DB, RequestEvent, Action>,
+	rumbleInput: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>,
 ) => {
 	const abilityBuilder = createAbilityBuilder<
 		UserContext,
 		DB,
 		RequestEvent,
-		Action
+		Action,
+		PothosConfig
 	>(rumbleInput);
 
 	const context = createContextFunction<
@@ -33,6 +36,7 @@ export const rumble = <
 		DB,
 		RequestEvent,
 		Action,
+		PothosConfig,
 		typeof abilityBuilder
 	>({
 		...rumbleInput,
@@ -43,7 +47,8 @@ export const rumble = <
 		UserContext,
 		DB,
 		RequestEvent,
-		Action
+		Action,
+		PothosConfig
 	>({
 		...rumbleInput,
 	});
@@ -52,13 +57,15 @@ export const rumble = <
 		UserContext,
 		DB,
 		RequestEvent,
-		Action
+		Action,
+		PothosConfig
 	>({ ...rumbleInput, pubsub });
 	const enum_ = createEnumImplementer<
 		UserContext,
 		DB,
 		RequestEvent,
 		Action,
+		PothosConfig,
 		typeof schemaBuilder
 	>({
 		...rumbleInput,
@@ -69,6 +76,7 @@ export const rumble = <
 		DB,
 		RequestEvent,
 		Action,
+		PothosConfig,
 		typeof schemaBuilder,
 		typeof enum_
 	>({
@@ -81,6 +89,7 @@ export const rumble = <
 		DB,
 		RequestEvent,
 		Action,
+		PothosConfig,
 		typeof schemaBuilder,
 		typeof arg,
 		typeof enum_,
@@ -97,6 +106,7 @@ export const rumble = <
 		DB,
 		RequestEvent,
 		Action,
+		PothosConfig,
 		typeof schemaBuilder,
 		typeof arg,
 		typeof makePubSubInstance

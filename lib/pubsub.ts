@@ -1,3 +1,4 @@
+import type SchemaBuilder from "@pothos/core";
 import { createPubSub } from "graphql-yoga";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import type { RumbleInput } from "./types/rumbleInput";
@@ -44,8 +45,15 @@ export type MakePubSubInstanceType<
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 > = ReturnType<
-	typeof createPubSubInstance<UserContext, DB, RequestEvent, Action>
+	typeof createPubSubInstance<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action,
+		PothosConfig
+	>
 >["makePubSubInstance"];
 
 export const createPubSubInstance = <
@@ -53,9 +61,10 @@ export const createPubSubInstance = <
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 >({
 	subscriptions,
-}: RumbleInput<UserContext, DB, RequestEvent, Action> & {}) => {
+}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {}) => {
 	const pubsub = subscriptions
 		? createPubSub(...subscriptions)
 		: createPubSub();

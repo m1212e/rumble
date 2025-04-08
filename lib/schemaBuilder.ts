@@ -18,8 +18,15 @@ export type SchemaBuilderType<
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 > = ReturnType<
-	typeof createSchemaBuilder<UserContext, DB, RequestEvent, Action>
+	typeof createSchemaBuilder<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action,
+		PothosConfig
+	>
 >["schemaBuilder"];
 
 export const createSchemaBuilder = <
@@ -27,15 +34,17 @@ export const createSchemaBuilder = <
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 >({
 	db,
 	disableDefaultObjects,
 	pubsub,
-}: RumbleInput<UserContext, DB, RequestEvent, Action> & {
+	pothosConfig,
+}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
 	pubsub: ReturnType<typeof createPubSub>;
 }) => {
 	const schemaBuilder = new SchemaBuilder<{
-		Context: ContextType<UserContext, DB, RequestEvent, Action>;
+		Context: ContextType<UserContext, DB, RequestEvent, Action, PothosConfig>;
 		DrizzleSchema: DB["_"]["fullSchema"];
 		Scalars: {
 			JSON: {
@@ -52,7 +61,12 @@ export const createSchemaBuilder = <
 			};
 		};
 	}>({
-		plugins: [DrizzlePlugin, SmartSubscriptionsPlugin],
+		plugins: [
+			DrizzlePlugin,
+			SmartSubscriptionsPlugin,
+			...(pothosConfig?.plugins ?? []),
+		],
+		...pothosConfig,
 		drizzle: {
 			client: db,
 		},

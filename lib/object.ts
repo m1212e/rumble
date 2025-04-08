@@ -1,3 +1,4 @@
+import type SchemaBuilder from "@pothos/core";
 import { One } from "drizzle-orm";
 import {
 	type EnumImplementerType,
@@ -19,29 +20,34 @@ export const createObjectImplementer = <
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 	SchemaBuilder extends SchemaBuilderType<
 		UserContext,
 		DB,
 		RequestEvent,
-		Action
+		Action,
+		PothosConfig
 	>,
 	ArgImplementer extends ArgImplementerType<
 		UserContext,
 		DB,
 		RequestEvent,
-		Action
+		Action,
+		PothosConfig
 	>,
 	EnumImplementer extends EnumImplementerType<
 		UserContext,
 		DB,
 		RequestEvent,
-		Action
+		Action,
+		PothosConfig
 	>,
 	MakePubSubInstance extends MakePubSubInstanceType<
 		UserContext,
 		DB,
 		RequestEvent,
-		Action
+		Action,
+		PothosConfig
 	>,
 >({
 	db,
@@ -49,7 +55,7 @@ export const createObjectImplementer = <
 	makePubSubInstance,
 	argImplementer,
 	enumImplementer,
-}: RumbleInput<UserContext, DB, RequestEvent, Action> & {
+}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
 	schemaBuilder: SchemaBuilder;
 	argImplementer: ArgImplementer;
 	enumImplementer: EnumImplementer;

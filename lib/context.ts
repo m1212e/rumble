@@ -1,3 +1,4 @@
+import type SchemaBuilder from "@pothos/core";
 import type {
 	AbilityBuilderType,
 	createAbilityBuilder,
@@ -10,13 +11,15 @@ export type ContextFunctionType<
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 > = ReturnType<
 	typeof createContextFunction<
 		UserContext,
 		DB,
 		RequestEvent,
 		Action,
-		AbilityBuilderType<UserContext, DB, RequestEvent, Action>
+		PothosConfig,
+		AbilityBuilderType<UserContext, DB, RequestEvent, Action, PothosConfig>
 	>
 >;
 
@@ -25,8 +28,11 @@ export type ContextType<
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 > = Awaited<
-	ReturnType<ContextFunctionType<UserContext, DB, RequestEvent, Action>>
+	ReturnType<
+		ContextFunctionType<UserContext, DB, RequestEvent, Action, PothosConfig>
+	>
 >;
 
 export const createContextFunction = <
@@ -34,13 +40,20 @@ export const createContextFunction = <
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 	AbilityBuilder extends ReturnType<
-		typeof createAbilityBuilder<UserContext, DB, RequestEvent, Action>
+		typeof createAbilityBuilder<
+			UserContext,
+			DB,
+			RequestEvent,
+			Action,
+			PothosConfig
+		>
 	>,
 >({
 	context: makeUserContext,
 	abilityBuilder,
-}: RumbleInput<UserContext, DB, RequestEvent, Action> & {
+}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
 	abilityBuilder: AbilityBuilder;
 }) => {
 	return async (req: RequestEvent) => {

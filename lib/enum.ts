@@ -1,3 +1,4 @@
+import type SchemaBuilder from "@pothos/core";
 import { toCamelCase } from "drizzle-orm/casing";
 import type { MySqlEnumColumnBuilderInitial } from "drizzle-orm/mysql-core";
 import type { PgEnum } from "drizzle-orm/pg-core";
@@ -42,13 +43,15 @@ export type EnumImplementerType<
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 > = ReturnType<
 	typeof createEnumImplementer<
 		UserContext,
 		DB,
 		RequestEvent,
 		Action,
-		SchemaBuilderType<UserContext, DB, RequestEvent, Action>
+		PothosConfig,
+		SchemaBuilderType<UserContext, DB, RequestEvent, Action, PothosConfig>
 	>
 >;
 
@@ -57,16 +60,18 @@ export const createEnumImplementer = <
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 	SchemaBuilder extends SchemaBuilderType<
 		UserContext,
 		DB,
 		RequestEvent,
-		Action
+		Action,
+		PothosConfig
 	>,
 >({
 	db,
 	schemaBuilder,
-}: RumbleInput<UserContext, DB, RequestEvent, Action> & {
+}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
 	schemaBuilder: SchemaBuilder;
 }) => {
 	const referenceStorage = new Map<string, any>();

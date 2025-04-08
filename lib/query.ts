@@ -1,3 +1,4 @@
+import type SchemaBuilder from "@pothos/core";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { assertFindFirstExists } from "./helpers/helper";
 import type { MakePubSubInstanceType } from "./pubsub";
@@ -12,30 +13,34 @@ export const createQueryImplementer = <
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
+	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
 	SchemaBuilder extends SchemaBuilderType<
 		UserContext,
 		DB,
 		RequestEvent,
-		Action
+		Action,
+		PothosConfig
 	>,
 	ArgImplementer extends ArgImplementerType<
 		UserContext,
 		DB,
 		RequestEvent,
-		Action
+		Action,
+		PothosConfig
 	>,
 	MakePubSubInstance extends MakePubSubInstanceType<
 		UserContext,
 		DB,
 		RequestEvent,
-		Action
+		Action,
+		PothosConfig
 	>,
 >({
 	db,
 	schemaBuilder,
 	argImplementer,
 	makePubSubInstance,
-}: RumbleInput<UserContext, DB, RequestEvent, Action> & {
+}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
 	schemaBuilder: SchemaBuilder;
 	argImplementer: ArgImplementer;
 	makePubSubInstance: MakePubSubInstance;

@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { build } from "tsup";
 import packagejson from "./package.json";
 
+//TODO: Add proper TS typechecks to builds
+
 const rumbleDir = import.meta.dir;
 const outDir = join(rumbleDir, "out");
 const libIndex = join(rumbleDir, "lib", "index.ts");
