@@ -5,7 +5,10 @@ import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
-import type { RumbleInput } from "./types/rumbleInput";
+import type {
+	CustomRumblePothosConfig,
+	RumbleInput,
+} from "./types/rumbleInput";
 import type { ArgImplementerType } from "./whereArg";
 
 export const createQueryImplementer = <
@@ -13,7 +16,7 @@ export const createQueryImplementer = <
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
-	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
+	PothosConfig extends CustomRumblePothosConfig,
 	SchemaBuilder extends SchemaBuilderType<
 		UserContext,
 		DB,

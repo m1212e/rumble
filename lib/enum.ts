@@ -7,7 +7,10 @@ import { capitalizeFirstLetter } from "./helpers/capitalize";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
-import type { RumbleInput } from "./types/rumbleInput";
+import type {
+	CustomRumblePothosConfig,
+	RumbleInput,
+} from "./types/rumbleInput";
 
 /**
  * Checks if a schema type is an enum
@@ -43,7 +46,7 @@ export type EnumImplementerType<
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
-	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
+	PothosConfig extends CustomRumblePothosConfig,
 > = ReturnType<
 	typeof createEnumImplementer<
 		UserContext,
@@ -60,7 +63,7 @@ export const createEnumImplementer = <
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
-	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
+	PothosConfig extends CustomRumblePothosConfig,
 	SchemaBuilder extends SchemaBuilderType<
 		UserContext,
 		DB,

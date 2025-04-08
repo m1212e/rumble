@@ -11,14 +11,17 @@ import {
 import type { createPubSub } from "graphql-yoga";
 import type { ContextType } from "./context";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
-import type { RumbleInput } from "./types/rumbleInput";
+import type {
+	CustomRumblePothosConfig,
+	RumbleInput,
+} from "./types/rumbleInput";
 
 export type SchemaBuilderType<
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
-	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
+	PothosConfig extends CustomRumblePothosConfig,
 > = ReturnType<
 	typeof createSchemaBuilder<
 		UserContext,
@@ -34,7 +37,7 @@ export const createSchemaBuilder = <
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
-	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
+	PothosConfig extends CustomRumblePothosConfig,
 >({
 	db,
 	disableDefaultObjects,

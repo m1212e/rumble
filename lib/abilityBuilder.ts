@@ -6,14 +6,17 @@ import type {
 	QueryConditionObject,
 } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
-import type { RumbleInput } from "./types/rumbleInput";
+import type {
+	CustomRumblePothosConfig,
+	RumbleInput,
+} from "./types/rumbleInput";
 
 export type AbilityBuilderType<
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
-	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
+	PothosConfig extends CustomRumblePothosConfig,
 > = ReturnType<
 	typeof createAbilityBuilder<
 		UserContext,
@@ -67,7 +70,7 @@ export const createAbilityBuilder = <
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
-	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
+	PothosConfig extends CustomRumblePothosConfig,
 >({
 	db,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>) => {

@@ -12,14 +12,17 @@ import type { PossibleSQLType } from "./helpers/sqlTypes/types";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
-import type { RumbleInput } from "./types/rumbleInput";
+import type {
+	CustomRumblePothosConfig,
+	RumbleInput,
+} from "./types/rumbleInput";
 
 export type ArgImplementerType<
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
-	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
+	PothosConfig extends CustomRumblePothosConfig,
 > = ReturnType<
 	typeof createArgImplementer<
 		UserContext,
@@ -37,7 +40,7 @@ export const createArgImplementer = <
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
-	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
+	PothosConfig extends CustomRumblePothosConfig,
 	SchemaBuilder extends SchemaBuilderType<
 		UserContext,
 		DB,

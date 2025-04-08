@@ -11,14 +11,17 @@ import { createPubSubInstance } from "./pubsub";
 import { createQueryImplementer } from "./query";
 import { createSchemaBuilder } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
-import type { RumbleInput } from "./types/rumbleInput";
+import type {
+	CustomRumblePothosConfig,
+	RumbleInput,
+} from "./types/rumbleInput";
 import { createArgImplementer } from "./whereArg";
 
 export const rumble = <
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
-	PothosConfig extends ConstructorParameters<typeof SchemaBuilder>[0],
+	PothosConfig extends CustomRumblePothosConfig,
 	Action extends string = "read" | "update" | "delete",
 >(
 	rumbleInput: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>,
