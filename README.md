@@ -94,6 +94,7 @@ rumble({
  },
 });
 ```
+`rumble` offers more config options, use intellisense or take a look at [the rumble input type](lib/types/rumbleInput.ts) if you want to know more.
 
 ## Helpers
 Rumble offers various helpers to make it easy and fast to implement your api. Ofcourse you can write your api by hand using the provided `schemaBuilder` from the rumble initiator, but since this might get repetitive, the provided helpers automate a lot of this work for you while also automatically applying the concepts of rumble directly into your api.
