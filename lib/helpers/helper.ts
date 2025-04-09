@@ -1,4 +1,4 @@
-import { RumbleError } from "../types/rumbleError";
+import { RumbleErrorSafe } from "../types/rumbleError";
 
 /**
  * 
@@ -31,7 +31,8 @@ import { RumbleError } from "../types/rumbleError";
  * ```
  */
 export const assertFindFirstExists = <T>(value: T | undefined): T => {
-	if (!value) throw new RumbleError("Value not found but required (findFirst)");
+	if (!value)
+		throw new RumbleErrorSafe("Value not found but required (findFirst)");
 	return value;
 };
 
@@ -76,6 +77,7 @@ export const assertFindFirstExists = <T>(value: T | undefined): T => {
  */
 export const assertFirstEntryExists = <T>(value: T[]): T => {
 	const v = value.at(0);
-	if (!v) throw new RumbleError("Value not found but required (firstEntry)");
+	if (!v)
+		throw new RumbleErrorSafe("Value not found but required (firstEntry)");
 	return v;
 };

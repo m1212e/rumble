@@ -3,4 +3,4 @@ export {
 	assertFindFirstExists,
 	assertFirstEntryExists,
 } from "./helpers/helper";
-export { RumbleError } from "./types/rumbleError";
+export { RumbleError, RumbleErrorSafe } from "./types/rumbleError";

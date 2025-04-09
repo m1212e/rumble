@@ -1,5 +1,5 @@
 import type SchemaBuilder from "@pothos/core";
-import { and, eq } from "drizzle-orm";
+import { SQL, and, eq } from "drizzle-orm";
 import { toCamelCase } from "drizzle-orm/casing";
 import {
 	type EnumImplementerType,
@@ -34,6 +34,9 @@ export type ArgImplementerType<
 		EnumImplementerType<UserContext, DB, RequestEvent, Action, PothosConfig>
 	>
 >;
+
+const makeDefaultName = (dbName: string) =>
+	`${capitalizeFirstLetter(toCamelCase(dbName.toString()))}WhereInputArgument`;
 
 export const createArgImplementer = <
 	UserContext extends Record<string, any>,
@@ -93,9 +96,7 @@ export const createArgImplementer = <
 				`Could not find schema for ${tableName.toString()} (whereArg)`,
 			);
 		}
-		const inputTypeName =
-			name ??
-			`${capitalizeFirstLetter(toCamelCase(tableName.toString()))}WhereInputArgument`;
+		const inputTypeName = name ?? makeDefaultName(tableSchema.dbName);
 
 		let ret: ReturnType<typeof implement> | undefined =
 			referenceStorage.get(inputTypeName);
@@ -172,22 +173,30 @@ export const createArgImplementer = <
 							ReturnType<typeof mapSQLTypeStringToInputPothosType>
 						>,
 					);
-					//     const relations = Object.entries(schema.relations).reduce(
-					//       (acc, [key, value]) => {
-					//         acc[key] = t.relation(key, {
-					//           query: (_args: any, ctx: any) =>
-					//             ctx.abilities[tableName].filter(readAction),
-					//         } as any) as any;
-					//         return acc;
-					//       },
-					//       {} as Record<
-					//         keyof typeof schema.relations,
-					//         ReturnType<typeof mapSQLTypeStringToExposedPothosType>
-					//       >
-					//     );
+
+					const relations = Object.entries(tableSchema.relations).reduce(
+						(acc, [key, value]) => {
+							const referenceModel = argImplementer({
+								tableName: value.referencedTableName,
+								nativeTableName: value.referencedTableName,
+							});
+
+							acc[key] = t.field({
+								type: referenceModel.inputType,
+								required: false,
+							});
+
+							return acc;
+						},
+						{} as Record<
+							keyof typeof tableSchema.columns,
+							ReturnType<typeof mapSQLTypeStringToInputPothosType>
+						>,
+					);
+
 					return {
 						...fields,
-						// ...relations,
+						...relations,
 					};
 				},
 			});
@@ -208,9 +217,26 @@ export const createArgImplementer = <
 					if (!filterValue) return;
 					return eq(column, filterValue);
 				};
-				const conditions = Object.keys(tableSchema.columns).map(
-					mapColumnToQueryCondition,
-				);
+				const mapRelationToQueryCondition = <
+					RelationColumnName extends keyof typeof tableSchema.relations,
+				>(
+					relationColumnName: RelationColumnName,
+				): any => {
+					const relationColumn = tableSchema.relations[relationColumnName];
+					const filterValue = arg[relationColumnName];
+					if (!filterValue) return;
+					const transformer = argImplementer({
+						tableName: relationColumn.referencedTableName,
+						nativeTableName: relationColumn.referencedTableName,
+					}).transformArgumentToQueryCondition;
+					return transformer(filterValue);
+				};
+				const conditions = [
+					...Object.keys(tableSchema.columns).map(mapColumnToQueryCondition),
+					...Object.keys(tableSchema.relations).map(
+						mapRelationToQueryCondition,
+					),
+				];
 				return and(...conditions);
 			};
 
