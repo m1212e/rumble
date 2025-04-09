@@ -119,6 +119,7 @@ export const createArgImplementer = <
 						switch (gqlType) {
 							case "Int":
 								return t.int({ required: false });
+							//TOOD: add support for non equality matching filters
 							case "String":
 								return t.string({ required: false });
 							case "Boolean":
