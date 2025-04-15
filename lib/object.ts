@@ -205,10 +205,14 @@ export const createObjectImplementer = <
 
 						// many relations will return an empty array so we just don't set them nullable
 						let nullable = false;
+						let isMany = true;
+						let filterSpecifier = "many";
 						if (value instanceof One) {
+							isMany = false;
 							// we invert this for now
 							// TODO: https://github.com/drizzle-team/drizzle-orm/issues/2365#issuecomment-2781607008
 							nullable = !value.isNullable;
+							filterSpecifier = "single";
 						}
 
 						acc[key] = t.relation(key, {
@@ -222,7 +226,7 @@ export const createObjectImplementer = <
 									{
 										inject: { where: transformWhere(args.where) },
 									},
-								);
+								)[filterSpecifier];
 							},
 						} as any) as any;
 						return acc;

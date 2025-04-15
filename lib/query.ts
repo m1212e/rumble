@@ -117,7 +117,7 @@ export const createQueryImplementer = <
 								{
 									inject: { where: transformWhere(args.where) },
 								},
-							);
+							).many;
 
 							const queryInstance = query(filter as any);
 
@@ -142,7 +142,7 @@ export const createQueryImplementer = <
 								{
 									inject: { where: transformWhere(args.where) },
 								},
-							);
+							).single;
 
 							const queryInstance = query(filter as any);
 

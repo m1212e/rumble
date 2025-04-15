@@ -73,7 +73,7 @@ schemaBuilder.queryFields((t) => {
    resolve: (query, root, args, ctx, info) => {
     return db.query.posts.findMany(
      // here we apply our filter
-     query(ctx.abilities.posts.filter("read")),
+     query(ctx.abilities.posts.filter("read").many),
     );
    },
   }),
@@ -127,7 +127,7 @@ schemaBuilder.queryFields((t) => {
                 // here we transform the args into a drizzle filter
         where: transformArgumentToQueryCondition(args.where),
        },
-      }),
+      }).many,
      ),
     );
    },

@@ -47,7 +47,7 @@ describe("test rumble subscriptions", async () => {
 							.where(
 								and(
 									eq(schema.comments.id, args.id),
-									ctx.abilities.comments.filter("update").where,
+									ctx.abilities.comments.filter("update").single.where,
 								),
 							)
 							.returning({
@@ -143,7 +143,7 @@ describe("test rumble subscriptions", async () => {
 							.where(
 								and(
 									eq(schema.comments.id, args.id),
-									ctx.abilities.comments.filter("update").where,
+									ctx.abilities.comments.filter("update").single.where,
 								),
 							)
 							.returning({
@@ -240,7 +240,7 @@ describe("test rumble subscriptions", async () => {
 										inject: {
 											where: eq(schema.comments.id, args.id),
 										},
-									}).where,
+									}).single.where,
 								}),
 							)
 							.then(assertFindFirstExists);
@@ -337,6 +337,7 @@ describe("test rumble subscriptions", async () => {
 							.values({
 								id: args.id,
 								text: args.text,
+								ownerId: seedData.users[0].id,
 							})
 							.returning()
 							.then(assertFirstEntryExists);
@@ -344,13 +345,13 @@ describe("test rumble subscriptions", async () => {
 
 						return await db.query.comments
 							.findFirst(
-								query({
-									where: ctx.abilities.comments.filter("read", {
+								query(
+									ctx.abilities.comments.filter("read", {
 										inject: {
 											where: eq(schema.comments.id, comment.id),
 										},
-									}).where,
-								}),
+									}).single,
+								),
 							)
 							.then(assertFindFirstExists);
 					},

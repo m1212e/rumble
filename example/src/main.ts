@@ -97,7 +97,7 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 		author: t.relation("author", {
 			// this is how you can apply the above abilities to the queries
 			// you define the action you want the filters for by passing it to the filter call
-			query: (_args, ctx) => ctx.abilities.users.filter("read"),
+			query: (_args, ctx) => ctx.abilities.users.filter("read").single,
 		}),
 	}),
 });
@@ -132,7 +132,7 @@ schemaBuilder.queryFields((t) => {
 			resolve: (query, root, args, ctx, info) => {
 				return db.query.posts.findMany(
 					// here we again apply out filters based on the defined abilities
-					query(ctx.abilities.users.filter("read")),
+					query(ctx.abilities.users.filter("read").many),
 				);
 			},
 		}),
@@ -179,7 +179,7 @@ schemaBuilder.queryFields((t) => {
 							inject: {
 								where: transformPostWhere(args.where),
 							},
-						}),
+						}).many,
 					),
 				);
 			},
@@ -243,18 +243,19 @@ schemaBuilder.mutationFields((t) => {
 					.where(
 						and(
 							eq(schema.users.id, args.userId),
-							ctx.abilities.users.filter("update").where,
+							ctx.abilities.users.filter("update").single.where,
 						),
 					);
 
 				return db.query.users
 					.findFirst(
-						query({
-							where: and(
-								ctx.abilities.users.filter("read").where,
-								eq(schema.users.id, args.userId),
-							),
-						}),
+						query(
+							ctx.abilities.users.filter("read", {
+								inject: {
+									where: eq(schema.users.id, args.userId),
+								},
+							}).single,
+						),
 					)
 					.then(assertFindFirstExists);
 			},
@@ -289,12 +290,13 @@ schemaBuilder.mutationFields((t) => {
 
 				return db.query.users
 					.findFirst(
-						query({
-							where: and(
-								ctx.abilities.users.filter("read").where,
-								eq(schema.users.id, newUser.id),
-							),
-						}),
+						query(
+							ctx.abilities.users.filter("read", {
+								inject: {
+									where: eq(schema.users.id, newUser.id),
+								},
+							}).single,
+						),
 					)
 					.then(assertFindFirstExists);
 			},

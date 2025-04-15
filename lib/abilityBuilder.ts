@@ -79,8 +79,8 @@ export const createAbilityBuilder = <
 
 	const schema = db._.schema as NonNullable<DB["_"]["schema"]>;
 
-	const builder: {
-		[key in DBQueryKey]: ReturnType<typeof createEntityObject>;
+	const registrators: {
+		[key in DBQueryKey]: ReturnType<typeof createRegistrator>;
 	} = {} as any;
 
 	const registeredConditions: {
@@ -95,7 +95,7 @@ export const createAbilityBuilder = <
 		};
 	} = {} as any;
 
-	const createEntityObject = (entityKey: DBQueryKey) => ({
+	const createRegistrator = (entityKey: DBQueryKey) => ({
 		allow: (action: Action | Action[]) => {
 			let conditionsPerEntity = registeredConditions[entityKey];
 			if (!conditionsPerEntity) {
@@ -132,10 +132,10 @@ export const createAbilityBuilder = <
 	});
 
 	for (const entityKey of Object.keys(db.query) as DBQueryKey[]) {
-		builder[entityKey] = createEntityObject(entityKey);
+		registrators[entityKey] = createRegistrator(entityKey);
 	}
 	return {
-		...builder,
+		...registrators,
 		registeredConditions,
 		buildWithUserContext: (userContext: UserContext) => {
 			const builder: {
@@ -163,13 +163,19 @@ export const createAbilityBuilder = <
 					// in case we have a wildcard ability, skip the rest and only apply the injected
 					// filters, if any
 					if (conditionsPerEntityAndAction === "wildcard") {
+						// the undefined type casts are not exactly correct
+						// but prevent TS from doing weird things with the return
+						// types of the query function with these filters applied
 						return {
-							// the undefined type casts are not exactly correct
-							// but prevent TS from doing weird things with the return
-							// types of the query function with these filters applied
-							where: options?.inject?.where as undefined,
-							columns: options?.inject?.columns as undefined,
-							limit: options?.inject?.limit as undefined,
+							single: {
+								where: options?.inject?.where as undefined,
+								columns: options?.inject?.columns as undefined,
+							},
+							many: {
+								where: options?.inject?.where as undefined,
+								columns: options?.inject?.columns as undefined,
+								limit: options?.inject?.limit as undefined,
+							},
 						};
 					}
 
@@ -199,6 +205,8 @@ export const createAbilityBuilder = <
 						conditionsPerEntityAndAction = [getBlockEverythingFilter()];
 					}
 
+					//TODO: we could maybe improve performance by not filtering at each creation
+					// but instead while the user sets the abilities
 					const simpleConditions =
 						conditionsPerEntityAndAction.filter(isSimpleCondition);
 
@@ -272,14 +280,18 @@ export const createAbilityBuilder = <
 							: options.inject.where;
 					}
 
-					const ret = {
-						where: combinedWhere,
-						columns: combinedAllowedColumns,
-						limit: highestLimit,
-					};
-
 					//TODO make this typesafe per actual entity
-					return ret;
+					return {
+						single: {
+							where: combinedWhere,
+							columns: combinedAllowedColumns,
+						},
+						many: {
+							where: combinedWhere,
+							columns: combinedAllowedColumns,
+							limit: highestLimit,
+						},
+					};
 				},
 			});
 

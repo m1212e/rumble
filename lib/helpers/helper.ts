@@ -19,7 +19,7 @@ import { RumbleErrorSafe } from "../types/rumbleError";
            db.query.users
              .findFirst({
                ...query,
-               where: ctx.abilities.users.filter("read").where,
+               where: ctx.abilities.users.filter("read").single.where,
              })
              // note that we need to manually raise an error if the value is not found
              .then(assertFindFirstExists)
@@ -63,7 +63,7 @@ export const assertFindFirstExists = <T>(value: T | undefined): T => {
             .where(
               and(
                 eq(schema.users.id, args.userId),
-                ctx.abilities.users.filter("update").where
+                ctx.abilities.users.filter("update").single.where
               )
             )
             .returning({ id: schema.users.id, name: schema.users.name })

@@ -47,7 +47,7 @@ export function makeRumbleSeedInstance(
 						.where(
 							and(
 								eq(schema.users.id, args.userId),
-								ctx.abilities.users.filter("update").where,
+								ctx.abilities.users.filter("update").single.where,
 							),
 						)
 						.returning({
