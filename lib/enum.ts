@@ -1,4 +1,3 @@
-import type SchemaBuilder from "@pothos/core";
 import { toCamelCase } from "drizzle-orm/casing";
 import type { MySqlEnumColumnBuilderInitial } from "drizzle-orm/mysql-core";
 import type { PgEnum } from "drizzle-orm/pg-core";
@@ -84,22 +83,71 @@ export const createEnumImplementer = <
 			NonNullable<DB["_"]["fullSchema"]>
 		>,
 		RefName extends string,
-		EnumValues,
+		// EnumValues,
 		EnumName extends string,
 	>({
 		enumVariableName,
 		name,
-		enumValues: enumValuesParam,
+		// enumValues: enumValuesParam,
 		enumName,
 	}: Partial<
 		{
+			/**
+			 * The name of the enum as the TS variable is defined in your schema export.
+			 * @example
+			 * ```ts
+			 * export const committeeStatus = pgEnum('committee_status', [
+			 * //	     ^^^^^^^^^^^^^^^
+			 * //	 This is what you would put here ("committeeStatus")
+			 *
+			 *
+			 * 		'FORMAL',
+			 * 		'INFORMAL',
+			 * 		'PAUSE',
+			 * 		'SUSPENSION'
+			 * 	]);
+			 * ```
+			 */
 			enumVariableName: ExplicitEnumVariableName;
-			enumValues: EnumValues[];
-			name: RefName | undefined;
+			/*
+			 * The value object reference (array) that defines the enum values.
+			 * Be sure to pass this by reference, the values are not checked by comparison.
+			 * @example
+			 * ```ts
+			 *
+			 * const enumValues
+			 * export const committeeStatus = pgEnum('committee_status',
+			 *
+			 *
+			 * );
+			 * ```
+			 */
+			// enumValues: EnumValues[];
+
+			/**
+			 * The name of the enum at the database.
+			 * @example
+			 * ```ts
+			 * export const committeeStatus = pgEnum('committee_status', [
+			 * //	    			       ^^^^^^^^^^^^^^^^
+			 * //	 This is what you would put here ("committee_status")
+			 *
+			 *
+			 * 		'FORMAL',
+			 * 		'INFORMAL',
+			 * 		'PAUSE',
+			 * 		'SUSPENSION'
+			 * 	]);
+			 * ```
+			 */
 			enumName: EnumName;
+			/**
+			 * The name of the about to be generated graphql enum reference.
+			 */
+			name: RefName | undefined;
 		} & (
 			| { enumVariableName: ExplicitEnumVariableName }
-			| { enumValues: EnumValues[] }
+			// | { enumValues: EnumValues[] }
 			| { enumName: EnumName }
 		)
 	>) => {
@@ -110,11 +158,11 @@ export const createEnumImplementer = <
 
 		if (enumVariableName) {
 			enumSchema = fullSchema[enumVariableName];
-		} else if (enumValuesParam) {
-			enumSchema = Object.values(fullSchema)
-				.filter(isRuntimeEnumSchemaType)
-				.map(mapRuntimeEnumSchemaType)
-				.find((e: any) => e.enumValues === enumValuesParam) as any;
+			// } else if (enumValuesParam) {
+			// 	enumSchema = Object.values(fullSchema)
+			// 		.filter(isRuntimeEnumSchemaType)
+			// 		.map(mapRuntimeEnumSchemaType)
+			// 		.find((e: any) => e.enumValues === enumValuesParam) as any;
 		} else if (enumName) {
 			enumSchema = Object.values(fullSchema)
 				.filter(isRuntimeEnumSchemaType)
