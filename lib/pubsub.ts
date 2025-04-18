@@ -116,26 +116,35 @@ export const createPubSubInstance = <
 				return pubsub.publish(key);
 			},
 			/**
-			 * Call this when you removed an entity of this table
+			 * Call this when you removed one or more entities of this table
 			 */
-			removed(primaryKeyValue?: PrimaryKeyType) {
+			removed(primaryKeyValue?: PrimaryKeyType | PrimaryKeyType[]) {
 				const key = makePubSubKey({
 					tableName: tableName.toString(),
 					action: "removed",
+					//TODO would it make sense to use specific sub topics here?
 					// primaryKeyValue,
 				});
 				return pubsub.publish(key);
 			},
 			/**
-			 * Call this when you updated an entity of this table
+			 * Call this when you updated one or more entities of this table
 			 */
-			updated(primaryKeyValue?: PrimaryKeyType) {
-				const key = makePubSubKey({
-					tableName: tableName.toString(),
-					action: "updated",
-					primaryKeyValue,
-				});
-				return pubsub.publish(key);
+			updated(primaryKeyValue?: PrimaryKeyType | PrimaryKeyType[]) {
+				const primaryKeys = Array.isArray(primaryKeyValue)
+					? primaryKeyValue
+					: [primaryKeyValue];
+				const keys = primaryKeys.map((primaryKeyValue) =>
+					makePubSubKey({
+						tableName: tableName.toString(),
+						action: "updated",
+						primaryKeyValue,
+					}),
+				);
+				const uniqueKeys = Array.from(new Set(keys));
+				for (const key of uniqueKeys) {
+					pubsub.publish(key);
+				}
 			},
 		};
 	};
