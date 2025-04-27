@@ -1,40 +1,25 @@
-import type {
-	FieldNullability,
-	InputFieldMap,
-	SchemaTypes,
-	TypeParam,
-} from "@pothos/core";
+import type { SchemaTypes } from "@pothos/core";
 
 import type {
-	ExplicitChecksPlugin,
-	applyChecksKey,
+	ManualFiltersPlugin,
+	applyFiltersKey,
 } from "./explicitChecksPlugin";
 import pluginName from "./explicitChecksPlugin";
 
-export type CheckerResponse = boolean | Promise<boolean>;
-export type SingleChecker<Context, T> = (p: {
+export type Filter<Context, T> = (p: {
 	context: Context;
-	entity: T;
-}) => CheckerResponse;
+	entities: T[];
+}) => T[] | Promise<T[]>;
 
-export type MultiChecker<Context, T> = (p: {
-	context: Context;
-	entity: T[];
-}) => CheckerResponse;
-
-export type Checker<Context, T> =
-	| { checker: SingleChecker<Context, T>; type: "single" }
-	| { checker: MultiChecker<Context, T>; type: "multi" };
-
-export type ApplyChecksField<Context, T> =
-	| Checker<Context, T>
-	| Checker<Context, T>[]
+export type ApplyFiltersField<Context, T> =
+	| Filter<Context, T>
+	| Filter<Context, T>[]
 	| undefined;
 
 declare global {
 	export namespace PothosSchemaTypes {
 		export interface Plugins<Types extends SchemaTypes> {
-			[pluginName]: ExplicitChecksPlugin<Types>;
+			[pluginName]: ManualFiltersPlugin<Types>;
 		}
 
 		// export interface SchemaBuilderOptions<Types extends SchemaTypes> {
@@ -48,7 +33,7 @@ declare global {
 
 		export interface ObjectTypeOptions<Types extends SchemaTypes, Shape> {
 			//TOOD use proper type not any
-			[applyChecksKey]?: ApplyChecksField<Types["Context"], any>;
+			[applyFiltersKey]?: ApplyFiltersField<Types["Context"], any>;
 		}
 
 		// export interface MutationFieldOptions<

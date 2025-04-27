@@ -14,15 +14,15 @@ import type {
 	GraphQLSchema,
 	GraphQLTypeResolver,
 } from "graphql";
-import type { ApplyChecksField } from "./pluginTypes";
+import type { ApplyFiltersField } from "./pluginTypes";
 
-const pluginName = "ExplicitChecksPlugin";
+const pluginName = "ManualFiltersPlugin";
 
 export default pluginName;
 
-export const applyChecksKey = "applyChecks";
+export const applyFiltersKey = "applyFilters";
 
-export class ExplicitChecksPlugin<
+export class ManualFiltersPlugin<
 	Types extends SchemaTypes,
 > extends BasePlugin<Types> {
 	//   override onTypeConfig(typeConfig: PothosTypeConfig) {
@@ -63,32 +63,41 @@ export class ExplicitChecksPlugin<
 		fieldConfig: PothosOutputFieldConfig<Types>,
 	): GraphQLFieldResolver<unknown, Types["Context"], object> {
 		return async (parent, args, context, info) => {
-			const checkers: ApplyChecksField<Types["Context"], any> = (
+			const filters: ApplyFiltersField<Types["Context"], any> = (
 				fieldConfig.type as any
-			).ref.currentConfig.pothosOptions.applyChecks;
+			).ref.currentConfig.pothosOptions[applyFiltersKey];
 
-			if (!checkers) {
+			// if no filter should be applied, just continue
+			if (!filters) {
 				return resolver(parent, args, context, info);
 			}
 
-			if (checkers) {
-				if (Array.isArray(checkers)) {
-					const results = await Promise.all(
-						checkers.map((checker) => checker(context)),
-					);
-					if (results.some((result) => !result)) {
-						return null;
-					}
-				} else {
-					const result = await checkers(context);
-					if (!result) {
-						return null;
-					}
-				}
+			const resolved = await resolver(parent, args, context, info);
+			const allResolvedValues = Array.isArray(resolved) ? resolved : [resolved];
+			const allFilters = Array.isArray(filters) ? filters : [filters];
+
+			const allowed = (
+				await Promise.all(
+					allFilters.map((filter) =>
+						filter({
+							context,
+							entities: allResolvedValues,
+						}),
+					),
+				)
+			).reduce((acc, val) => {
+				acc.push(...val);
+				return acc;
+			}, []);
+
+			// if the original value was an array, return an array
+			if (Array.isArray(resolved)) {
+				return allowed;
 			}
 
-			// TODO: optimize by only awaiting when checkers are placed
-			return resolver(parent, args, context, info);
+			// if the original value was a single value, return the first allowed
+			// or null if not allowed
+			return allowed[0] ?? null;
 		};
 	}
 
@@ -107,4 +116,4 @@ export class ExplicitChecksPlugin<
 	//   }
 }
 
-SchemaBuilder.registerPlugin(pluginName, ExplicitChecksPlugin);
+SchemaBuilder.registerPlugin(pluginName, ManualFiltersPlugin);
