@@ -1,5 +1,7 @@
 import type SchemaBuilder from "@pothos/core";
 import { and, eq, or } from "drizzle-orm";
+import type { ContextType } from "./context";
+import type { Checker } from "./explicitChecksPlugin/explicitChecksPlugin";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
 import type {
 	GenericDrizzleDbTypeConstraints,
@@ -95,6 +97,14 @@ export const createAbilityBuilder = <
 		};
 	} = {} as any;
 
+	const registeredExplicitCheckers: {
+		[key in DBQueryKey]: {
+			[key in Action[number]]: Checker<
+				ContextType<UserContext, DB, RequestEvent, Action, PothosConfig>
+			>[];
+		};
+	} = {} as any;
+
 	const createRegistrator = (entityKey: DBQueryKey) => ({
 		allow: (action: Action | Action[]) => {
 			let conditionsPerEntity = registeredConditions[entityKey];
@@ -125,6 +135,35 @@ export const createAbilityBuilder = <
 								"wildcard"
 							>
 						).push(condition);
+					}
+				},
+			};
+		},
+		check: (action: Action | Action[]) => {
+			let checkersPerEntity = registeredExplicitCheckers[entityKey];
+			if (!checkersPerEntity) {
+				checkersPerEntity = {} as any;
+				registeredExplicitCheckers[entityKey] = checkersPerEntity;
+			}
+
+			const actions = Array.isArray(action) ? action : [action];
+			for (const action of actions) {
+				let checkersPerEntityAndAction = checkersPerEntity[action];
+				if (!checkersPerEntityAndAction) {
+					checkersPerEntityAndAction = [];
+					checkersPerEntity[action] = checkersPerEntityAndAction;
+				}
+			}
+
+			return {
+				for: (
+					checker: Checker<
+						ContextType<UserContext, DB, RequestEvent, Action, PothosConfig>
+					>,
+				) => {
+					for (const action of actions) {
+						const checkersPerEntityAndAction = checkersPerEntity[action];
+						checkersPerEntityAndAction.push(checker);
 					}
 				},
 			};

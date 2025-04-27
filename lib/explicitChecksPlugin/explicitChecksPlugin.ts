@@ -14,21 +14,13 @@ import type {
 	GraphQLSchema,
 	GraphQLTypeResolver,
 } from "graphql";
+import type { ApplyChecksField } from "./pluginTypes";
 
 const pluginName = "ExplicitChecksPlugin";
 
 export default pluginName;
 
 export const applyChecksKey = "applyChecks";
-
-export type RegisteredChecks<Context> =
-	| (
-			| ((context: Context) => boolean)
-			| [(context: Context) => boolean]
-			| ((context: Context) => Promise<boolean>)
-			| [(context: Context) => Promise<boolean>]
-	  )
-	| undefined;
 
 export class ExplicitChecksPlugin<
 	Types extends SchemaTypes,
@@ -71,27 +63,31 @@ export class ExplicitChecksPlugin<
 		fieldConfig: PothosOutputFieldConfig<Types>,
 	): GraphQLFieldResolver<unknown, Types["Context"], object> {
 		return async (parent, args, context, info) => {
-			console.log(`Resolving ${info.parentType}.${info.fieldName}`);
-			const typeConfig = this.buildCache.getTypeConfig(fieldConfig.parentType);
-			const checkers: RegisteredChecks<Types["Context"]> = (
-				typeConfig.pothosOptions as any
-			).applyChecks;
-			if (!checkers) return resolver(parent, args, context, info);
+			const checkers: ApplyChecksField<Types["Context"], any> = (
+				fieldConfig.type as any
+			).ref.currentConfig.pothosOptions.applyChecks;
 
-			if (Array.isArray(checkers)) {
-				const results = await Promise.all(
-					checkers.map((checker) => checker(context)),
-				);
-				if (results.some((result) => !result)) {
-					return null;
-				}
-			} else {
-				const result = await checkers(context);
-				if (!result) {
-					return null;
+			if (!checkers) {
+				return resolver(parent, args, context, info);
+			}
+
+			if (checkers) {
+				if (Array.isArray(checkers)) {
+					const results = await Promise.all(
+						checkers.map((checker) => checker(context)),
+					);
+					if (results.some((result) => !result)) {
+						return null;
+					}
+				} else {
+					const result = await checkers(context);
+					if (!result) {
+						return null;
+					}
 				}
 			}
 
+			// TODO: optimize by only awaiting when checkers are placed
 			return resolver(parent, args, context, info);
 		};
 	}

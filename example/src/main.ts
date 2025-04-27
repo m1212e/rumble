@@ -91,7 +91,7 @@ abilityBuilder.posts
 // we define the schema of the post object so we can later use it in our queries as a return type
 const PostRef = schemaBuilder.drizzleObject("posts", {
 	name: "Post",
-	applyChecks: async () => false,
+	applyChecks: async () => true,
 	fields: (t) => ({
 		id: t.exposeInt("id"),
 		content: t.exposeString("content", { nullable: false }),
@@ -103,6 +103,15 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 	}),
 });
 
+const UserRef = schemaBuilder.drizzleObject("users", {
+	name: "User",
+	applyChecks: async () => true,
+	fields: (t) => ({
+		id: t.exposeInt("id"),
+		name: t.exposeString("name", { nullable: false }),
+	}),
+});
+
 /*
 
   Since this might get a bit verbose, rumble offers a helper for defining default object implementations.
@@ -111,12 +120,12 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 
  */
 
-const UserRef = object({
-	// name of the table you want to implement ("posts" in the above example)
-	tableName: "users",
-	// name of the object ("Post" in the above example)
-	name: "User",
-});
+// const UserRef = object({
+// 	// name of the table you want to implement ("posts" in the above example)
+// 	tableName: "users",
+// 	// name of the object ("Post" in the above example)
+// 	name: "User",
+// });
 
 /*
 

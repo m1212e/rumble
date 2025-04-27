@@ -7,10 +7,29 @@ import type {
 
 import type {
 	ExplicitChecksPlugin,
-	RegisteredChecks,
 	applyChecksKey,
 } from "./explicitChecksPlugin";
 import pluginName from "./explicitChecksPlugin";
+
+export type CheckerResponse = boolean | Promise<boolean>;
+export type SingleChecker<Context, T> = (p: {
+	context: Context;
+	entity: T;
+}) => CheckerResponse;
+
+export type MultiChecker<Context, T> = (p: {
+	context: Context;
+	entity: T[];
+}) => CheckerResponse;
+
+export type Checker<Context, T> =
+	| { checker: SingleChecker<Context, T>; type: "single" }
+	| { checker: MultiChecker<Context, T>; type: "multi" };
+
+export type ApplyChecksField<Context, T> =
+	| Checker<Context, T>
+	| Checker<Context, T>[]
+	| undefined;
 
 declare global {
 	export namespace PothosSchemaTypes {
@@ -28,7 +47,8 @@ declare global {
 		// }
 
 		export interface ObjectTypeOptions<Types extends SchemaTypes, Shape> {
-			[applyChecksKey]?: RegisteredChecks<Types["Context"]>;
+			//TOOD use proper type not any
+			[applyChecksKey]?: ApplyChecksField<Types["Context"], any>;
 		}
 
 		// export interface MutationFieldOptions<
