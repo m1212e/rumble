@@ -10,6 +10,7 @@ import {
 } from "graphql-scalars";
 import type { createPubSub } from "graphql-yoga";
 import type { ContextType } from "./context";
+import ExplicitChecksPlugin from "./explicitChecksPlugin/explicitChecksPlugin";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import type {
 	CustomRumblePothosConfig,
@@ -65,6 +66,7 @@ export const createSchemaBuilder = <
 		};
 	}>({
 		plugins: [
+			ExplicitChecksPlugin,
 			DrizzlePlugin,
 			SmartSubscriptionsPlugin,
 			...(pothosConfig?.plugins ?? []),

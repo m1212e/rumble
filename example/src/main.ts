@@ -91,6 +91,7 @@ abilityBuilder.posts
 // we define the schema of the post object so we can later use it in our queries as a return type
 const PostRef = schemaBuilder.drizzleObject("posts", {
 	name: "Post",
+	applyChecks: async () => false,
 	fields: (t) => ({
 		id: t.exposeInt("id"),
 		content: t.exposeString("content", { nullable: false }),
@@ -169,6 +170,7 @@ schemaBuilder.queryFields((t) => {
 				// here we set our generated type as type for the where argument
 				where: t.arg({ type: PostWhere }),
 			},
+
 			resolve: (query, root, args, ctx, info) => {
 				return db.query.posts.findMany(
 					query(
@@ -253,6 +255,38 @@ schemaBuilder.mutationFields((t) => {
 							ctx.abilities.users.filter("read", {
 								inject: {
 									where: eq(schema.users.id, args.userId),
+								},
+							}).single,
+						),
+					)
+					.then(assertFindFirstExists);
+			},
+		}),
+	};
+});
+
+schemaBuilder.mutationFields((t) => {
+	return {
+		updatePostContent: t.drizzleField({
+			type: PostRef,
+			args: {
+				id: t.arg.int({ required: true }),
+				newText: t.arg.string({ required: true }),
+			},
+			resolve: async (query, root, args, ctx, info) => {
+				await db
+					.update(schema.posts)
+					.set({
+						content: args.newText,
+					})
+					.where(and(eq(schema.posts.id, args.id)));
+
+				return db.query.posts
+					.findFirst(
+						query(
+							ctx.abilities.posts.filter("read", {
+								inject: {
+									where: eq(schema.posts.id, args.id),
 								},
 							}).single,
 						),
