@@ -106,6 +106,7 @@ export const createObjectImplementer = <
 					return;
 				}
 
+				//TODO maybe register non specific update calls aswell?
 				registerOnInstance({
 					instance: subscriptions,
 					action: "updated",
