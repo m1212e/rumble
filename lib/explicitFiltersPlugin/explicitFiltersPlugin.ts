@@ -64,6 +64,7 @@ export class ManualFiltersPlugin<
 		fieldConfig: PothosOutputFieldConfig<Types>,
 	): GraphQLFieldResolver<unknown, Types["Context"], object> {
 		return async (parent, args, context, info) => {
+			//TODO: https://github.com/hayes/pothos/discussions/1431#discussioncomment-12974130
 			const filters: ApplyFiltersField<Types["Context"], any> = (
 				fieldConfig?.type as any
 			).type?.ref.currentConfig.pothosOptions[applyFiltersKey];
