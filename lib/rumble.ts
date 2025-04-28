@@ -96,13 +96,15 @@ export const rumble = <
 		typeof schemaBuilder,
 		typeof arg,
 		typeof enum_,
-		typeof makePubSubInstance
+		typeof makePubSubInstance,
+		typeof abilityBuilder
 	>({
 		...rumbleInput,
 		schemaBuilder,
 		makePubSubInstance,
 		argImplementer: arg,
 		enumImplementer: enum_,
+		abilityBuilder,
 	});
 	const query = createQueryImplementer<
 		UserContext,

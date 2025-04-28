@@ -91,7 +91,6 @@ abilityBuilder.posts
 // we define the schema of the post object so we can later use it in our queries as a return type
 const PostRef = schemaBuilder.drizzleObject("posts", {
 	name: "Post",
-	applyChecks: async () => true,
 	fields: (t) => ({
 		id: t.exposeInt("id"),
 		content: t.exposeString("content", { nullable: false }),
@@ -103,15 +102,6 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 	}),
 });
 
-const UserRef = schemaBuilder.drizzleObject("users", {
-	name: "User",
-	applyChecks: async () => true,
-	fields: (t) => ({
-		id: t.exposeInt("id"),
-		name: t.exposeString("name", { nullable: false }),
-	}),
-});
-
 /*
 
   Since this might get a bit verbose, rumble offers a helper for defining default object implementations.
@@ -120,12 +110,12 @@ const UserRef = schemaBuilder.drizzleObject("users", {
 
  */
 
-// const UserRef = object({
-// 	// name of the table you want to implement ("posts" in the above example)
-// 	tableName: "users",
-// 	// name of the object ("Post" in the above example)
-// 	name: "User",
-// });
+const UserRef = object({
+	// name of the table you want to implement ("posts" in the above example)
+	tableName: "users",
+	// name of the object ("Post" in the above example)
+	name: "User",
+});
 
 /*
 
@@ -264,38 +254,6 @@ schemaBuilder.mutationFields((t) => {
 							ctx.abilities.users.filter("read", {
 								inject: {
 									where: eq(schema.users.id, args.userId),
-								},
-							}).single,
-						),
-					)
-					.then(assertFindFirstExists);
-			},
-		}),
-	};
-});
-
-schemaBuilder.mutationFields((t) => {
-	return {
-		updatePostContent: t.drizzleField({
-			type: PostRef,
-			args: {
-				id: t.arg.int({ required: true }),
-				newText: t.arg.string({ required: true }),
-			},
-			resolve: async (query, root, args, ctx, info) => {
-				await db
-					.update(schema.posts)
-					.set({
-						content: args.newText,
-					})
-					.where(and(eq(schema.posts.id, args.id)));
-
-				return db.query.posts
-					.findFirst(
-						query(
-							ctx.abilities.posts.filter("read", {
-								inject: {
-									where: eq(schema.posts.id, args.id),
 								},
 							}).single,
 						),

@@ -1,7 +1,5 @@
-import type SchemaBuilder from "@pothos/core";
 import { and, eq, or } from "drizzle-orm";
-import type { ContextType } from "./context";
-import type { Checker } from "./explicitChecksPlugin/explicitChecksPlugin";
+import type { Filter } from "./explicitFiltersPlugin/pluginTypes";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
 import type {
 	GenericDrizzleDbTypeConstraints,
@@ -82,7 +80,7 @@ export const createAbilityBuilder = <
 	const schema = db._.schema as NonNullable<DB["_"]["schema"]>;
 
 	const registrators: {
-		[key in DBQueryKey]: ReturnType<typeof createRegistrator>;
+		[key in DBQueryKey]: ReturnType<typeof createRegistrator<key>>;
 	} = {} as any;
 
 	const registeredConditions: {
@@ -97,15 +95,15 @@ export const createAbilityBuilder = <
 		};
 	} = {} as any;
 
-	const registeredExplicitCheckers: {
+	const registeredExplicitFilters: {
 		[key in DBQueryKey]: {
-			[key in Action[number]]: Checker<
-				ContextType<UserContext, DB, RequestEvent, Action, PothosConfig>
-			>[];
+			[key in Action[number]]: Filter<UserContext, any>[];
 		};
 	} = {} as any;
 
-	const createRegistrator = (entityKey: DBQueryKey) => ({
+	const createRegistrator = <EntityKey extends DBQueryKey>(
+		entityKey: EntityKey,
+	) => ({
 		allow: (action: Action | Action[]) => {
 			let conditionsPerEntity = registeredConditions[entityKey];
 			if (!conditionsPerEntity) {
@@ -139,31 +137,38 @@ export const createAbilityBuilder = <
 				},
 			};
 		},
-		check: (action: Action | Action[]) => {
-			let checkersPerEntity = registeredExplicitCheckers[entityKey];
-			if (!checkersPerEntity) {
-				checkersPerEntity = {} as any;
-				registeredExplicitCheckers[entityKey] = checkersPerEntity;
+		filter: (action: Action | Action[]) => {
+			let explicitFiltersPerEntity = registeredExplicitFilters[entityKey];
+			if (!explicitFiltersPerEntity) {
+				explicitFiltersPerEntity = {} as any;
+				registeredExplicitFilters[entityKey] = explicitFiltersPerEntity;
 			}
 
 			const actions = Array.isArray(action) ? action : [action];
 			for (const action of actions) {
-				let checkersPerEntityAndAction = checkersPerEntity[action];
-				if (!checkersPerEntityAndAction) {
-					checkersPerEntityAndAction = [];
-					checkersPerEntity[action] = checkersPerEntityAndAction;
+				let explicitFiltersPerEntityAndAction =
+					explicitFiltersPerEntity[action];
+				if (!explicitFiltersPerEntityAndAction) {
+					explicitFiltersPerEntityAndAction = [];
+					explicitFiltersPerEntity[action] = explicitFiltersPerEntityAndAction;
 				}
 			}
 
 			return {
-				for: (
-					checker: Checker<
-						ContextType<UserContext, DB, RequestEvent, Action, PothosConfig>
+				by: (
+					explicitFiler: Filter<
+						UserContext,
+						// TODO types
+						// any
+						NonNullable<
+							Awaited<ReturnType<DB["query"][EntityKey]["findFirst"]>>
+						>
 					>,
 				) => {
 					for (const action of actions) {
-						const checkersPerEntityAndAction = checkersPerEntity[action];
-						checkersPerEntityAndAction.push(checker);
+						const explicitFiltersPerEntityAndAction =
+							explicitFiltersPerEntity[action];
+						explicitFiltersPerEntityAndAction.push(explicitFiler);
 					}
 				},
 			};
@@ -176,6 +181,7 @@ export const createAbilityBuilder = <
 	return {
 		...registrators,
 		registeredConditions,
+		registeredExplicitFilters,
 		buildWithUserContext: (userContext: UserContext) => {
 			const builder: {
 				[key in DBQueryKey]: ReturnType<typeof createEntityObject>;
@@ -331,6 +337,9 @@ export const createAbilityBuilder = <
 							limit: highestLimit,
 						},
 					};
+				},
+				explicitFilters: (action: Action) => {
+					return registeredExplicitFilters[entityKey][action];
 				},
 			});
 

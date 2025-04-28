@@ -1,5 +1,6 @@
 import type SchemaBuilder from "@pothos/core";
 import { One } from "drizzle-orm";
+import type { AbilityBuilderType } from "./abilityBuilder";
 import {
 	type EnumImplementerType,
 	isRuntimeEnumSchemaType,
@@ -52,17 +53,26 @@ export const createObjectImplementer = <
 		Action,
 		PothosConfig
 	>,
+	AbilityBuilderInstance extends AbilityBuilderType<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action,
+		PothosConfig
+	>,
 >({
 	db,
 	schemaBuilder,
 	makePubSubInstance,
 	argImplementer,
 	enumImplementer,
+	abilityBuilder,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
 	schemaBuilder: SchemaBuilder;
 	argImplementer: ArgImplementer;
 	enumImplementer: EnumImplementer;
 	makePubSubInstance: MakePubSubInstance;
+	abilityBuilder: AbilityBuilderInstance;
 }) => {
 	return <
 		ExplicitTableName extends keyof NonNullable<DB["_"]["schema"]>,
@@ -113,6 +123,10 @@ export const createObjectImplementer = <
 					primaryKeyValue: primaryKeyValue,
 				});
 			},
+			applyFilters:
+				abilityBuilder?.registeredExplicitFilters?.[tableName as any]?.[
+					readAction
+				],
 			fields: (t) => {
 				const mapSQLTypeStringToExposedPothosType = <
 					Column extends keyof typeof tableSchema.columns,

@@ -3,8 +3,8 @@ import type { SchemaTypes } from "@pothos/core";
 import type {
 	ManualFiltersPlugin,
 	applyFiltersKey,
-} from "./explicitChecksPlugin";
-import pluginName from "./explicitChecksPlugin";
+} from "./explicitFiltersPlugin";
+import pluginName from "./explicitFiltersPlugin";
 
 export type Filter<Context, T> = (p: {
 	context: Context;
