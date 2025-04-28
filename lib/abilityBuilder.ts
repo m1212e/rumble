@@ -74,6 +74,7 @@ export const createAbilityBuilder = <
 >({
 	db,
 	actions,
+	defaultLimit,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>) => {
 	type DBQueryKey = keyof DB["query"];
 	type DBParameters = Parameters<DB["query"][DBQueryKey]["findMany"]>[0];
@@ -181,10 +182,10 @@ export const createAbilityBuilder = <
 		registeredFilters,
 		buildWithUserContext: (userContext: UserContext) => {
 			const builder: {
-				[key in DBQueryKey]: ReturnType<typeof createEntityObject>;
+				[key in DBQueryKey]: ReturnType<typeof createEntityObject<key>>;
 			} = {} as any;
 
-			const createEntityObject = (entityKey: DBQueryKey) => ({
+			const createEntityObject = <Key extends DBQueryKey>(entityKey: Key) => ({
 				filter: (
 					action: Action,
 					options?: {
@@ -216,7 +217,9 @@ export const createAbilityBuilder = <
 							many: {
 								where: options?.inject?.where as undefined,
 								columns: options?.inject?.columns as undefined,
-								limit: options?.inject?.limit as undefined,
+								limit: (options?.inject?.limit ??
+									defaultLimit ??
+									undefined) as undefined,
 							},
 						};
 					}
@@ -273,7 +276,7 @@ export const createAbilityBuilder = <
 						allConditionObjects.push(getBlockEverythingFilter());
 					}
 
-					let highestLimit = undefined;
+					let highestLimit: number | undefined = undefined;
 					for (const conditionObject of allConditionObjects) {
 						if (conditionObject?.limit) {
 							if (
@@ -285,7 +288,11 @@ export const createAbilityBuilder = <
 						}
 					}
 
-					if (options?.inject?.limit && highestLimit < options.inject.limit) {
+					if (
+						options?.inject?.limit &&
+						highestLimit &&
+						highestLimit < options.inject.limit
+					) {
 						highestLimit = options.inject.limit;
 					}
 
@@ -322,7 +329,7 @@ export const createAbilityBuilder = <
 							: options.inject.where;
 					}
 
-					//TODO make this typesafe per actual entity
+					//TODO make this actually typesafe
 					return {
 						single: {
 							where: combinedWhere,
@@ -331,7 +338,7 @@ export const createAbilityBuilder = <
 						many: {
 							where: combinedWhere,
 							columns: combinedAllowedColumns,
-							limit: highestLimit,
+							limit: highestLimit ?? defaultLimit ?? undefined,
 						},
 					};
 				},

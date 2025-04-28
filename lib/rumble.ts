@@ -31,6 +31,10 @@ export const rumble = <
 		rumbleInput.actions = ["read", "update", "delete"] as Action[];
 	}
 
+	if (rumbleInput.defaultLimit === undefined) {
+		rumbleInput.defaultLimit = 100;
+	}
+
 	const abilityBuilder = createAbilityBuilder<
 		UserContext,
 		DB,

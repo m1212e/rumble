@@ -132,7 +132,7 @@ schemaBuilder.queryFields((t) => {
 			resolve: (query, root, args, ctx, info) => {
 				return db.query.posts.findMany(
 					// here we again apply out filters based on the defined abilities
-					query(ctx.abilities.users.filter("read").many),
+					query(ctx.abilities.posts.filter("read").many),
 				);
 			},
 		}),

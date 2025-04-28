@@ -7,6 +7,7 @@ import * as schema from "../db/schema";
 export function makeRumbleSeedInstance(
 	db: ReturnType<typeof drizzle<typeof schema>>,
 	userId?: string,
+	defaultLimit: number | null = null,
 ) {
 	const r = rumble({
 		db,
@@ -15,6 +16,7 @@ export function makeRumbleSeedInstance(
 				userId: userId ?? "123",
 			};
 		},
+		defaultLimit,
 	});
 
 	const UserRef = r.object({ name: "User", tableName: "users" });
@@ -45,10 +47,11 @@ export function makeRumbleSeedInstance(
 							firstName: args.firstName,
 						})
 						.where(
-							and(
-								eq(schema.users.id, args.userId),
-								ctx.abilities.users.filter("update").single.where,
-							),
+							ctx.abilities.users.filter("update", {
+								inject: {
+									where: eq(schema.users.id, args.userId),
+								},
+							}).single.where,
 						)
 						.returning({
 							id: schema.users.id,

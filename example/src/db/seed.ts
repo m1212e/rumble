@@ -32,6 +32,46 @@ await db.insert(schema.posts).values({
 	content: "Hello world 2",
 	authorId: 2,
 });
+await db.insert(schema.posts).values({
+	content: "Hello world",
+	authorId: 1,
+});
+await db.insert(schema.posts).values({
+	content: "Hello world 2",
+	authorId: 2,
+});
+await db.insert(schema.posts).values({
+	content: "Hello world",
+	authorId: 1,
+});
+await db.insert(schema.posts).values({
+	content: "Hello world 2",
+	authorId: 2,
+});
+await db.insert(schema.posts).values({
+	content: "Hello world",
+	authorId: 1,
+});
+await db.insert(schema.posts).values({
+	content: "Hello world 2",
+	authorId: 2,
+});
+await db.insert(schema.posts).values({
+	content: "Hello world",
+	authorId: 1,
+});
+await db.insert(schema.posts).values({
+	content: "Hello world 2",
+	authorId: 2,
+});
+await db.insert(schema.posts).values({
+	content: "Hello world",
+	authorId: 1,
+});
+await db.insert(schema.posts).values({
+	content: "Hello world 2",
+	authorId: 2,
+});
 
 console.info("Done seeding!");
 process.exit(0);

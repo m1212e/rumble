@@ -45,4 +45,9 @@ export type RumbleInput<
 	 * Options passed along to the pothos schema builder.
 	 */
 	pothosConfig?: PothosConfig;
+	/**
+	 * Limits the returned amount when querying lists. Set to null to disable.
+	 * @default 100
+	 */
+	defaultLimit?: number | undefined | null;
 };

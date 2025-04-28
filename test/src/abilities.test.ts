@@ -7,14 +7,18 @@ import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
 describe("test rumble abilities", async () => {
 	let { db, seedData } = await makeSeededDBInstanceForTest();
-	let { rumble, build } = makeRumbleSeedInstance(db, seedData.users.at(0)?.id);
+	let { rumble, build } = makeRumbleSeedInstance(
+		db,
+		seedData.users.at(0)?.id,
+		9,
+	);
 
 	beforeEach(async () => {
 		const s = await makeSeededDBInstanceForTest();
 		db = s.db;
 		seedData = s.seedData;
 
-		const r = makeRumbleSeedInstance(db, seedData.users.at(0)?.id);
+		const r = makeRumbleSeedInstance(db, seedData.users.at(0)?.id, 9);
 		rumble = r.rumble;
 		build = r.build;
 	});
@@ -81,7 +85,7 @@ describe("test rumble abilities", async () => {
 		});
 
 		// all users should be readable
-		expect((r as any).data.findManyUsers.length).toEqual(seedData.users.length);
+		expect((r as any).data.findManyUsers.length).toEqual(9);
 		// no user should have any posts returned
 		expect(
 			(r as any).data.findManyUsers.filter((u: any) => u.posts.length > 0)
@@ -108,11 +112,11 @@ describe("test rumble abilities", async () => {
       `),
 		});
 
-		expect((r as any).data.findManyUsers.length).toEqual(seedData.users.length);
+		expect((r as any).data.findManyUsers.length).toEqual(9);
 		expect(
 			(r as any).data.findManyUsers.filter((u: any) => u.posts.length === 1)
 				.length,
-		).toEqual(10);
+		).toEqual(9);
 	});
 
 	test("error indirect read with helper implementation on one to one with error on non nullable relationship", async () => {
@@ -157,7 +161,10 @@ describe("test rumble abilities", async () => {
       `),
 		});
 
-		expect((r as any).data.findManyComments.length).toEqual(10);
+		console.log((r as any).data);
+
+		expect((r as any).data.findManyComments.length).toEqual(9);
+		expect((r as any).data.findManyComments.at(0).post).toBeNull();
 	});
 
 	test("allow indirect read with helper implementation on one to one", async () => {
@@ -178,10 +185,10 @@ describe("test rumble abilities", async () => {
       `),
 		});
 
-		expect((r as any).data.findManyComments.length).toEqual(10);
+		expect((r as any).data.findManyComments.length).toEqual(9);
 		expect(
 			(r as any).data.findManyComments.filter((u) => u.author).length,
-		).toEqual(10);
+		).toEqual(9);
 	});
 
 	test("allow read only with specific condition", async () => {
