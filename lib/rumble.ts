@@ -26,6 +26,11 @@ export const rumble = <
 >(
 	rumbleInput: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>,
 ) => {
+	// to be able to iterate over the actions, we populate the actions array in case the user does not
+	if (!rumbleInput.actions) {
+		rumbleInput.actions = ["read", "update", "delete"] as Action[];
+	}
+
 	const abilityBuilder = createAbilityBuilder<
 		UserContext,
 		DB,

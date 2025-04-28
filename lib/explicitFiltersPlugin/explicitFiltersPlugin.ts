@@ -68,7 +68,7 @@ export class ManualFiltersPlugin<
 			).type?.ref.currentConfig.pothosOptions[applyFiltersKey];
 
 			// if no filter should be applied, just continue
-			if (!filters) {
+			if (!filters || !Array.isArray(filters) || filters.length === 0) {
 				return resolver(parent, args, context, info);
 			}
 

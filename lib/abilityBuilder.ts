@@ -73,6 +73,7 @@ export const createAbilityBuilder = <
 	PothosConfig extends CustomRumblePothosConfig,
 >({
 	db,
+	actions,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>) => {
 	type DBQueryKey = keyof DB["query"];
 	type DBParameters = Parameters<DB["query"][DBQueryKey]["findMany"]>[0];
@@ -103,77 +104,72 @@ export const createAbilityBuilder = <
 
 	const createRegistrator = <EntityKey extends DBQueryKey>(
 		entityKey: EntityKey,
-	) => ({
-		allow: (action: Action | Action[]) => {
-			let conditionsPerEntity = registeredConditions[entityKey];
-			if (!conditionsPerEntity) {
-				conditionsPerEntity = {} as any;
-				registeredConditions[entityKey] = conditionsPerEntity;
+	) => {
+		// we want to init all possible application level filters since we want to ensure
+		// that the implementaiton helpers pass an object by reference when creating
+		// the implementation, instead of a copy like it would be the case with undefined
+		for (const action of actions!) {
+			if (!registeredExplicitFilters[entityKey]) {
+				registeredExplicitFilters[entityKey] = {} as any;
 			}
+			if (!registeredExplicitFilters[entityKey][action]) {
+				registeredExplicitFilters[entityKey][action] = [];
+			}
+		}
 
-			const actions = Array.isArray(action) ? action : [action];
-			for (const action of actions) {
-				let conditionsPerEntityAndAction = conditionsPerEntity[action];
-				if (!conditionsPerEntityAndAction) {
-					conditionsPerEntityAndAction = "wildcard";
-					conditionsPerEntity[action] = conditionsPerEntityAndAction;
+		return {
+			allow: (action: Action | Action[]) => {
+				let conditionsPerEntity = registeredConditions[entityKey];
+				if (!conditionsPerEntity) {
+					conditionsPerEntity = {} as any;
+					registeredConditions[entityKey] = conditionsPerEntity;
 				}
-			}
 
-			return {
-				when: (condition: Condition<DBParameters, UserContext>) => {
-					for (const action of actions) {
-						if (conditionsPerEntity[action] === "wildcard") {
-							conditionsPerEntity[action] = [];
+				const actions = Array.isArray(action) ? action : [action];
+				for (const action of actions) {
+					let conditionsPerEntityAndAction = conditionsPerEntity[action];
+					if (!conditionsPerEntityAndAction) {
+						conditionsPerEntityAndAction = "wildcard";
+						conditionsPerEntity[action] = conditionsPerEntityAndAction;
+					}
+				}
+
+				return {
+					when: (condition: Condition<DBParameters, UserContext>) => {
+						for (const action of actions) {
+							if (conditionsPerEntity[action] === "wildcard") {
+								conditionsPerEntity[action] = [];
+							}
+							const conditionsPerEntityAndAction = conditionsPerEntity[action];
+							(
+								conditionsPerEntityAndAction as Exclude<
+									typeof conditionsPerEntityAndAction,
+									"wildcard"
+								>
+							).push(condition);
 						}
-						const conditionsPerEntityAndAction = conditionsPerEntity[action];
-						(
-							conditionsPerEntityAndAction as Exclude<
-								typeof conditionsPerEntityAndAction,
-								"wildcard"
+					},
+				};
+			},
+			filter: (action: Action | Action[]) => {
+				const actions = Array.isArray(action) ? action : [action];
+				return {
+					by: (
+						explicitFilter: Filter<
+							UserContext,
+							NonNullable<
+								Awaited<ReturnType<DB["query"][EntityKey]["findFirst"]>>
 							>
-						).push(condition);
-					}
-				},
-			};
-		},
-		filter: (action: Action | Action[]) => {
-			let explicitFiltersPerEntity = registeredExplicitFilters[entityKey];
-			if (!explicitFiltersPerEntity) {
-				explicitFiltersPerEntity = {} as any;
-				registeredExplicitFilters[entityKey] = explicitFiltersPerEntity;
-			}
-
-			const actions = Array.isArray(action) ? action : [action];
-			for (const action of actions) {
-				let explicitFiltersPerEntityAndAction =
-					explicitFiltersPerEntity[action];
-				if (!explicitFiltersPerEntityAndAction) {
-					explicitFiltersPerEntityAndAction = [];
-					explicitFiltersPerEntity[action] = explicitFiltersPerEntityAndAction;
-				}
-			}
-
-			return {
-				by: (
-					explicitFiler: Filter<
-						UserContext,
-						// TODO types
-						// any
-						NonNullable<
-							Awaited<ReturnType<DB["query"][EntityKey]["findFirst"]>>
-						>
-					>,
-				) => {
-					for (const action of actions) {
-						const explicitFiltersPerEntityAndAction =
-							explicitFiltersPerEntity[action];
-						explicitFiltersPerEntityAndAction.push(explicitFiler);
-					}
-				},
-			};
-		},
-	});
+						>,
+					) => {
+						for (const action of actions) {
+							registeredExplicitFilters[entityKey][action].push(explicitFilter);
+						}
+					},
+				};
+			},
+		};
+	};
 
 	for (const entityKey of Object.keys(db.query) as DBQueryKey[]) {
 		registrators[entityKey] = createRegistrator(entityKey);
