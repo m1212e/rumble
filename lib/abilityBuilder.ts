@@ -86,7 +86,7 @@ export const createAbilityBuilder = <
 
 	const registeredConditions: {
 		[key in DBQueryKey]: {
-			[key in Action[number]]:
+			[key in Action]:
 				| (
 						| QueryConditionObject
 						| ((context: UserContext) => QueryConditionObject | undefined)
@@ -96,9 +96,10 @@ export const createAbilityBuilder = <
 		};
 	} = {} as any;
 
-	const registeredExplicitFilters: {
+	const registeredFilters: {
 		[key in DBQueryKey]: {
-			[key in Action[number]]: Filter<UserContext, any>[];
+			//TODO add a run all helper
+			[key in Action]: Filter<UserContext, any>[];
 		};
 	} = {} as any;
 
@@ -109,11 +110,11 @@ export const createAbilityBuilder = <
 		// that the implementaiton helpers pass an object by reference when creating
 		// the implementation, instead of a copy like it would be the case with undefined
 		for (const action of actions!) {
-			if (!registeredExplicitFilters[entityKey]) {
-				registeredExplicitFilters[entityKey] = {} as any;
+			if (!registeredFilters[entityKey]) {
+				registeredFilters[entityKey] = {} as any;
 			}
-			if (!registeredExplicitFilters[entityKey][action]) {
-				registeredExplicitFilters[entityKey][action] = [];
+			if (!registeredFilters[entityKey][action]) {
+				registeredFilters[entityKey][action] = [];
 			}
 		}
 
@@ -163,7 +164,7 @@ export const createAbilityBuilder = <
 						>,
 					) => {
 						for (const action of actions) {
-							registeredExplicitFilters[entityKey][action].push(explicitFilter);
+							registeredFilters[entityKey][action].push(explicitFilter);
 						}
 					},
 				};
@@ -177,7 +178,7 @@ export const createAbilityBuilder = <
 	return {
 		...registrators,
 		registeredConditions,
-		registeredExplicitFilters,
+		registeredFilters,
 		buildWithUserContext: (userContext: UserContext) => {
 			const builder: {
 				[key in DBQueryKey]: ReturnType<typeof createEntityObject>;
@@ -335,7 +336,7 @@ export const createAbilityBuilder = <
 					};
 				},
 				explicitFilters: (action: Action) => {
-					return registeredExplicitFilters[entityKey][action];
+					return registeredFilters[entityKey][action];
 				},
 			});
 

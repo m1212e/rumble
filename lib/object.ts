@@ -124,9 +124,7 @@ export const createObjectImplementer = <
 				});
 			},
 			applyFilters:
-				abilityBuilder?.registeredExplicitFilters?.[tableName as any]?.[
-					readAction
-				],
+				abilityBuilder?.registeredFilters?.[tableName as any]?.[readAction],
 			fields: (t) => {
 				const mapSQLTypeStringToExposedPothosType = <
 					Column extends keyof typeof tableSchema.columns,

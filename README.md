@@ -63,6 +63,20 @@ abilityBuilder.posts
 
 ```
 
+### Application level filters
+In some cases you can't implement all your checks via a database query filter. Say, for example, you want to query an external api which handles your authorization, before you return the data to the user. This can be done with application layer filters. They can be set very similar to abilities:
+```ts
+abilityBuilder.users.filter("read").by(({ context, entities }) => {
+	// const allowed = await queryExternalAuthorizationService(context.user, entities);
+
+	// we could filter the list to only return the entities the user is allowed to see
+	// event mapping to prevent leakage of certain fields is possible
+	return entities;
+});
+```
+The default implementation helpers automatically respect and call the filters, if you set any. Filters work in addition to abilities. They run on the completed query, which in most cases has had an ability applied, hence abilities have higher priority than filters.
+
+
 ### Applying abilities
 As you might have noticed, abilities resolve around drizzle query filters. This means, that we can use them to query the database with filters applied that directly restrict what the user is allowed to see, update and retrieve.
 ```ts
@@ -80,6 +94,18 @@ schemaBuilder.queryFields((t) => {
  };
 });
 ```
+
+#### Applying filters
+Applying filters on objects is done automatically if you use the helpers. If you manually implement an object ref, you can use the `applyFilters` config field to ensure the filters run as expected:
+```ts
+const PostRef = schemaBuilder.drizzleObject("posts", {
+	name: "Post",
+	// apply the application level filters
+	applyFilters: abilityBuilder.registeredFilters.posts.read,
+	fields: (t) => ({
+...
+```
+To apply filters in a custom handler implementation, like e.g. your mutations, you can use the `applyFilters` helper exported by rumble to easily filter a list of entities.
 
 ## Context & Configuration
 The `rumble` initiator offers various configuration options which you can pass. Most importantly, the `context` provider function which creates the request context that is passed to your abilities and resolvers.

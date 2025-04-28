@@ -1,3 +1,4 @@
+import type { Filter } from "../explicitFiltersPlugin/pluginTypes";
 import { RumbleErrorSafe } from "../types/rumbleError";
 
 /**
@@ -80,4 +81,37 @@ export const assertFirstEntryExists = <T>(value: T[]): T => {
 	if (!v)
 		throw new RumbleErrorSafe("Value not found but required (firstEntry)");
 	return v;
+};
+
+/**
+ * A helper to apply a list of filters to a given list of entities.
+ * 
+ * @example
+ * 
+ * ```ts
+ * const filtered = await applyFilters({
+    filters: abilityBuilder.registeredFilters.posts.update,
+    entities: entitiesToFilter,
+    context: ctx,
+  });
+ * ```
+ */
+export const applyFilters = async <Context, T, H extends T>({
+	filters,
+	entities,
+	context,
+}: { entities: T[]; filters: Filter<Context, H>[]; context: Context }) => {
+	return (
+		await Promise.all(
+			filters.map((f) =>
+				f({
+					context,
+					entities: entities as H[],
+				}),
+			),
+		)
+	).reduce((acc, val) => {
+		acc.push(...val);
+		return acc;
+	}, []) as T[];
 };

@@ -14,6 +14,7 @@ import type {
 	GraphQLSchema,
 	GraphQLTypeResolver,
 } from "graphql";
+import { applyFilters } from "../helpers/helper";
 import type { ApplyFiltersField } from "./pluginTypes";
 
 const pluginName = "ManualFiltersPlugin";
@@ -76,19 +77,11 @@ export class ManualFiltersPlugin<
 			const allResolvedValues = Array.isArray(resolved) ? resolved : [resolved];
 			const allFilters = Array.isArray(filters) ? filters : [filters];
 
-			const allowed = (
-				await Promise.all(
-					allFilters.map((filter) =>
-						filter({
-							context,
-							entities: allResolvedValues,
-						}),
-					),
-				)
-			).reduce((acc, val) => {
-				acc.push(...val);
-				return acc;
-			}, []);
+			const allowed = await applyFilters({
+				filters: allFilters,
+				entities: allResolvedValues,
+				context,
+			});
 
 			// if the original value was an array, return an array
 			if (Array.isArray(resolved)) {
