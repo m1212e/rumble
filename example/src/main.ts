@@ -78,6 +78,18 @@ abilityBuilder.posts
 	.allow(["update", "delete"])
 	.when(({ userId }) => ({ where: eq(schema.posts.authorId, userId) }));
 
+// a hypothetical more elaborate example
+abilityBuilder.posts.allow(["update", "delete"]).when(({ userId }) => {
+	// we could do some complex checks and calculations here and want to do various things based on the outcome:
+	if (userId === 1) {
+		return { where: eq(schema.posts.authorId, userId) }; // we can return a standard ability which allows things under a specific condition
+	}
+	if (userId === 2) {
+		return "allow"; // we can return a wildcard, which allows everything
+	}
+	return undefined; // we can return nothing, which does not allow anything
+});
+
 /*
 
   Next we need to define the objects shape which will be returned by our queries and mutations.
