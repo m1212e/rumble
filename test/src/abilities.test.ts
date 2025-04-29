@@ -256,6 +256,25 @@ describe("test rumble abilities", async () => {
 		expect((r as any).data.findManyComments.length).toEqual(0);
 	});
 
+	test("allow read with dynamic specific wildcard condition", async () => {
+		rumble.abilityBuilder.comments.allow("read").when(() => {
+			return "allow";
+		});
+
+		const { executor, yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          findManyComments {
+            id
+          }
+        }
+      `),
+		});
+
+		expect((r as any).data.findManyComments.length).toEqual(9);
+	});
+
 	test("allow read only with specific condition based on request context", async () => {
 		rumble.abilityBuilder.comments
 			.allow("read")

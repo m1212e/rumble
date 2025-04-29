@@ -35,7 +35,7 @@ type Condition<DBParameters, UserContext> =
 type SimpleCondition<DBParameters> = DBParameters;
 type SyncFunctionCondition<DBParameters, UserContext> = (
 	context: UserContext,
-) => DBParameters | undefined;
+) => DBParameters | undefined | "allow";
 // type AsyncFunctionCondition<DBParameters, UserContext> = (
 // 	context: UserContext,
 // ) => Promise<DBParameters>;
@@ -90,7 +90,9 @@ export const createAbilityBuilder = <
 			[key in Action]:
 				| (
 						| QueryConditionObject
-						| ((context: UserContext) => QueryConditionObject | undefined)
+						| ((
+								context: UserContext,
+						  ) => QueryConditionObject | undefined | "allow")
 				  )[]
 				| "wildcard";
 			// | ((context: UserContext) => Promise<QueryConditionObject>)
@@ -259,6 +261,10 @@ export const createAbilityBuilder = <
 						.filter(isSyncFunctionCondition)
 						.map((condition) => condition(userContext));
 
+					const someWildcardFound = syncFunctionConditions.some(
+						(c) => c === "allow",
+					);
+
 					// const asyncFunctionConditions = await Promise.all(
 					// 	conditionsPerEntityAndAction
 					// 		.filter(isAsyncFunctionCondition)
@@ -278,7 +284,7 @@ export const createAbilityBuilder = <
 
 					let highestLimit: number | undefined = undefined;
 					for (const conditionObject of allConditionObjects) {
-						if (conditionObject?.limit) {
+						if (conditionObject !== "allow" && conditionObject?.limit) {
 							if (
 								highestLimit === undefined ||
 								conditionObject.limit > highestLimit
@@ -302,7 +308,7 @@ export const createAbilityBuilder = <
 						...allConditionObjects,
 						options?.inject ?? {},
 					]) {
-						if (conditionObject?.columns) {
+						if (conditionObject !== "allow" && conditionObject?.columns) {
 							if (combinedAllowedColumns === undefined) {
 								combinedAllowedColumns = conditionObject.columns;
 							} else {
@@ -314,9 +320,12 @@ export const createAbilityBuilder = <
 						}
 					}
 
-					const accumulatedWhereConditions = allConditionObjects
-						.filter((o) => o?.where)
-						.map((o) => o?.where);
+					// in case we have a wildcard, we don't want to apply any where conditions
+					const accumulatedWhereConditions = someWildcardFound
+						? []
+						: allConditionObjects
+								.filter((o) => o !== "allow" && o?.where)
+								.map((o) => (o as Exclude<typeof o, "allow">)?.where);
 
 					let combinedWhere =
 						accumulatedWhereConditions.length > 0
