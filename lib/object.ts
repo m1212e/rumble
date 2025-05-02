@@ -234,12 +234,20 @@ export const createObjectImplementer = <
 							},
 							nullable,
 							query: (args: any, ctx: any) => {
-								return ctx.abilities[value.referencedTableName].filter(
-									readAction,
-									{
-										inject: { where: transformWhere(args.where) },
-									},
-								)[filterSpecifier];
+								//TODO: streamline naming & logic of when what is used: table name or schema object name
+								// also we should adjust naming of the user facing functions accordingly
+								const found = Object.entries(db._.schema)
+									.find(([key, v]) => v.dbName === value.referencedTableName)
+									?.at(0);
+								if (!found) {
+									throw new RumbleError(
+										`Could not find table ${value.referencedTableName} in schema object`,
+									);
+								}
+
+								return ctx.abilities[found].filter(readAction, {
+									inject: { where: transformWhere(args.where) },
+								})[filterSpecifier];
 							},
 						} as any) as any;
 						return acc;
