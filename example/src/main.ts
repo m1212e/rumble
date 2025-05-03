@@ -127,6 +127,14 @@ const UserRef = object({
 	tableName: "users",
 	// name of the object ("Post" in the above example)
 	name: "User",
+	extend(t) {
+		return {
+			somethingElse: t.field({
+				type: "String",
+				resolve: (root, args, context, info) => "something else",
+			}),
+		};
+	},
 });
 
 /*

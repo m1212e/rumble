@@ -77,14 +77,19 @@ export const createObjectImplementer = <
 	return <
 		ExplicitTableName extends keyof NonNullable<DB["_"]["schema"]>,
 		RefName extends string,
+		Extender extends
+			| Parameters<typeof schemaBuilder.drizzleObject>[1]["fields"]
+			| undefined,
 	>({
 		tableName,
 		name,
 		readAction = "read" as Action,
+		extend,
 	}: {
 		tableName: ExplicitTableName;
 		name?: RefName;
 		readAction?: Action;
+		extend?: Extender;
 	}) => {
 		const tableSchema = (db._.schema as NonNullable<DB["_"]["schema"]>)[
 			tableName
@@ -258,10 +263,16 @@ export const createObjectImplementer = <
 					>,
 				);
 
-				return {
-					...fields,
-					...relations,
-				};
+				return extend
+					? {
+							...fields,
+							...relations,
+							...(extend(t as any) ?? {}),
+						}
+					: {
+							...fields,
+							...relations,
+						};
 			},
 		});
 	};
