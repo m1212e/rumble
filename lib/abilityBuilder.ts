@@ -1,6 +1,10 @@
-import { and, eq, or } from "drizzle-orm";
+import { and, or } from "drizzle-orm";
 import type { Filter } from "./explicitFiltersPlugin/pluginTypes";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
+import {
+	getPrimaryColumnsFromSchema,
+	getTableSchemaByTSName,
+} from "./helpers/tableHelpers";
 import type {
 	GenericDrizzleDbTypeConstraints,
 	QueryConditionObject,
@@ -79,8 +83,6 @@ export const createAbilityBuilder = <
 	type DBQueryKey = keyof DB["query"];
 	type DBParameters = Parameters<DB["query"][DBQueryKey]["findMany"]>[0];
 
-	const schema = db._.schema as NonNullable<DB["_"]["schema"]>;
-
 	const registrators: {
 		[key in DBQueryKey]: ReturnType<typeof createRegistrator<key>>;
 	} = {} as any;
@@ -107,26 +109,26 @@ export const createAbilityBuilder = <
 	} = {} as any;
 
 	const createRegistrator = <EntityKey extends DBQueryKey>(
-		entityKey: EntityKey,
+		tableName: EntityKey,
 	) => {
 		// we want to init all possible application level filters since we want to ensure
 		// that the implementaiton helpers pass an object by reference when creating
 		// the implementation, instead of a copy like it would be the case with undefined
 		for (const action of actions!) {
-			if (!registeredFilters[entityKey]) {
-				registeredFilters[entityKey] = {} as any;
+			if (!registeredFilters[tableName]) {
+				registeredFilters[tableName] = {} as any;
 			}
-			if (!registeredFilters[entityKey][action]) {
-				registeredFilters[entityKey][action] = [];
+			if (!registeredFilters[tableName][action]) {
+				registeredFilters[tableName][action] = [];
 			}
 		}
 
 		return {
 			allow: (action: Action | Action[]) => {
-				let conditionsPerEntity = registeredConditions[entityKey];
+				let conditionsPerEntity = registeredConditions[tableName];
 				if (!conditionsPerEntity) {
 					conditionsPerEntity = {} as any;
-					registeredConditions[entityKey] = conditionsPerEntity;
+					registeredConditions[tableName] = conditionsPerEntity;
 				}
 
 				const actions = Array.isArray(action) ? action : [action];
@@ -167,7 +169,7 @@ export const createAbilityBuilder = <
 						>,
 					) => {
 						for (const action of actions) {
-							registeredFilters[entityKey][action].push(explicitFilter);
+							registeredFilters[tableName][action].push(explicitFilter);
 						}
 					},
 				};
@@ -191,6 +193,7 @@ export const createAbilityBuilder = <
 				filter: (
 					action: Action,
 					options?: {
+						// TODO strongly type this
 						/**
 						 * Additional conditions applied only for this call. Useful for injecting one time additional filters
 						 * for e.g. user args in a handler.
@@ -212,39 +215,68 @@ export const createAbilityBuilder = <
 						// but prevent TS from doing weird things with the return
 						// types of the query function with these filters applied
 						return {
-							single: {
-								where: options?.inject?.where as undefined,
-								columns: options?.inject?.columns as undefined,
+							query: {
+								single: {
+									where: options?.inject?.where as undefined,
+									columns: options?.inject?.columns as undefined,
+								},
+								many: {
+									where: options?.inject?.where as undefined,
+									columns: options?.inject?.columns as undefined,
+									limit: (options?.inject?.limit ??
+										defaultLimit ??
+										undefined) as undefined,
+								},
 							},
-							many: {
-								where: options?.inject?.where as undefined,
-								columns: options?.inject?.columns as undefined,
-								limit: (options?.inject?.limit ??
-									defaultLimit ??
-									undefined) as undefined,
+							write: {
+								single: {
+									where: options?.inject?.where as undefined,
+									columns: options?.inject?.columns as undefined,
+								},
+								many: {
+									where: options?.inject?.where as undefined,
+									columns: options?.inject?.columns as undefined,
+									limit: (options?.inject?.limit ??
+										defaultLimit ??
+										undefined) as undefined,
+								},
 							},
 						};
 					}
 
 					const getBlockEverythingFilter = () => {
-						const primaryKeyField = schema[entityKey].primaryKey.at(0);
-						if (!primaryKeyField) {
+						const tableSchema = getTableSchemaByTSName({
+							db,
+							tsName: entityKey,
+						});
+						const primaryKeys = getPrimaryColumnsFromSchema({
+							table: tableSchema,
+						});
+
+						if (primaryKeys.length === 0) {
 							throw new RumbleError(
 								`No primary key found for entity ${entityKey.toString()}`,
 							);
 						}
 
+						const primaryKeyField = primaryKeys[0];
 						// we want a filter that excludes everything
 						const distinctValues = createDistinctValuesFromSQLType(
-							primaryKeyField.getSQLType(),
+							primaryKeyField.getSQLType() as any,
 						);
 
 						// when the user has no permission for anything, ensure returns nothing
 						return {
-							where: and(
-								eq(primaryKeyField, distinctValues.value1),
-								eq(primaryKeyField, distinctValues.value2),
-							),
+							where: {
+								AND: [
+									{
+										[primaryKeyField.name]: distinctValues.value1,
+									},
+									{
+										[primaryKeyField.name]: distinctValues.value2,
+									},
+								],
+							},
 						};
 					};
 
@@ -329,25 +361,49 @@ export const createAbilityBuilder = <
 
 					let combinedWhere =
 						accumulatedWhereConditions.length > 0
-							? or(...accumulatedWhereConditions)
+							? { OR: accumulatedWhereConditions }
 							: undefined;
 
 					if (options?.inject?.where) {
 						combinedWhere = combinedWhere
-							? and(combinedWhere, options.inject.where)
+							? { AND: [combinedWhere, options.inject.where] }
+							: options.inject.where;
+					}
+
+					let combinedWhereWrite =
+						accumulatedWhereConditions.length > 0
+							? or(...accumulatedWhereConditions)
+							: undefined;
+
+					if (options?.inject?.where) {
+						combinedWhereWrite = combinedWhereWrite
+							? and(combinedWhereWrite, options.inject.where)
 							: options.inject.where;
 					}
 
 					//TODO make this actually typesafe
 					return {
-						single: {
-							where: combinedWhere,
-							columns: combinedAllowedColumns,
+						query: {
+							single: {
+								where: combinedWhere,
+								columns: combinedAllowedColumns,
+							},
+							many: {
+								where: combinedWhere,
+								columns: combinedAllowedColumns,
+								limit: highestLimit ?? defaultLimit ?? undefined,
+							},
 						},
-						many: {
-							where: combinedWhere,
-							columns: combinedAllowedColumns,
-							limit: highestLimit ?? defaultLimit ?? undefined,
+						write: {
+							single: {
+								where: combinedWhereWrite,
+								columns: combinedAllowedColumns,
+							},
+							many: {
+								where: combinedWhereWrite,
+								columns: combinedAllowedColumns,
+								limit: highestLimit ?? defaultLimit ?? undefined,
+							},
 						},
 					};
 				},

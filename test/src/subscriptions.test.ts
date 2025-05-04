@@ -26,7 +26,7 @@ describe("test rumble subscriptions", async () => {
 		rumble.abilityBuilder.comments.allow("update");
 
 		const { updated: updatedComment } = rumble.pubsub({
-			tableName: "comments",
+			table: "comments",
 		});
 
 		rumble.schemaBuilder.mutationFields((t) => {
@@ -122,7 +122,7 @@ describe("test rumble subscriptions", async () => {
 		rumble.abilityBuilder.comments.allow("update");
 
 		const { updated: updatedComment } = rumble.pubsub({
-			tableName: "comments",
+			table: "comments",
 		});
 
 		rumble.schemaBuilder.mutationFields((t) => {
@@ -220,7 +220,7 @@ describe("test rumble subscriptions", async () => {
 		rumble.abilityBuilder.comments.allow("delete");
 
 		const { removed: deletedComment } = rumble.pubsub({
-			tableName: "comments",
+			table: "comments",
 		});
 
 		rumble.schemaBuilder.mutationFields((t) => {
@@ -320,7 +320,7 @@ describe("test rumble subscriptions", async () => {
 		rumble.abilityBuilder.comments.allow("delete");
 
 		const { created: createdComment } = rumble.pubsub({
-			tableName: "comments",
+			table: "comments",
 		});
 
 		rumble.schemaBuilder.mutationFields((t) => {

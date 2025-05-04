@@ -1,8 +1,10 @@
+import type { Table } from "drizzle-orm";
 import { toCamelCase } from "drizzle-orm/casing";
 import type { MySqlEnumColumnBuilderInitial } from "drizzle-orm/mysql-core";
-import type { PgEnum } from "drizzle-orm/pg-core";
+import { type PgEnum, PgEnumColumn } from "drizzle-orm/pg-core";
 import type { SingleStoreEnumColumnBuilderInitial } from "drizzle-orm/singlestore-core";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
+import { getTableSchemaByTSName } from "./helpers/tableHelpers";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
@@ -15,26 +17,12 @@ import type {
  * Checks if a schema type is an enum
  */
 export function isRuntimeEnumSchemaType(schemaType: any): boolean {
-	const enumSchema = mapRuntimeEnumSchemaType(schemaType);
-	return (
-		enumSchema.enumValues !== undefined &&
-		enumSchema.enumName !== undefined &&
-		typeof enumSchema.enumName === "string" &&
-		Array.isArray(enumSchema.enumValues)
-	);
+	// TODO make this compatible with other db drivers
+	return schemaType instanceof PgEnumColumn;
 }
 
-/**
- * Puts an enum schema object in a uniform shape
- */
-export function mapRuntimeEnumSchemaType(schemaType: any) {
-	return schemaType.enum ?? schemaType;
-}
-
-type EnumTypes =
-	| PgEnum<any>
-	| SingleStoreEnumColumnBuilderInitial<any, any>
-	| MySqlEnumColumnBuilderInitial<any, any>;
+// TODO make this compatible with other db drivers
+type EnumTypes = PgEnum<any>;
 
 type EnumFields<T> = {
 	[K in keyof T as T[K] extends EnumTypes ? K : never]: T[K];
@@ -80,105 +68,29 @@ export const createEnumImplementer = <
 
 	const enumImplementer = <
 		ExplicitEnumVariableName extends keyof EnumFields<
-			NonNullable<DB["_"]["fullSchema"]>
+			NonNullable<DB["_"]["relations"]["schema"]>
 		>,
 		RefName extends string,
-		// EnumValues,
-		EnumName extends string,
 	>({
-		enumVariableName,
-		name,
-		// enumValues: enumValuesParam,
-		enumName,
-	}: Partial<
-		{
-			/**
-			 * The name of the enum as the TS variable is defined in your schema export.
-			 * @example
-			 * ```ts
-			 * export const committeeStatus = pgEnum('committee_status', [
-			 * //	     ^^^^^^^^^^^^^^^
-			 * //	 This is what you would put here ("committeeStatus")
-			 *
-			 *
-			 * 		'FORMAL',
-			 * 		'INFORMAL',
-			 * 		'PAUSE',
-			 * 		'SUSPENSION'
-			 * 	]);
-			 * ```
-			 */
-			enumVariableName: ExplicitEnumVariableName;
-			/*
-			 * The value object reference (array) that defines the enum values.
-			 * Be sure to pass this by reference, the values are not checked by comparison.
-			 * @example
-			 * ```ts
-			 *
-			 * const enumValues
-			 * export const committeeStatus = pgEnum('committee_status',
-			 *
-			 *
-			 * );
-			 * ```
-			 */
-			// enumValues: EnumValues[];
-
-			/**
-			 * The name of the enum at the database.
-			 * @example
-			 * ```ts
-			 * export const committeeStatus = pgEnum('committee_status', [
-			 * //	    			       ^^^^^^^^^^^^^^^^
-			 * //	 This is what you would put here ("committee_status")
-			 *
-			 *
-			 * 		'FORMAL',
-			 * 		'INFORMAL',
-			 * 		'PAUSE',
-			 * 		'SUSPENSION'
-			 * 	]);
-			 * ```
-			 */
-			enumName: EnumName;
-			/**
-			 * The name of the about to be generated graphql enum reference.
-			 */
-			name: RefName | undefined;
-		} & (
-			| { enumVariableName: ExplicitEnumVariableName }
-			// | { enumValues: EnumValues[] }
-			| { enumName: EnumName }
-		)
-	>) => {
-		const fullSchema = db._.fullSchema!;
+		tsName,
+		refName,
+	}: {
+		tsName: ExplicitEnumVariableName;
+		refName?: RefName | undefined;
+	}) => {
 		//TODO check if this can be done typesafe
 
-		let enumSchema: any | undefined = undefined;
-
-		if (enumVariableName) {
-			enumSchema = fullSchema[enumVariableName];
-			// } else if (enumValuesParam) {
-			// 	enumSchema = Object.values(fullSchema)
-			// 		.filter(isRuntimeEnumSchemaType)
-			// 		.map(mapRuntimeEnumSchemaType)
-			// 		.find((e: any) => e.enumValues === enumValuesParam) as any;
-		} else if (enumName) {
-			enumSchema = Object.values(fullSchema)
-				.filter(isRuntimeEnumSchemaType)
-				.map(mapRuntimeEnumSchemaType)
-				.find((e: any) => e.enumName === enumName) as any;
-		}
+		const enumSchema = getTableSchemaByTSName({
+			db,
+			tsName,
+		});
 
 		if (!enumSchema) {
-			throw new RumbleError(
-				`Could not determine enum structure! (${String(enumVariableName)}, ${enumValuesParam}, ${enumName})`,
-			);
+			throw new RumbleError("Could not determine enum structure!");
 		}
 
 		const graphqlImplementationName =
-			name ??
-			`${capitalizeFirstLetter(toCamelCase(enumSchema.enumName.toString()))}Enum`;
+			refName ?? `${capitalizeFirstLetter(toCamelCase(tsName as string))}Enum`;
 
 		let ret: ReturnType<typeof implement> | undefined = referenceStorage.get(
 			graphqlImplementationName,

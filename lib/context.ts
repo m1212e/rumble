@@ -1,4 +1,3 @@
-import type SchemaBuilder from "@pothos/core";
 import type {
 	AbilityBuilderType,
 	createAbilityBuilder,

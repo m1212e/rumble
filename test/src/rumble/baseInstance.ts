@@ -19,17 +19,17 @@ export function makeRumbleSeedInstance(
 		defaultLimit,
 	});
 
-	const UserRef = r.object({ name: "User", tableName: "users" });
-	r.query({ tableName: "users" });
+	const UserRef = r.object({ refName: "User", table: "users" });
+	r.query({ table: "users" });
 	const { updated: updatedUser } = r.pubsub({
-		tableName: "users",
+		table: "users",
 	});
 
-	r.object({ name: "Post", tableName: "posts" });
-	r.query({ tableName: "posts" });
+	r.object({ refName: "Post", table: "posts" });
+	r.query({ table: "posts" });
 
-	r.object({ name: "Comment", tableName: "comments" });
-	r.query({ tableName: "comments" });
+	r.object({ refName: "Comment", table: "comments" });
+	r.query({ table: "comments" });
 
 	r.schemaBuilder.mutationFields((t) => {
 		return {

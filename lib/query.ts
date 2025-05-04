@@ -1,10 +1,13 @@
-import type SchemaBuilder from "@pothos/core";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { assertFindFirstExists } from "./helpers/helper";
+import {
+	type TableIdentifierTSName,
+	getPrimaryColumnsFromSchema,
+	getTableSchemaByTSName,
+} from "./helpers/tableHelpers";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
-import { RumbleError } from "./types/rumbleError";
 import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
@@ -48,15 +51,15 @@ export const createQueryImplementer = <
 	argImplementer: ArgImplementer;
 	makePubSubInstance: MakePubSubInstance;
 }) => {
-	return <ExplicitTableName extends keyof NonNullable<DB["_"]["schema"]>>({
-		tableName,
+	return <ExplicitTableName extends TableIdentifierTSName<DB>>({
+		table,
 		readAction = "read" as Action,
 		listAction = "read" as Action,
 	}: {
 		/**
 		 * The table for which to implement the query
 		 */
-		tableName: ExplicitTableName;
+		table: ExplicitTableName;
 		/**
 		 * Which action should be used for reading single entities
 		 * @default "read"
@@ -68,56 +71,62 @@ export const createQueryImplementer = <
 		 */
 		listAction?: Action;
 	}) => {
-		const tableSchema = (db._.schema as NonNullable<DB["_"]["schema"]>)[
-			tableName
-		];
-		if (!tableSchema) {
-			throw new RumbleError(
-				`Could not find schema for ${tableName.toString()} (query)`,
-			);
-		}
-		const primaryKey = tableSchema.primaryKey.at(0)?.name;
-		if (!primaryKey)
-			console.warn(
-				`Could not find primary key for ${tableName.toString()}. Cannot register subscriptions!`,
-			);
-
-		const {
-			inputType: WhereArg,
-			transformArgumentToQueryCondition: transformWhere,
-		} = argImplementer({
-			tableName: tableName,
+		const tableSchema = getTableSchemaByTSName({ db, tsName: table });
+		const primaryKeys = getPrimaryColumnsFromSchema({
+			table: tableSchema,
 		});
 
-		const { registerOnInstance } = makePubSubInstance({ tableName });
+		const WhereArg = argImplementer({
+			table: table,
+		});
+
+		const { registerOnInstance } = makePubSubInstance({ table: table });
 
 		return schemaBuilder.queryFields((t) => {
 			return {
-				[`findMany${capitalizeFirstLetter(tableName.toString())}`]:
-					t.drizzleField({
-						type: [tableName],
+				[`findMany${capitalizeFirstLetter(table.toString())}`]: t.drizzleField({
+					type: [table],
+					nullable: false,
+					smartSubscription: true,
+					subscribe: (subscriptions, root, args, ctx, info) => {
+						registerOnInstance({
+							instance: subscriptions,
+							action: "created",
+						});
+						registerOnInstance({
+							instance: subscriptions,
+							action: "removed",
+						});
+					},
+					args: {
+						where: t.arg({ type: WhereArg, required: false }),
+					},
+					resolve: (query, root, args, ctx, info) => {
+						const filter = ctx.abilities[table as any].filter(listAction, {
+							inject: { where: args.where },
+						}).many;
+
+						const queryInstance = query(filter as any);
+
+						if (filter.columns) {
+							queryInstance.columns = filter.columns;
+						}
+
+						return db.query[table as any].findMany(queryInstance);
+					},
+				}),
+				[`findFirst${capitalizeFirstLetter(table.toString())}`]: t.drizzleField(
+					{
+						type: table,
 						nullable: false,
 						smartSubscription: true,
-						subscribe: (subscriptions, root, args, ctx, info) => {
-							registerOnInstance({
-								instance: subscriptions,
-								action: "created",
-							});
-							registerOnInstance({
-								instance: subscriptions,
-								action: "removed",
-							});
-						},
 						args: {
 							where: t.arg({ type: WhereArg, required: false }),
 						},
 						resolve: (query, root, args, ctx, info) => {
-							const filter = ctx.abilities[tableName as any].filter(
-								listAction,
-								{
-									inject: { where: transformWhere(args.where) },
-								},
-							).many;
+							const filter = ctx.abilities[table as any].filter(readAction, {
+								inject: { where: args.where },
+							}).single;
 
 							const queryInstance = query(filter as any);
 
@@ -125,36 +134,12 @@ export const createQueryImplementer = <
 								queryInstance.columns = filter.columns;
 							}
 
-							return db.query[tableName as any].findMany(queryInstance);
-						},
-					}),
-				[`findFirst${capitalizeFirstLetter(tableName.toString())}`]:
-					t.drizzleField({
-						type: tableName,
-						nullable: false,
-						smartSubscription: true,
-						args: {
-							where: t.arg({ type: WhereArg, required: false }),
-						},
-						resolve: (query, root, args, ctx, info) => {
-							const filter = ctx.abilities[tableName as any].filter(
-								readAction,
-								{
-									inject: { where: transformWhere(args.where) },
-								},
-							).single;
-
-							const queryInstance = query(filter as any);
-
-							if (filter.columns) {
-								queryInstance.columns = filter.columns;
-							}
-
-							return db.query[tableName as any]
+							return db.query[table as any]
 								.findFirst(queryInstance)
 								.then(assertFindFirstExists);
 						},
-					}),
+					},
+				),
 			};
 		});
 	};
