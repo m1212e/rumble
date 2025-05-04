@@ -1,4 +1,5 @@
 import type SchemaBuilder from "@pothos/core";
+import type { FieldMap } from "@pothos/core";
 import { One } from "drizzle-orm";
 import type { AbilityBuilderType } from "./abilityBuilder";
 import {
@@ -18,6 +19,7 @@ import type {
 	RumbleInput,
 } from "./types/rumbleInput";
 import type { ArgImplementerType } from "./whereArg";
+// import type { Field } from "@pothos/plugin-drizzle";
 
 export const createObjectImplementer = <
 	UserContext extends Record<string, any>,
@@ -78,7 +80,13 @@ export const createObjectImplementer = <
 		ExplicitTableName extends keyof NonNullable<DB["_"]["schema"]>,
 		RefName extends string,
 		Extender extends
-			| Parameters<typeof schemaBuilder.drizzleObject>[1]["fields"]
+			| ((
+					t: // TODO type this
+					any,
+					//  Parameters<
+					// 	NonNullable<Parameters<SchemaBuilder["drizzleObject"]>[1]["fields"]>
+					// >[0],
+			  ) => FieldMap)
 			| undefined,
 	>({
 		tableName,
