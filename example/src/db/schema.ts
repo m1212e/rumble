@@ -7,18 +7,18 @@ import {
 	text,
 } from "drizzle-orm/pg-core";
 
-export const moodEnum = pgEnum("mood", ["sad", "ok", "happy"] as const);
+export const moodEnum = pgEnum("mood_native", ["sad", "ok", "happy"] as const);
 
-export const usersdwaawd = pgTable("users_table", {
-	id: serial("id").primaryKey(),
-	name: text("name").notNull(),
-	mood: moodEnum("mood").default("ok"),
+export const users = pgTable("users_table", {
+	id: serial().primaryKey(),
+	name: text().notNull(),
+	moodcol: moodEnum().default("ok"),
 });
 
-export const posts = pgTable("posts", {
-	id: serial("id").primaryKey(),
-	content: text("content").notNull(),
-	authorId: integer("author_id").references(() => usersdwaawd.id, {
+export const posts = pgTable("posts_table", {
+	id: serial().primaryKey(),
+	content: text().notNull(),
+	authorId: integer().references(() => users.id, {
 		onDelete: "cascade",
 	}),
 });
@@ -26,8 +26,8 @@ export const posts = pgTable("posts", {
 export const booksToAuthors = pgTable(
 	"books_to_authors",
 	{
-		authorId: integer("author_id"),
-		bookId: integer("book_id"),
+		authorId: integer(),
+		bookId: integer(),
 	},
 	(table) => [primaryKey({ columns: [table.bookId, table.authorId] })],
 );

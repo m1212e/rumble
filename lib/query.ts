@@ -2,8 +2,7 @@ import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { assertFindFirstExists } from "./helpers/helper";
 import {
 	type TableIdentifierTSName,
-	getPrimaryColumnsFromSchema,
-	getTableSchemaByTSName,
+	tableHelper,
 } from "./helpers/tableHelpers";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
@@ -71,11 +70,6 @@ export const createQueryImplementer = <
 		 */
 		listAction?: Action;
 	}) => {
-		const tableSchema = getTableSchemaByTSName({ db, tsName: table });
-		const primaryKeys = getPrimaryColumnsFromSchema({
-			table: tableSchema,
-		});
-
 		const WhereArg = argImplementer({
 			table: table,
 		});
@@ -104,7 +98,7 @@ export const createQueryImplementer = <
 					resolve: (query, root, args, ctx, info) => {
 						const filter = ctx.abilities[table as any].filter(listAction, {
 							inject: { where: args.where },
-						}).many;
+						}).query.many;
 
 						const queryInstance = query(filter as any);
 
@@ -126,7 +120,7 @@ export const createQueryImplementer = <
 						resolve: (query, root, args, ctx, info) => {
 							const filter = ctx.abilities[table as any].filter(readAction, {
 								inject: { where: args.where },
-							}).single;
+							}).query.single;
 
 							const queryInstance = query(filter as any);
 

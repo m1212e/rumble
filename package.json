@@ -14,12 +14,11 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
-		"@faker-js/faker": "^9.7.0",
 		"@graphql-tools/executor-http": "^2.0.0",
 		"@types/bun": "latest",
 		"@types/pg": "^8.11.14",
-		"drizzle-kit": "^0.31.1",
-		"drizzle-seed": "^0.3.1",
+		"drizzle-kit": "^1.0.0-beta.1-c0277c0",
+		"drizzle-seed": "^0.3.1-c0277c0",
 		"lefthook": "^1.11.12",
 		"pg": "^8.15.6",
 		"tsup": "^8.4.0"
@@ -30,7 +29,7 @@
 	},
 	"dependencies": {
 		"@pothos/core": "^4.6.2",
-		"@pothos/plugin-drizzle": "^0.10.0",
+		"@pothos/plugin-drizzle": "^0.10.2",
 		"@pothos/plugin-smart-subscriptions": "^4.1.2",
 		"graphql-scalars": "^1.24.2",
 		"graphql-yoga": "^5.13.4"

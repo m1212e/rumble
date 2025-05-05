@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { faker } from "@faker-js/faker";
 import { and, eq } from "drizzle-orm";
 import { parse } from "graphql";
 import { assertFindFirstExists, assertFirstEntryExists } from "../../lib";
@@ -8,15 +7,15 @@ import * as schema from "./db/schema";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
 describe("test rumble subscriptions", async () => {
-	let { db, seedData } = await makeSeededDBInstanceForTest();
-	let { rumble, build } = makeRumbleSeedInstance(db, seedData.users.at(0)?.id);
+	let { db, data } = await makeSeededDBInstanceForTest();
+	let { rumble, build } = makeRumbleSeedInstance(db, data.users.at(0)?.id);
 
 	beforeEach(async () => {
 		const s = await makeSeededDBInstanceForTest();
 		db = s.db;
-		seedData = s.seedData;
+		data = s.data;
 
-		const r = makeRumbleSeedInstance(db, seedData.users.at(0)?.id);
+		const r = makeRumbleSeedInstance(db, data.users.at(0)?.id);
 		rumble = r.rumble;
 		build = r.build;
 	});
@@ -47,7 +46,7 @@ describe("test rumble subscriptions", async () => {
 							.where(
 								and(
 									eq(schema.comments.id, args.id),
-									ctx.abilities.comments.filter("update").single.where,
+									ctx.abilities.comments.filter("update").write.single.where,
 								),
 							)
 							.returning({
@@ -63,8 +62,8 @@ describe("test rumble subscriptions", async () => {
 			};
 		});
 
-		let currentText = seedData.comments[0].text;
-		const commentId = seedData.comments[0].id;
+		let currentText = data.comments[0].text;
+		const commentId = data.comments[0].id;
 
 		const { executor, yogaInstance } = build();
 		const sub = await executor({
@@ -79,7 +78,7 @@ describe("test rumble subscriptions", async () => {
 		});
 
 		const interval = setInterval(async () => {
-			currentText = faker.lorem.sentence();
+			currentText = "dawawdawdawdawdwad";
 			const r = await executor({
 				document: parse(/* GraphQL */ `
               mutation SetTextOnComment {
@@ -143,7 +142,7 @@ describe("test rumble subscriptions", async () => {
 							.where(
 								and(
 									eq(schema.comments.id, args.id),
-									ctx.abilities.comments.filter("update").single.where,
+									ctx.abilities.comments.filter("update").write.single.where,
 								),
 							)
 							.returning({
@@ -159,8 +158,8 @@ describe("test rumble subscriptions", async () => {
 			};
 		});
 
-		let currentText = seedData.comments[0].text;
-		const commentId = seedData.comments[0].id;
+		let currentText = data.comments[0].text;
+		const commentId = data.comments[0].id;
 
 		const { executor, yogaInstance } = build();
 		const sub = await executor({
@@ -175,7 +174,7 @@ describe("test rumble subscriptions", async () => {
 		});
 
 		const interval = setInterval(async () => {
-			currentText = faker.lorem.sentence();
+			currentText = "dawadwawdawd12radadw";
 			const r = await executor({
 				document: parse(/* GraphQL */ `
               mutation SetTextOnComment {
@@ -231,19 +230,20 @@ describe("test rumble subscriptions", async () => {
 					},
 					type: "comments",
 					resolve: async (query, root, args, ctx, info) => {
-						deletedComment();
-
 						const comment = await db.query.comments
 							.findFirst(
 								query({
 									where: ctx.abilities.comments.filter("delete", {
 										inject: {
-											where: eq(schema.comments.id, args.id),
+											where: {
+												id: args.id,
+											},
 										},
-									}).single.where,
+									}).query.single.where,
 								}),
 							)
 							.then(assertFindFirstExists);
+						deletedComment();
 
 						await db
 							.delete(schema.comments)
@@ -255,7 +255,7 @@ describe("test rumble subscriptions", async () => {
 			};
 		});
 
-		const commentId = seedData.comments[0].id;
+		const commentId = data.comments[0].id;
 		const { executor, yogaInstance } = build();
 		const sub = await executor({
 			document: parse(/* GraphQL */ `
@@ -295,7 +295,7 @@ describe("test rumble subscriptions", async () => {
 						findManyComments: [
 							{
 								id: commentId,
-								text: seedData.comments[0].text,
+								text: data.comments[0].text,
 							},
 						],
 					},
@@ -337,7 +337,7 @@ describe("test rumble subscriptions", async () => {
 							.values({
 								id: args.id,
 								text: args.text,
-								ownerId: seedData.users[0].id,
+								ownerId: data.users[0].id,
 							})
 							.returning()
 							.then(assertFirstEntryExists);
@@ -348,9 +348,9 @@ describe("test rumble subscriptions", async () => {
 								query(
 									ctx.abilities.comments.filter("read", {
 										inject: {
-											where: eq(schema.comments.id, comment.id),
+											where: { id: comment.id },
 										},
-									}).single,
+									}).query.single,
 								),
 							)
 							.then(assertFindFirstExists);
@@ -359,8 +359,8 @@ describe("test rumble subscriptions", async () => {
 			};
 		});
 
-		const commentId = faker.database.mongodbObjectId();
-		const text = faker.lorem.sentence();
+		const commentId = "c2b3e3e5-998e-4597-a38a-b104109b0301";
+		const text = "daawdadw adwawd wadad awdawd!";
 		const { executor, yogaInstance } = build();
 		const sub = await executor({
 			document: parse(/* GraphQL */ `
@@ -395,11 +395,11 @@ describe("test rumble subscriptions", async () => {
 			iterationCounter++;
 
 			if (iterationCounter === 1) {
-				expect(message.data.findManyComments.length).toEqual(10);
+				expect(message.data.findManyComments.length).toEqual(200);
 			}
 
 			if (iterationCounter === 2) {
-				expect(message.data.findManyComments.length).toEqual(11);
+				expect(message.data.findManyComments.length).toEqual(201);
 				break;
 			}
 		}

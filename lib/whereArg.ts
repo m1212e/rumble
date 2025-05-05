@@ -1,18 +1,12 @@
-import type SchemaBuilder from "@pothos/core";
+import type { Table } from "drizzle-orm";
 import { toCamelCase } from "drizzle-orm/casing";
-import {
-	type EnumImplementerType,
-	isRuntimeEnumSchemaType,
-	mapRuntimeEnumSchemaType,
-} from "./enum";
+import { type EnumImplementerType, isEnumSchema } from "./enum";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
 import {
 	type TableIdentifierTSName,
-	getColumnsFromSchema,
-	getTableSchemaByDBName,
-	getTableSchemaByTSName,
+	tableHelper,
 } from "./helpers/tableHelpers";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
@@ -78,28 +72,28 @@ export const createArgImplementer = <
 		RefName extends string,
 	>({
 		table,
-		name,
-		nativeTableName,
-	}: {
+		refName,
+		dbName,
+	}: Partial<{
 		table: ExplicitTableName;
-		name?: RefName | undefined;
-		nativeTableName?: string;
-	}) => {
-		let tableSchema = getTableSchemaByTSName({ db, tsName: table });
-		if (nativeTableName) {
-			const found = getTableSchemaByDBName({ db, dbName: nativeTableName });
-			if (found) {
-				tableSchema = found;
-			}
-		}
-		if (!tableSchema) {
-			throw new RumbleError(
-				`Could not find schema for ${table.toString()} (whereArg)`,
-			);
-		}
+		refName: RefName | undefined;
+		dbName: string;
+	}> &
+		(
+			| {
+					table: ExplicitTableName;
+			  }
+			| {
+					dbName: string;
+			  }
+		)) => {
+		const tableSchema = tableHelper({
+			db,
+			dbName,
+			tsName: table!,
+		});
 
-		const inputTypeName =
-			name ?? makeDefaultName((tableSchema as any)[Symbol.for("drizzle:Name")]);
+		const inputTypeName = refName ?? makeDefaultName(tableSchema.tsName);
 
 		let ret: ReturnType<typeof implement> | undefined =
 			referenceStorage.get(inputTypeName);
@@ -110,10 +104,11 @@ export const createArgImplementer = <
 		const implement = () => {
 			return schemaBuilder.inputType(inputTypeName, {
 				fields: (t) => {
-					const columns = getColumnsFromSchema({ table: tableSchema });
 					const mapSQLTypeStringToInputPothosType = <
-						Column extends keyof typeof columns,
-						SQLType extends ReturnType<(typeof columns)[Column]["getSQLType"]>,
+						Column extends keyof typeof tableSchema.columns,
+						SQLType extends ReturnType<
+							(typeof tableSchema.columns)[Column]["getSQLType"]
+						>,
 					>(
 						sqlType: SQLType,
 					) => {
@@ -151,12 +146,11 @@ export const createArgImplementer = <
 								);
 						}
 					};
-					const fields = Object.entries(columns).reduce(
+					const fields = Object.entries(tableSchema.columns).reduce(
 						(acc, [key, value]) => {
-							if (isRuntimeEnumSchemaType(value)) {
-								const enumVal = mapRuntimeEnumSchemaType(value);
+							if (isEnumSchema(value)) {
 								const enumImpl = enumImplementer({
-									dbName: enumVal.enumName as any,
+									enumColumn: value,
 								});
 
 								acc[key] = t.field({
@@ -172,34 +166,37 @@ export const createArgImplementer = <
 							return acc;
 						},
 						{} as Record<
-							keyof typeof columns,
+							keyof typeof tableSchema.columns,
 							ReturnType<typeof mapSQLTypeStringToInputPothosType>
 						>,
 					);
 
-					// const relations = Object.entries(tableSchema.relations).reduce(
-					// 	(acc, [key, value]) => {
-					// 		const referenceModel = argImplementer({
-					// 			tableName: value.referencedTableName,
-					// 			nativeTableName: value.referencedTableName,
-					// 		});
+					const relations = Object.entries(tableSchema.relations).reduce(
+						(acc, [key, value]) => {
+							const relationSchema = tableHelper({
+								db,
+								table: value.targetTable as Table,
+							});
+							const referenceModel = argImplementer({
+								dbName: relationSchema.dbName,
+							});
 
-					// 		acc[key] = t.field({
-					// 			type: referenceModel.inputType,
-					// 			required: false,
-					// 		});
+							acc[key] = t.field({
+								type: referenceModel,
+								required: false,
+							});
 
-					// 		return acc;
-					// 	},
-					// 	{} as Record<
-					// 		keyof typeof tableSchema.columns,
-					// 		ReturnType<typeof mapSQLTypeStringToInputPothosType>
-					// 	>,
-					// );
+							return acc;
+						},
+						{} as Record<
+							keyof typeof tableSchema.columns,
+							ReturnType<typeof mapSQLTypeStringToInputPothosType>
+						>,
+					);
 
 					return {
 						...fields,
-						// ...relations,
+						...relations,
 					};
 				},
 			});

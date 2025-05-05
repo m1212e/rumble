@@ -1,20 +1,18 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { eq } from "drizzle-orm";
 import { parse } from "graphql";
 import { makeSeededDBInstanceForTest } from "./db/db";
-import * as schema from "./db/schema";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
 describe("test rumble abilities and filters", async () => {
-	let { db, seedData } = await makeSeededDBInstanceForTest();
-	let { rumble, build } = makeRumbleSeedInstance(db, seedData.users.at(0)?.id);
+	let { db, data } = await makeSeededDBInstanceForTest();
+	let { rumble, build } = makeRumbleSeedInstance(db, data.users.at(0)?.id);
 
 	beforeEach(async () => {
 		const s = await makeSeededDBInstanceForTest();
 		db = s.db;
-		seedData = s.seedData;
+		data = s.data;
 
-		const r = makeRumbleSeedInstance(db, seedData.users.at(0)?.id);
+		const r = makeRumbleSeedInstance(db, data.users.at(0)?.id);
 		rumble = r.rumble;
 		build = r.build;
 	});
@@ -38,8 +36,8 @@ describe("test rumble abilities and filters", async () => {
 		expect(r).toEqual({
 			data: {
 				findFirstUsers: {
-					id: seedData.users[0].id,
-					firstName: seedData.users[0].firstName,
+					id: data.users[0].id,
+					firstName: data.users[0].firstName,
 				},
 			},
 		});
@@ -84,7 +82,7 @@ describe("test rumble abilities and filters", async () => {
 		});
 
 		// all users should be readable
-		expect((r as any).data.findManyUsers.length).toEqual(7);
+		expect((r as any).data.findManyUsers.length).toEqual(197);
 	});
 
 	test("filter out related on application level filters", async () => {
@@ -110,7 +108,7 @@ describe("test rumble abilities and filters", async () => {
 		});
 
 		// all users should be readable
-		expect((r as any).data.findManyUsers.length).toEqual(seedData.users.length);
+		expect((r as any).data.findManyUsers.length).toEqual(data.users.length);
 		// no user should have any posts returned
 		expect(
 			(r as any).data.findManyUsers.filter((u: any) => u.posts.length > 0)

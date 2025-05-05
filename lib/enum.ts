@@ -1,10 +1,7 @@
-import type { Table } from "drizzle-orm";
 import { toCamelCase } from "drizzle-orm/casing";
-import type { MySqlEnumColumnBuilderInitial } from "drizzle-orm/mysql-core";
 import { type PgEnum, PgEnumColumn } from "drizzle-orm/pg-core";
-import type { SingleStoreEnumColumnBuilderInitial } from "drizzle-orm/singlestore-core";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
-import { getTableSchemaByTSName } from "./helpers/tableHelpers";
+import { tableHelper } from "./helpers/tableHelpers";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
@@ -16,7 +13,7 @@ import type {
 /**
  * Checks if a schema type is an enum
  */
-export function isRuntimeEnumSchemaType(schemaType: any): boolean {
+export function isEnumSchema(schemaType: any): schemaType is PgEnum<any> {
 	// TODO make this compatible with other db drivers
 	return schemaType instanceof PgEnumColumn;
 }
@@ -70,27 +67,71 @@ export const createEnumImplementer = <
 		ExplicitEnumVariableName extends keyof EnumFields<
 			NonNullable<DB["_"]["relations"]["schema"]>
 		>,
+		EnumColumn extends EnumTypes,
 		RefName extends string,
 	>({
 		tsName,
+		enumColumn,
 		refName,
-	}: {
+	}: Partial<{
 		tsName: ExplicitEnumVariableName;
+		enumColumn: EnumColumn;
 		refName?: RefName | undefined;
-	}) => {
+	}> &
+		(
+			| {
+					tsName: ExplicitEnumVariableName;
+			  }
+			| {
+					enumColumn: EnumColumn;
+			  }
+		)) => {
 		//TODO check if this can be done typesafe
 
-		const enumSchema = getTableSchemaByTSName({
-			db,
-			tsName,
-		});
+		let enumSchemaName: string | undefined = undefined;
+		let enumValues: any[] | undefined = undefined;
 
-		if (!enumSchema) {
+		if (tsName) {
+			const schemaEnum = tableHelper({
+				db,
+				tsName,
+			});
+
+			enumSchemaName = tsName.toString();
+
+			const enumCol = Object.values(db._.relations.schema)
+				.filter((s) => typeof s === "object")
+				.map((s) => Object.values(s[Symbol.for("drizzle:Columns")]))
+				.flat(2)
+				.find((s: any) => s.config?.enum === schemaEnum);
+
+			if (!enumCol) {
+				throw new RumbleError(`Could not find applied enum column for ${tsName.toString()}.
+Please ensure that you use the enum at least once as a column of a table!`);
+			}
+
+			enumValues = (enumCol as any).enumValues;
+		} else if (enumColumn) {
+			const schemaEnumEntry = Object.entries(db._.relations.schema).find(
+				([key, value]) => value === (enumColumn as any).config.enum,
+			);
+
+			if (!schemaEnumEntry) {
+				throw new RumbleError(
+					`Could not find enum in schema for ${enumColumn.name}!`,
+				);
+			}
+
+			enumSchemaName = schemaEnumEntry[0];
+			enumValues = enumColumn.enumValues;
+		}
+
+		if (!enumSchemaName || !enumValues) {
 			throw new RumbleError("Could not determine enum structure!");
 		}
 
 		const graphqlImplementationName =
-			refName ?? `${capitalizeFirstLetter(toCamelCase(tsName as string))}Enum`;
+			refName ?? `${capitalizeFirstLetter(toCamelCase(enumSchemaName))}Enum`;
 
 		let ret: ReturnType<typeof implement> | undefined = referenceStorage.get(
 			graphqlImplementationName,
@@ -101,7 +142,7 @@ export const createEnumImplementer = <
 
 		const implement = () =>
 			schemaBuilder.enumType(graphqlImplementationName, {
-				values: enumSchema.enumValues,
+				values: enumValues,
 			});
 
 		ret = implement();

@@ -76,11 +76,9 @@ export const createSchemaBuilder = <
 			client: db,
 			relations: db._.relations,
 			getTableConfig(table) {
-				//TODO
-				console.log(table);
-
+				//TODO support composite primary keys
 				return {
-					columns: (table as any)[Symbol.for("drizzle:Columns")],
+					columns: Object.values((table as any)[Symbol.for("drizzle:Columns")]),
 					primaryKeys: Object.values(
 						(table as any)[Symbol.for("drizzle:Columns")],
 					).filter((v: any) => v.primary),

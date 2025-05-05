@@ -3,14 +3,14 @@ import * as schema from "./schema";
 
 export const relations = defineRelations(schema, (r) => ({
 	posts: {
-		author: r.one.usersdwaawd({
+		author: r.one.users({
 			from: r.posts.authorId,
-			to: r.usersdwaawd.id,
+			to: r.users.id,
 		}),
 	},
 	users: {
 		posts: r.many.posts({
-			from: r.usersdwaawd.id,
+			from: r.users.id,
 			to: r.posts.authorId,
 		}),
 	},

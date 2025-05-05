@@ -24,6 +24,8 @@ export const db = drizzle(
 	{ relations },
 );
 
+// console.log(db._.relations.schema);
+
 /*
 
   Next, we can create a rumble instance. The creator returns a set of functions which you
@@ -68,13 +70,11 @@ const {
 */
 
 // users can edit themselves
-abilityBuilder.usersdwaawd
-	.allow(["read", "update", "delete"])
-	.when(({ userId }) => ({
-		where: {
-			id: userId,
-		},
-	}));
+abilityBuilder.users.allow(["read", "update", "delete"]).when(({ userId }) => ({
+	where: {
+		id: userId,
+	},
+}));
 
 // everyone can read posts
 abilityBuilder.posts.allow("read");
@@ -121,8 +121,7 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 		author: t.relation("author", {
 			// this is how you can apply the above abilities to the queries
 			// you define the action you want the filters for by passing it to the filter call
-			query: (_args, ctx) =>
-				ctx.abilities.usersdwaawd.filter("read").query.single,
+			query: (_args, ctx) => ctx.abilities.users.filter("read").query.single,
 		}),
 	}),
 });
@@ -137,7 +136,7 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 
 const UserRef = object({
 	// name of the table you want to implement ("posts" in the above example)
-	table: "usersdwaawd",
+	table: "users",
 	// optionally specify the name of the object ("Post" in the above example)
 	refName: "User",
 	extend(t) {
@@ -200,7 +199,7 @@ schemaBuilder.queryFields((t) => {
 			resolve: (query, root, args, ctx, info) => {
 				return db.query.posts.findMany(
 					query(
-						ctx.abilities.usersdwaawd.filter("read", {
+						ctx.abilities.users.filter("read", {
 							// this additional object offers temporarily injecting additional filters to our existing ability filters
 							// the inject field allows for temp, this time only filters to be added to our ability filters. They will only be applied for this specific call.
 							// where conditions which are injected will be applied with an AND rather than an OR so the injected filter will further restrict the existing restrictions rather than expanding them
@@ -227,7 +226,7 @@ schemaBuilder.queryFields((t) => {
 */
 
 query({
-	table: "usersdwaawd",
+	table: "users",
 });
 
 /*
@@ -248,7 +247,7 @@ query({
 // the only thing you have to do is to call the pubsub helper with the table name
 // and embed the helper into your mutations
 const { updated: updatedUser, created: createdUser } = pubsub({
-	table: "usersdwaawd",
+	table: "users",
 });
 
 schemaBuilder.mutationFields((t) => {
@@ -264,21 +263,21 @@ schemaBuilder.mutationFields((t) => {
 				updatedUser(args.userId);
 
 				await db
-					.update(schema.usersdwaawd)
+					.update(schema.users)
 					.set({
 						name: args.newName,
 					})
 					.where(
 						and(
-							eq(schema.usersdwaawd.id, args.userId),
-							ctx.abilities.usersdwaawd.filter("update").write.single.where,
+							eq(schema.users.id, args.userId),
+							ctx.abilities.users.filter("update").write.single.where,
 						),
 					);
 
-				return db.query.usersdwaawd
+				return db.query.users
 					.findFirst(
 						query(
-							ctx.abilities.usersdwaawd.filter("read", {
+							ctx.abilities.users.filter("read", {
 								inject: {
 									where: { id: args.userId },
 								},
@@ -303,23 +302,23 @@ schemaBuilder.mutationFields((t) => {
 				// TODO: check if the user is allowed to add a user
 
 				const newUser = await db
-					.insert(schema.usersdwaawd)
+					.insert(schema.users)
 					.values({
 						id: args.id,
 						name: args.name,
 					})
 					.returning({
-						id: schema.usersdwaawd.id,
+						id: schema.users.id,
 					})
 					.then(assertFirstEntryExists);
 
 				// this notifies all subscribers that a user has been added
 				createdUser();
 
-				return db.query.usersdwaawd
+				return db.query.users
 					.findFirst(
 						query(
-							ctx.abilities.usersdwaawd.filter("read", {
+							ctx.abilities.users.filter("read", {
 								inject: {
 									where: { id: newUser.id },
 								},

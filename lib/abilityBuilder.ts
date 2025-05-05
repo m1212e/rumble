@@ -1,10 +1,7 @@
 import { and, or } from "drizzle-orm";
 import type { Filter } from "./explicitFiltersPlugin/pluginTypes";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
-import {
-	getPrimaryColumnsFromSchema,
-	getTableSchemaByTSName,
-} from "./helpers/tableHelpers";
+import { tableHelper } from "./helpers/tableHelpers";
 import type {
 	GenericDrizzleDbTypeConstraints,
 	QueryConditionObject,
@@ -194,6 +191,7 @@ export const createAbilityBuilder = <
 					action: Action,
 					options?: {
 						// TODO strongly type this
+						//TODO I give this two TODOs since its so annoying
 						/**
 						 * Additional conditions applied only for this call. Useful for injecting one time additional filters
 						 * for e.g. user args in a handler.
@@ -245,21 +243,20 @@ export const createAbilityBuilder = <
 					}
 
 					const getBlockEverythingFilter = () => {
-						const tableSchema = getTableSchemaByTSName({
+						const tableSchema = tableHelper({
 							db,
 							tsName: entityKey,
 						});
-						const primaryKeys = getPrimaryColumnsFromSchema({
-							table: tableSchema,
-						});
 
-						if (primaryKeys.length === 0) {
+						if (Object.keys(tableSchema.primaryColumns).length === 0) {
 							throw new RumbleError(
 								`No primary key found for entity ${entityKey.toString()}`,
 							);
 						}
 
-						const primaryKeyField = primaryKeys[0];
+						const primaryKeyField = Object.values(
+							tableSchema.primaryColumns,
+						)[0];
 						// we want a filter that excludes everything
 						const distinctValues = createDistinctValuesFromSQLType(
 							primaryKeyField.getSQLType() as any,

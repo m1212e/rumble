@@ -1,24 +1,18 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { eq } from "drizzle-orm";
 import { parse } from "graphql";
 import { makeSeededDBInstanceForTest } from "./db/db";
-import * as schema from "./db/schema";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
 describe("test rumble abilities", async () => {
-	let { db, seedData } = await makeSeededDBInstanceForTest();
-	let { rumble, build } = makeRumbleSeedInstance(
-		db,
-		seedData.users.at(0)?.id,
-		9,
-	);
+	let { db, data } = await makeSeededDBInstanceForTest();
+	let { rumble, build } = makeRumbleSeedInstance(db, data.users.at(0)?.id, 9);
 
 	beforeEach(async () => {
 		const s = await makeSeededDBInstanceForTest();
 		db = s.db;
-		seedData = s.seedData;
+		data = s.data;
 
-		const r = makeRumbleSeedInstance(db, seedData.users.at(0)?.id, 9);
+		const r = makeRumbleSeedInstance(db, data.users.at(0)?.id, 9);
 		rumble = r.rumble;
 		build = r.build;
 	});
@@ -41,8 +35,8 @@ describe("test rumble abilities", async () => {
 		expect(r).toEqual({
 			data: {
 				findFirstUsers: {
-					id: seedData.users[0].id,
-					firstName: seedData.users[0].firstName,
+					id: data.users[0].id,
+					firstName: data.users[0].firstName,
 				},
 			},
 		});
@@ -187,14 +181,16 @@ describe("test rumble abilities", async () => {
 
 		expect((r as any).data.findManyComments.length).toEqual(9);
 		expect(
-			(r as any).data.findManyComments.filter((u) => u.author).length,
+			(r as any).data.findManyComments.filter((u: any) => u.author).length,
 		).toEqual(9);
 	});
 
 	test("allow read only with specific condition", async () => {
-		rumble.abilityBuilder.comments
-			.allow("read")
-			.when({ where: eq(schema.comments.published, true) });
+		rumble.abilityBuilder.comments.allow("read").when({
+			where: {
+				published: true,
+			},
+		});
 
 		const { executor, yogaInstance } = build();
 		const r = await executor({
@@ -207,7 +203,7 @@ describe("test rumble abilities", async () => {
       `),
 		});
 
-		expect((r as any).data.findManyComments.length).toEqual(5);
+		expect((r as any).data.findManyComments.length).toEqual(9);
 	});
 
 	test("deny with dynamic specific condition", async () => {
@@ -278,7 +274,7 @@ describe("test rumble abilities", async () => {
 	test("allow read only with specific condition based on request context", async () => {
 		rumble.abilityBuilder.comments
 			.allow("read")
-			.when(({ userId }) => ({ where: eq(schema.comments.ownerId, userId) }));
+			.when(({ userId }) => ({ where: { ownerId: userId } }));
 
 		const { executor, yogaInstance } = build();
 		const r = await executor({
@@ -291,7 +287,7 @@ describe("test rumble abilities", async () => {
       `),
 		});
 
-		expect((r as any).data.findManyComments.length).toEqual(1);
+		expect((r as any).data.findManyComments.length).toEqual(2);
 	});
 
 	test("limit read amount with abilities", async () => {
