@@ -2,10 +2,11 @@ import { buildHTTPExecutor } from "@graphql-tools/executor-http";
 import { and, eq } from "drizzle-orm";
 import type { drizzle } from "drizzle-orm/bun-sqlite";
 import { assertFirstEntryExists, rumble } from "../../../lib";
+import type { DB } from "../db/db";
 import * as schema from "../db/schema";
 
 export function makeRumbleSeedInstance(
-	db: ReturnType<typeof drizzle<typeof schema>>,
+	db: DB,
 	userId?: string,
 	defaultLimit: number | null = null,
 ) {
@@ -19,17 +20,17 @@ export function makeRumbleSeedInstance(
 		defaultLimit,
 	});
 
-	const UserRef = r.object({ name: "User", tableName: "users" });
-	r.query({ tableName: "users" });
+	const UserRef = r.object({ refName: "User", table: "users" });
+	r.query({ table: "users" });
 	const { updated: updatedUser } = r.pubsub({
-		tableName: "users",
+		table: "users",
 	});
 
-	r.object({ name: "Post", tableName: "posts" });
-	r.query({ tableName: "posts" });
+	r.object({ refName: "Post", table: "posts" });
+	r.query({ table: "posts" });
 
-	r.object({ name: "Comment", tableName: "comments" });
-	r.query({ tableName: "comments" });
+	r.object({ refName: "Comment", table: "comments" });
+	r.query({ table: "comments" });
 
 	r.schemaBuilder.mutationFields((t) => {
 		return {
@@ -49,9 +50,9 @@ export function makeRumbleSeedInstance(
 						.where(
 							ctx.abilities.users.filter("update", {
 								inject: {
-									where: eq(schema.users.id, args.userId),
+									where: { id: args.userId },
 								},
-							}).single.where,
+							}).sql.where,
 						)
 						.returning({
 							id: schema.users.id,

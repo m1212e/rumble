@@ -49,7 +49,7 @@ export const createSchemaBuilder = <
 }) => {
 	const schemaBuilder = new SchemaBuilder<{
 		Context: ContextType<UserContext, DB, RequestEvent, Action, PothosConfig>;
-		DrizzleSchema: DB["_"]["fullSchema"];
+		DrizzleRelations: DB["_"]["relations"];
 		Scalars: {
 			JSON: {
 				Input: unknown;
@@ -74,6 +74,16 @@ export const createSchemaBuilder = <
 		...pothosConfig,
 		drizzle: {
 			client: db,
+			relations: db._.relations,
+			getTableConfig(table) {
+				//TODO support composite primary keys
+				return {
+					columns: Object.values((table as any)[Symbol.for("drizzle:Columns")]),
+					primaryKeys: Object.values(
+						(table as any)[Symbol.for("drizzle:Columns")],
+					).filter((v: any) => v.primary),
+				} as any;
+			},
 		},
 		smartSubscriptions: {
 			...subscribeOptionsFromIterator((name, context) => {

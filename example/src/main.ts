@@ -6,6 +6,7 @@ import {
 	assertFindFirstExists,
 	assertFirstEntryExists,
 } from "../../lib/helpers/helper";
+import { relations } from "./db/relations";
 import * as schema from "./db/schema";
 
 /*
@@ -20,7 +21,7 @@ import * as schema from "./db/schema";
 
 export const db = drizzle(
 	"postgres://postgres:postgres@localhost:5432/postgres",
-	{ schema },
+	{ relations },
 );
 
 /*
@@ -66,28 +67,45 @@ const {
 */
 
 // users can edit themselves
-abilityBuilder.users
-	.allow(["read", "update", "delete"])
-	.when(({ userId }) => ({ where: eq(schema.users.id, userId) }));
+abilityBuilder.users.allow(["read", "update", "delete"]).when(({ userId }) => ({
+	where: {
+		id: userId,
+	},
+}));
 
 // everyone can read posts
 abilityBuilder.posts.allow("read");
 
 // only the author can update posts
-abilityBuilder.posts
-	.allow(["update", "delete"])
-	.when(({ userId }) => ({ where: eq(schema.posts.authorId, userId) }));
+abilityBuilder.posts.allow(["update", "delete"]).when(({ userId }) => ({
+	where: {
+		authorId: userId,
+	},
+}));
 
 // a hypothetical more elaborate example
 abilityBuilder.posts.allow(["update", "delete"]).when(({ userId }) => {
 	// we could do some complex checks and calculations here and want to do various things based on the outcome:
 	if (userId === 1) {
-		return { where: eq(schema.posts.authorId, userId) }; // we can return a standard ability which allows things under a specific condition
+		return {
+			where: {
+				authorId: userId,
+			},
+		}; // we can return a standard ability which allows things under a specific condition
 	}
 	if (userId === 2) {
 		return "allow"; // we can return a wildcard, which allows everything
 	}
 	return undefined; // we can return nothing, which does not allow anything
+});
+
+// in case you need to apply more complex filters or need async checks you can use the application level filters
+// these are function which run after the database query has completed and can be used to do additional filtering
+// on the results. Simply return what the user is allowed to see and rumble will take care of the rest
+abilityBuilder.posts.filter("read").by(({ context, entities }) => {
+	// await someAsyncCheck()
+	// we could apply filters here
+	return entities;
 });
 
 /*
@@ -103,13 +121,15 @@ abilityBuilder.posts.allow(["update", "delete"]).when(({ userId }) => {
 // we define the schema of the post object so we can later use it in our queries as a return type
 const PostRef = schemaBuilder.drizzleObject("posts", {
 	name: "Post",
+	// this is how you can apply application level filter in manual object definitions
+	applyFilters: abilityBuilder.registeredFilters.posts.read,
 	fields: (t) => ({
 		id: t.exposeInt("id"),
 		content: t.exposeString("content", { nullable: false }),
 		author: t.relation("author", {
 			// this is how you can apply the above abilities to the queries
 			// you define the action you want the filters for by passing it to the filter call
-			query: (_args, ctx) => ctx.abilities.users.filter("read").single,
+			query: (_args, ctx) => ctx.abilities.users.filter("read").query.single,
 		}),
 	}),
 });
@@ -118,20 +138,21 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 
   Since this might get a bit verbose, rumble offers a helper for defining default object implementations.
   It will expose all fields and relations but apply the above abilities to the queries so you don't have
-  to worry about data getting returned which the caller should not be able to fetch.  
+  to worry about data getting returned which the caller should not be able to fetch.
 
  */
 
 const UserRef = object({
 	// name of the table you want to implement ("posts" in the above example)
-	tableName: "users",
-	// name of the object ("Post" in the above example)
-	name: "User",
+	table: "users",
+	// optionally specify the name of the object ("Post" in the above example)
+	refName: "User",
+	// optionally, we can extend this with some custom fields
 	extend(t) {
 		return {
 			somethingElse: t.field({
 				type: "String",
-				resolve: (root, args, context, info) => "something else",
+				resolve: (parent, args, context, info) => "something else",
 			}),
 		};
 	},
@@ -151,8 +172,8 @@ schemaBuilder.queryFields((t) => {
 			type: [PostRef],
 			resolve: (query, root, args, ctx, info) => {
 				return db.query.posts.findMany(
-					// here we again apply out filters based on the defined abilities
-					query(ctx.abilities.posts.filter("read").many),
+					// here we again apply our filters based on the defined abilities
+					query(ctx.abilities.posts.filter("read").query.many),
 				);
 			},
 		}),
@@ -166,18 +187,12 @@ schemaBuilder.queryFields((t) => {
   helper which will automatically create a filter arg for you. See https://pothos-graphql.dev/docs/guide/args
   and https://pothos-graphql.dev/docs/guide/inputs for more information for manual implementation.
   The rumble helper can implement some filters for you:
- 
+
  */
 
-const {
-	// the input arg type, here we rename it to make it less confusing
-	inputType: PostWhere,
-	// since drizzle wants proper instantiated filter clauses with `eq` calls and references to each field
-	//  we need a transformer function which converts the object received from gql to a drizzle filter
-	transformArgumentToQueryCondition: transformPostWhere,
-} = arg({
+const PostWhere = arg({
 	// for which table to implement this
-	tableName: "posts",
+	table: "posts",
 });
 
 // now we can use this in a query
@@ -189,18 +204,21 @@ schemaBuilder.queryFields((t) => {
 				// here we set our generated type as type for the where argument
 				where: t.arg({ type: PostWhere }),
 			},
-
 			resolve: (query, root, args, ctx, info) => {
 				return db.query.posts.findMany(
 					query(
 						ctx.abilities.users.filter("read", {
 							// this additional object offers temporarily injecting additional filters to our existing ability filters
-							// the inject field allows for temp, this time only filters to be added to our ability filters. They will only be applied for this specific call.
-							// where conditions which are injected will be applied with an AND rather than an OR so the injected filter will further restrict the existing restrictions rather than expanding them
+							// the inject field allows for temp, this time only filters to be added to our ability filters.
+							// They will only be applied for this specific call. This is a helper which exists because of the old
+							// filter API, and enabled easier handling. It is convenient since it provides proper typings and takes
+							// some boilerplate off your shoulders and will stay in the API. Where conditions which are injected
+							// will be applied with an AND rather than an OR so the injected filter will further restrict the
+							// existing restrictions rather than expanding them.
 							inject: {
-								where: transformPostWhere(args.where),
+								where: args.where ?? undefined,
 							},
-						}).many,
+						}).query.many,
 					),
 				);
 			},
@@ -220,7 +238,7 @@ schemaBuilder.queryFields((t) => {
 */
 
 query({
-	tableName: "users",
+	table: "users",
 });
 
 /*
@@ -228,7 +246,7 @@ query({
   Lastly, we want to implement the mutations so we can actually edit some data.
   We can use the schemaBuilder to do that.
 
-  NOTE: The below example uses the assertFirstEntryExists mapper. 
+  NOTE: The below example uses the assertFirstEntryExists mapper.
   rumble offers two helpers to map drizzle responses to graphql compatible responses:
 
   `assertFirstEntryExists` - throws an error if the response does not contain a single entry
@@ -241,7 +259,7 @@ query({
 // the only thing you have to do is to call the pubsub helper with the table name
 // and embed the helper into your mutations
 const { updated: updatedUser, created: createdUser } = pubsub({
-	tableName: "users",
+	table: "users",
 });
 
 schemaBuilder.mutationFields((t) => {
@@ -253,9 +271,6 @@ schemaBuilder.mutationFields((t) => {
 				newName: t.arg.string({ required: true }),
 			},
 			resolve: async (query, root, args, ctx, info) => {
-				// this notifies all subscribers that the user has been updated
-				updatedUser(args.userId);
-
 				await db
 					.update(schema.users)
 					.set({
@@ -264,18 +279,21 @@ schemaBuilder.mutationFields((t) => {
 					.where(
 						and(
 							eq(schema.users.id, args.userId),
-							ctx.abilities.users.filter("update").single.where,
+							ctx.abilities.users.filter("update").sql.where,
 						),
 					);
+
+				// this notifies all subscribers that the user has been updated
+				updatedUser(args.userId);
 
 				return db.query.users
 					.findFirst(
 						query(
 							ctx.abilities.users.filter("read", {
 								inject: {
-									where: eq(schema.users.id, args.userId),
+									where: { id: args.userId },
 								},
-							}).single,
+							}).query.single,
 						),
 					)
 					.then(assertFindFirstExists);
@@ -314,9 +332,9 @@ schemaBuilder.mutationFields((t) => {
 						query(
 							ctx.abilities.users.filter("read", {
 								inject: {
-									where: eq(schema.users.id, newUser.id),
+									where: { id: newUser.id },
 								},
-							}).single,
+							}).query.single,
 						),
 					)
 					.then(assertFindFirstExists);
@@ -325,12 +343,12 @@ schemaBuilder.mutationFields((t) => {
 	};
 });
 
-/*
+// /*
 
-  Finally, we can start the server. We use graphql-yoga under the hood. It allows for
-  a very simple and easy to use GraphQL API and is compatible with many HTTP libraries and frameworks.
+//   Finally, we can start the server. We use graphql-yoga under the hood. It allows for
+//   a very simple and easy to use GraphQL API and is compatible with many HTTP libraries and frameworks.
 
-*/
+// */
 
 // when we are done defining the objects, queries and mutations,
 // we can start the server

@@ -1,16 +1,16 @@
-import type SchemaBuilder from "@pothos/core";
 import type { FieldMap } from "@pothos/core";
-import { One } from "drizzle-orm";
+import type { DrizzleObjectFieldBuilder } from "@pothos/plugin-drizzle";
+import { One, type Table } from "drizzle-orm";
 import type { AbilityBuilderType } from "./abilityBuilder";
-import {
-	type EnumImplementerType,
-	isRuntimeEnumSchemaType,
-	mapRuntimeEnumSchemaType,
-} from "./enum";
+import { type EnumImplementerType, isEnumSchema } from "./enum";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
-import { type MakePubSubInstanceType, createPubSubInstance } from "./pubsub";
+import {
+	type TableIdentifierTSName,
+	tableHelper,
+} from "./helpers/tableHelpers";
+import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
@@ -19,7 +19,6 @@ import type {
 	RumbleInput,
 } from "./types/rumbleInput";
 import type { ArgImplementerType } from "./whereArg";
-// import type { Field } from "@pothos/plugin-drizzle";
 
 export const createObjectImplementer = <
 	UserContext extends Record<string, any>,
@@ -77,49 +76,43 @@ export const createObjectImplementer = <
 	abilityBuilder: AbilityBuilderInstance;
 }) => {
 	return <
-		ExplicitTableName extends keyof NonNullable<DB["_"]["schema"]>,
+		ExplicitTableName extends TableIdentifierTSName<DB>,
 		RefName extends string,
-		Extender extends
-			| ((
-					t: // TODO type this
-					any,
-					//  Parameters<
-					// 	NonNullable<Parameters<SchemaBuilder["drizzleObject"]>[1]["fields"]>
-					// >[0],
-			  ) => FieldMap)
-			| undefined,
 	>({
-		tableName,
-		name,
+		table,
+		refName,
 		readAction = "read" as Action,
 		extend,
 	}: {
-		tableName: ExplicitTableName;
-		name?: RefName;
+		table: ExplicitTableName;
+		refName?: RefName;
 		readAction?: Action;
-		extend?: Extender;
+		extend?:
+			| ((
+					t: DrizzleObjectFieldBuilder<
+						SchemaBuilder["$inferSchemaTypes"],
+						any,
+						any,
+						any
+					>,
+			  ) => FieldMap)
+			| undefined;
 	}) => {
-		const tableSchema = (db._.schema as NonNullable<DB["_"]["schema"]>)[
-			tableName
-		];
-		if (!tableSchema) {
-			throw new RumbleError(
-				`Could not find schema for ${tableName.toString()} (object)`,
+		const tableSchema = tableHelper({ db, tsName: table });
+		if (Object.keys(tableSchema.primaryColumns).length === 0) {
+			console.warn(
+				`Could not find primary key for ${table.toString()}. Cannot register subscriptions!`,
 			);
 		}
-		const primaryKey = tableSchema.primaryKey.at(0)?.name;
-		if (!primaryKey)
-			console.warn(
-				`Could not find primary key for ${tableName.toString()}. Cannot register subscriptions!`,
-			);
+		const primaryKey = Object.values(tableSchema.primaryColumns)[0];
 
-		const { registerOnInstance } = makePubSubInstance({ tableName });
+		const { registerOnInstance } = makePubSubInstance({ table: table });
 
-		return schemaBuilder.drizzleObject(tableName, {
-			name: name ?? capitalizeFirstLetter(tableName.toString()),
+		return schemaBuilder.drizzleObject(table, {
+			name: refName ?? capitalizeFirstLetter(table.toString()),
 			subscribe: (subscriptions, element, context) => {
 				if (!primaryKey) return;
-				const primaryKeyValue = (element as any)[primaryKey];
+				const primaryKeyValue = (element as any)[primaryKey.name];
 				if (!primaryKeyValue) {
 					console.warn(
 						`Could not find primary key value for ${JSON.stringify(
@@ -137,13 +130,12 @@ export const createObjectImplementer = <
 				});
 			},
 			applyFilters:
-				abilityBuilder?.registeredFilters?.[tableName as any]?.[readAction],
+				abilityBuilder?.registeredFilters?.[table as any]?.[readAction],
 			fields: (t) => {
+				const columns = tableSchema.columns;
 				const mapSQLTypeStringToExposedPothosType = <
-					Column extends keyof typeof tableSchema.columns,
-					SQLType extends ReturnType<
-						(typeof tableSchema.columns)[Column]["getSQLType"]
-					>,
+					Column extends keyof typeof columns,
+					SQLType extends ReturnType<(typeof columns)[Column]["getSQLType"]>,
 				>(
 					sqlType: SQLType,
 					columnName: Column,
@@ -191,17 +183,16 @@ export const createObjectImplementer = <
 					}
 				};
 
-				const fields = Object.entries(tableSchema.columns).reduce(
+				const fields = Object.entries(columns).reduce(
 					(acc, [key, value]) => {
-						if (isRuntimeEnumSchemaType(value)) {
-							const enumVal = mapRuntimeEnumSchemaType(value);
+						if (isEnumSchema(value)) {
 							const enumImpl = enumImplementer({
-								enumName: enumVal.enumName as any,
+								enumColumn: value,
 							});
 
 							acc[key] = t.field({
 								type: enumImpl,
-								resolve: (element) => (element as any)[key] as unknown,
+								resolve: (element) => (element as any)[key],
 								nullable: !value.notNull,
 							});
 						} else {
@@ -214,19 +205,19 @@ export const createObjectImplementer = <
 						return acc;
 					},
 					{} as Record<
-						keyof typeof tableSchema.columns,
+						keyof typeof columns,
 						ReturnType<typeof mapSQLTypeStringToExposedPothosType>
 					>,
 				);
 
 				const relations = Object.entries(tableSchema.relations).reduce(
 					(acc, [key, value]) => {
-						const {
-							inputType: WhereArg,
-							transformArgumentToQueryCondition: transformWhere,
-						} = argImplementer({
-							tableName: value.referencedTableName,
-							nativeTableName: value.referencedTableName,
+						const relationSchema = tableHelper({
+							db,
+							table: value.targetTable as Table,
+						});
+						const WhereArg = argImplementer({
+							dbName: relationSchema.dbName,
 						});
 
 						// many relations will return an empty array so we just don't set them nullable
@@ -235,9 +226,7 @@ export const createObjectImplementer = <
 						let filterSpecifier = "many";
 						if (value instanceof One) {
 							isMany = false;
-							// we invert this for now
-							// TODO: https://github.com/drizzle-team/drizzle-orm/issues/2365#issuecomment-2781607008
-							nullable = !value.isNullable;
+							nullable = value.optional;
 							filterSpecifier = "single";
 						}
 
@@ -247,20 +236,9 @@ export const createObjectImplementer = <
 							},
 							nullable,
 							query: (args: any, ctx: any) => {
-								//TODO: streamline naming & logic of when what is used: table name or schema object name
-								// also we should adjust naming of the user facing functions accordingly
-								const found = Object.entries(db._.schema)
-									.find(([key, v]) => v.dbName === value.referencedTableName)
-									?.at(0);
-								if (!found) {
-									throw new RumbleError(
-										`Could not find table ${value.referencedTableName} in schema object`,
-									);
-								}
-
-								return ctx.abilities[found].filter(readAction, {
-									inject: { where: transformWhere(args.where) },
-								})[filterSpecifier];
+								return ctx.abilities[relationSchema.tsName].filter(readAction, {
+									inject: { where: args.where },
+								}).query[filterSpecifier];
 							},
 						} as any) as any;
 						return acc;

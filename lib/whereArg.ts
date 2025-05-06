@@ -1,14 +1,13 @@
-import type SchemaBuilder from "@pothos/core";
-import { SQL, and, eq } from "drizzle-orm";
+import type { Table } from "drizzle-orm";
 import { toCamelCase } from "drizzle-orm/casing";
-import {
-	type EnumImplementerType,
-	isRuntimeEnumSchemaType,
-	mapRuntimeEnumSchemaType,
-} from "./enum";
+import { type EnumImplementerType, isEnumSchema } from "./enum";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
+import {
+	type TableIdentifierTSName,
+	tableHelper,
+} from "./helpers/tableHelpers";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
@@ -69,34 +68,32 @@ export const createArgImplementer = <
 	const referenceStorage = new Map<string, any>();
 
 	const argImplementer = <
-		ExplicitTableName extends keyof NonNullable<DB["_"]["schema"]>,
+		ExplicitTableName extends TableIdentifierTSName<DB>,
 		RefName extends string,
 	>({
-		tableName,
-		name,
-		nativeTableName,
-	}: {
-		tableName: ExplicitTableName;
-		name?: RefName | undefined;
-		nativeTableName?: string;
-	}) => {
-		let tableSchema = (db._.schema as NonNullable<DB["_"]["schema"]>)[
-			tableName
-		];
-		if (nativeTableName) {
-			const found: any = Object.values(db._.schema as any).find(
-				(schema: any) => schema.dbName === nativeTableName,
-			);
-			if (found) {
-				tableSchema = found;
-			}
-		}
-		if (!tableSchema) {
-			throw new RumbleError(
-				`Could not find schema for ${tableName.toString()} (whereArg)`,
-			);
-		}
-		const inputTypeName = name ?? makeDefaultName(tableSchema.dbName);
+		table,
+		refName,
+		dbName,
+	}: Partial<{
+		table: ExplicitTableName;
+		refName: RefName | undefined;
+		dbName: string;
+	}> &
+		(
+			| {
+					table: ExplicitTableName;
+			  }
+			| {
+					dbName: string;
+			  }
+		)) => {
+		const tableSchema = tableHelper({
+			db,
+			dbName,
+			tsName: table!,
+		});
+
+		const inputTypeName = refName ?? makeDefaultName(tableSchema.tsName);
 
 		let ret: ReturnType<typeof implement> | undefined =
 			referenceStorage.get(inputTypeName);
@@ -105,7 +102,7 @@ export const createArgImplementer = <
 		}
 
 		const implement = () => {
-			const inputType = schemaBuilder.inputType(inputTypeName, {
+			return schemaBuilder.inputType(inputTypeName, {
 				fields: (t) => {
 					const mapSQLTypeStringToInputPothosType = <
 						Column extends keyof typeof tableSchema.columns,
@@ -151,10 +148,9 @@ export const createArgImplementer = <
 					};
 					const fields = Object.entries(tableSchema.columns).reduce(
 						(acc, [key, value]) => {
-							if (isRuntimeEnumSchemaType(value)) {
-								const enumVal = mapRuntimeEnumSchemaType(value);
+							if (isEnumSchema(value)) {
 								const enumImpl = enumImplementer({
-									enumName: enumVal.enumName as any,
+									enumColumn: value,
 								});
 
 								acc[key] = t.field({
@@ -177,13 +173,16 @@ export const createArgImplementer = <
 
 					const relations = Object.entries(tableSchema.relations).reduce(
 						(acc, [key, value]) => {
+							const relationSchema = tableHelper({
+								db,
+								table: value.targetTable as Table,
+							});
 							const referenceModel = argImplementer({
-								tableName: value.referencedTableName,
-								nativeTableName: value.referencedTableName,
+								dbName: relationSchema.dbName,
 							});
 
 							acc[key] = t.field({
-								type: referenceModel.inputType,
+								type: referenceModel,
 								required: false,
 							});
 
@@ -201,57 +200,6 @@ export const createArgImplementer = <
 					};
 				},
 			});
-
-			const transformArgumentToQueryCondition = <
-				T extends typeof inputType.$inferInput,
-			>(
-				arg: T | null | undefined,
-			) => {
-				if (!arg) return undefined;
-				const mapColumnToQueryCondition = <
-					ColumnName extends keyof typeof tableSchema.columns,
-				>(
-					columnname: ColumnName,
-				) => {
-					const column = tableSchema.columns[columnname];
-					const filterValue = arg[columnname];
-					if (!filterValue) return;
-					return eq(column, filterValue);
-				};
-				const mapRelationToQueryCondition = <
-					RelationColumnName extends keyof typeof tableSchema.relations,
-				>(
-					relationColumnName: RelationColumnName,
-				): any => {
-					const relationColumn = tableSchema.relations[relationColumnName];
-					const filterValue = arg[relationColumnName];
-					if (!filterValue) return;
-					const transformer = argImplementer({
-						tableName: relationColumn.referencedTableName,
-						nativeTableName: relationColumn.referencedTableName,
-					}).transformArgumentToQueryCondition;
-					return transformer(filterValue);
-				};
-				const conditions = [
-					...Object.keys(tableSchema.columns).map(mapColumnToQueryCondition),
-					...Object.keys(tableSchema.relations).map(
-						mapRelationToQueryCondition,
-					),
-				];
-				return and(...conditions);
-			};
-
-			return {
-				/**
-				 * The input type used to pass arguments to resolvers
-				 */
-				inputType,
-				/**
-				 * Performs a conversion of an input argument passed to a resolver to a drizzle filter.
-				 * Make sure you use the correct converter for the input type.
-				 */
-				transformArgumentToQueryCondition,
-			};
 		};
 
 		ret = implement();

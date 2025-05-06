@@ -1,5 +1,6 @@
 import type { GetColumnData } from "drizzle-orm";
 import { createPubSub } from "graphql-yoga";
+import type { TableIdentifierTSName } from "./helpers/tableHelpers";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import type {
 	CustomRumblePothosConfig,
@@ -44,16 +45,13 @@ export const createPubSubInstance = <
 		: createPubSub();
 
 	const makePubSubInstance = <
-		ExplicitTableName extends keyof NonNullable<DB["_"]["schema"]>,
+		ExplicitTableName extends TableIdentifierTSName<DB>,
 	>({
-		tableName,
+		table,
 	}: {
-		tableName: ExplicitTableName;
+		table: ExplicitTableName;
 	}) => {
-		type TablePrimaryKeyColumn = NonNullable<
-			DB["_"]["schema"]
-		>[ExplicitTableName]["primaryKey"][number];
-		type PrimaryKeyType = GetColumnData<TablePrimaryKeyColumn, "raw">;
+		type PrimaryKeyType = any;
 
 		function makePubSubKey({
 			action,
@@ -99,7 +97,7 @@ export const createPubSubInstance = <
 				primaryKeyValue?: string;
 			}) {
 				const key = makePubSubKey({
-					tableName: tableName.toString(),
+					tableName: table.toString(),
 					action,
 					primaryKeyValue,
 				});
@@ -110,7 +108,7 @@ export const createPubSubInstance = <
 			 */
 			created() {
 				const key = makePubSubKey({
-					tableName: tableName.toString(),
+					tableName: table.toString(),
 					action: "created",
 				});
 				return pubsub.publish(key);
@@ -120,7 +118,7 @@ export const createPubSubInstance = <
 			 */
 			removed(primaryKeyValue?: PrimaryKeyType | PrimaryKeyType[]) {
 				const key = makePubSubKey({
-					tableName: tableName.toString(),
+					tableName: table.toString(),
 					action: "removed",
 					//TODO would it make sense to use specific sub topics here?
 					// primaryKeyValue,
@@ -136,7 +134,7 @@ export const createPubSubInstance = <
 					: [primaryKeyValue];
 				const keys = primaryKeys.map((primaryKeyValue) =>
 					makePubSubKey({
-						tableName: tableName.toString(),
+						tableName: table.toString(),
 						action: "updated",
 						primaryKeyValue,
 					}),

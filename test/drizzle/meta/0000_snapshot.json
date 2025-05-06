@@ -1,7 +1,7 @@
 {
 	"version": "6",
 	"dialect": "sqlite",
-	"id": "7e63a34e-8c1f-4c57-88b8-82a65c1a277e",
+	"id": "9cc27506-c627-4568-aa30-5b60a2498e72",
 	"prevId": "00000000-0000-0000-0000-000000000000",
 	"tables": {
 		"comments": {
@@ -39,7 +39,7 @@
 					"name": "owner_id",
 					"type": "text",
 					"primaryKey": false,
-					"notNull": false,
+					"notNull": true,
 					"autoincrement": false
 				}
 			},
@@ -51,7 +51,7 @@
 					"tableTo": "posts",
 					"columnsFrom": ["post_id"],
 					"columnsTo": ["id"],
-					"onDelete": "no action",
+					"onDelete": "cascade",
 					"onUpdate": "no action"
 				},
 				"comments_owner_id_users_id_fk": {
@@ -60,7 +60,7 @@
 					"tableTo": "users",
 					"columnsFrom": ["owner_id"],
 					"columnsTo": ["id"],
-					"onDelete": "no action",
+					"onDelete": "cascade",
 					"onUpdate": "no action"
 				}
 			},
@@ -78,8 +78,8 @@
 					"notNull": true,
 					"autoincrement": false
 				},
-				"slug": {
-					"name": "slug",
+				"text": {
+					"name": "text",
 					"type": "text",
 					"primaryKey": false,
 					"notNull": false,
@@ -100,18 +100,7 @@
 					"autoincrement": false
 				}
 			},
-			"indexes": {
-				"slug_idx": {
-					"name": "slug_idx",
-					"columns": ["slug"],
-					"isUnique": true
-				},
-				"title_idx": {
-					"name": "title_idx",
-					"columns": ["title"],
-					"isUnique": false
-				}
-			},
+			"indexes": {},
 			"foreignKeys": {
 				"posts_owner_id_users_id_fk": {
 					"name": "posts_owner_id_users_id_fk",
@@ -119,7 +108,7 @@
 					"tableTo": "users",
 					"columnsFrom": ["owner_id"],
 					"columnsTo": ["id"],
-					"onDelete": "no action",
+					"onDelete": "cascade",
 					"onUpdate": "no action"
 				}
 			},
@@ -159,13 +148,7 @@
 					"autoincrement": false
 				}
 			},
-			"indexes": {
-				"email_idx": {
-					"name": "email_idx",
-					"columns": ["email"],
-					"isUnique": true
-				}
-			},
+			"indexes": {},
 			"foreignKeys": {},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {},
