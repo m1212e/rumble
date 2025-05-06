@@ -49,7 +49,7 @@ Condition object abilities allow a thing under a certain, fixed condition which 
 ```ts
 // everyone can read published posts
 abilityBuilder.posts.allow("read").when({
- where: eq(schema.posts.published, true),
+ where: { published: true },
 });
 ```
 
@@ -59,7 +59,7 @@ Condition functions are functions that return condition objects. They are called
 // only the author can update posts
 abilityBuilder.posts
  .allow(["update", "delete"])
- .when(({ userId }) => ({ where: eq(schema.posts.authorId, userId) }));
+ .when(({ userId }) => ({ where: { authorId: userId } }));
 
 ```
 
@@ -74,7 +74,7 @@ abilityBuilder.users.filter("read").by(({ context, entities }) => {
 	return entities;
 });
 ```
-The default implementation helpers automatically respect and call the filters, if you set any. Filters work in addition to abilities. They run on the completed query, which in most cases has had an ability applied, hence abilities have higher priority than filters.
+The default implementation helpers automatically respect and call the filters, if you set any. Filters work in addition to abilities. They run on the completed query, which in most cases has had an ability applied, hence abilities have higher priority than filters. If you need to apply a filter to a manually implemented object, please use the `applyFilters` config field as shown in the example project.
 
 
 ### Applying abilities
@@ -87,13 +87,15 @@ schemaBuilder.queryFields((t) => {
    resolve: (query, root, args, ctx, info) => {
     return db.query.posts.findMany(
      // here we apply our filter
-     query(ctx.abilities.posts.filter("read").many),
+     query(ctx.abilities.posts.filter("read").query.many),
     );
    },
   }),
  };
 });
 ```
+
+> The `filter()` call returns an object with `query` and `sql` fields. Depending on if you are using the drizzle query or and SQL based API (like update or delete), you need to apply different filters. Same goes for the `query.many` and `query.single` fields.
 
 #### Applying filters
 Applying filters on objects is done automatically if you use the helpers. If you manually implement an object ref, you can use the `applyFilters` config field to ensure the filters run as expected:
@@ -120,7 +122,7 @@ rumble({
  },
 });
 ```
-`rumble` offers more config options, use intellisense or take a look at [the rumble input type](lib/types/rumbleInput.ts) if you want to know more.
+> `rumble` offers more config options, use intellisense or take a look at [the rumble input type](lib/types/rumbleInput.ts) if you want to know more.
 
 ## Helpers
 Rumble offers various helpers to make it easy and fast to implement your api. Ofcourse you can write your api by hand using the provided `schemaBuilder` from the rumble initiator, but since this might get repetitive, the provided helpers automate a lot of this work for you while also automatically applying the concepts of rumble directly into your api.
@@ -128,11 +130,8 @@ Rumble offers various helpers to make it easy and fast to implement your api. Of
 ### arg
 `arg` is a helper to implement query arguments for filtering the results of a query for certain results. In many cases you would implement arguments for a query with something as `matchUsername: t.arg.string()` which is supposed to restrict the query to users which have that username. The arg helper implements such a filter tailored to the specific entity which you then can directly pass on to the database query.
 ```ts
-const {
- inputType,
- transformArgumentToQueryCondition,
-} = arg({
- tableName: "posts",
+const WhereArgs = arg({
+ table: "posts",
 });
 
 schemaBuilder.queryFields((t) => {
@@ -141,19 +140,18 @@ schemaBuilder.queryFields((t) => {
    type: [PostRef],
    args: {
     // here we set our generated type as type for the where argument
-    where: t.arg({ type: inputType }),
+    where: t.arg({ type: WhereArgs }),
    },
    resolve: (query, root, args, ctx, info) => {
     return db.query.posts.findMany(
      query(
-            // here we apply the ability filter
+      // here we apply the ability filter
       ctx.abilities.users.filter("read", {
-              // we can inject one time filters into the permission filter
+      // we can inject one time filters into the permission filter
        inject: {
-                // here we transform the args into a drizzle filter
-        where: transformArgumentToQueryCondition(args.where),
+        where: args.where,
        },
-      }).many,
+      }).query.many,
      ),
     );
    },
@@ -166,7 +164,7 @@ schemaBuilder.queryFields((t) => {
 `object` is a helper to implement an object with relations. Don't worry about abilities, they are automatically applied. The helper returns the object reference which you can use in the rest of your api, for an example on how to use a type, see the above code snippet (`type: [PostRef],`).
 ```ts
 const UserRef = object({
- tableName: "users",
+ table: "users",
 });
 ```
 
@@ -174,7 +172,7 @@ const UserRef = object({
 The `query` helper is even simpler. It implements a `findFirst` and `findMany` query for the specified entity.
 ```ts
 query({
- tableName: "users",
+ table: "users",
 });
 
 ```
@@ -183,7 +181,7 @@ query({
 In case you want to use subscriptions, `rumble` has got you covered! The rumble helpers all use the `smart subscriptions plugin` from `pothos`. The `pubsub` helper lets you easily hook into the subscription notification logic.
 ```ts
 const { updated, created, removed } = pubsub({
- tableName: "users",
+ table: "users",
 });
 ```
 Now just call the functions whenever your application does the respective action and your subscriptions will get notified:
@@ -205,13 +203,13 @@ All `query` and `object` helper implementations will automatically update and wo
 > The rumble initiator lets you configure the subscription notifiers in case you want to use an external service like redis for your pubsub notifications instead of the internal default one
 
 ### enum_
-The `enum_` helper is a little different to the others, as it will get called internally automatically if another helper like `object` or `arg` detects an enum field. In most cases you should be good without calling it manually but in case you would like to have a reference to an enum object, you can get it from this helper.
+The `enum_` helper is a little different to the others, as it will get called internally automatically if another helpers like `object` or `arg` detects an enum field. In most cases you should be good without calling it manually but in case you would like to have a reference to an enum object, you can get it from this helper.
 ```ts
 const enumRef = enum_({
- enumVariableName: "moodEnum",
+ tsName: "moodEnum",
 });
 ```
-> The enum parameter allows for various other fields to use to reference an enum. This is largely due to how this is used internally. Because of the way how drizzle handles enums, we are not able to provide type safety with enums. In case you actually need to use it, the above way is the recommended one to use it.
+> The enum parameter allows other fields to be used to reference an enum. This is largely due to how this is used internally. Because of the way how drizzle handles enums, we are not able to provide type safety with enums. In case you actually need to use it, the above way is the recommended approach.
 
 ## Running the server
 In case you directly want to run a server from your rumble instance, you can do so by using the `createYoga` function. It returns a graphql `yoga` instance which can be used to provide a graphql api in [a multitude of ways](https://the-guild.dev/graphql/yoga-server/docs/integrations/z-other-environments).

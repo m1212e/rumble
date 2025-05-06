@@ -47,18 +47,17 @@ export function tableHelper<
 	}
 
 	if (!tableSchema) {
-		console.log({ tsName, dbName, table });
-
 		throw new RumbleError(
 			`Could not find schema for ${JSON.stringify({ tsName, dbName, table: (table as any)?.[nameSymbol] }).toString()}`,
 		);
 	}
 
 	return {
+		tableSchema,
 		columns: (tableSchema as any)[columnsSymbol] as Record<string, Column>,
 		get primaryColumns() {
 			return Object.entries((tableSchema as any)[columnsSymbol])
-				.filter(([k, v]) => v.primary)
+				.filter(([k, v]) => (v as Column).primary)
 				.reduce((acc, [k, v]) => {
 					(acc as any)[k] = v;
 					return acc;

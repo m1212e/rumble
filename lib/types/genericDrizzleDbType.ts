@@ -1,6 +1,6 @@
 import type { DrizzleClient } from "@pothos/plugin-drizzle";
 
-export type QueryConditionObject = Partial<{
+export type QueryFilterObject = Partial<{
 	where: any;
 	columns: any;
 	limit: any;
@@ -9,8 +9,8 @@ export type QueryConditionObject = Partial<{
 export type GenericDrizzleDbTypeConstraints = {
 	query: {
 		[key: string]: {
-			findMany: (P: QueryConditionObject) => any;
-			findFirst: (P: QueryConditionObject) => any;
+			findMany: (P: QueryFilterObject) => any;
+			findFirst: (P: QueryFilterObject) => any;
 		};
 	};
 } & DrizzleClient;

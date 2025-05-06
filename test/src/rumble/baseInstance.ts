@@ -52,7 +52,7 @@ export function makeRumbleSeedInstance(
 								inject: {
 									where: { id: args.userId },
 								},
-							}).write.single.where,
+							}).sql.where,
 						)
 						.returning({
 							id: schema.users.id,

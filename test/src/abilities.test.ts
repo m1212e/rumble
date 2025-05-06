@@ -110,7 +110,7 @@ describe("test rumble abilities", async () => {
 		expect(
 			(r as any).data.findManyUsers.filter((u: any) => u.posts.length === 1)
 				.length,
-		).toEqual(9);
+		).toEqual(2);
 	});
 
 	test("error indirect read with helper implementation on one to one with error on non nullable relationship", async () => {
@@ -155,10 +155,12 @@ describe("test rumble abilities", async () => {
       `),
 		});
 
-		console.log((r as any).data);
-
-		expect((r as any).data.findManyComments.length).toEqual(9);
-		expect((r as any).data.findManyComments.at(0).post).toBeNull();
+		expect((r as any).errors.length).toEqual(1);
+		expect((r as any).errors.at(0).path).toEqual([
+			"findManyComments",
+			0,
+			"post",
+		]);
 	});
 
 	test("allow indirect read with helper implementation on one to one", async () => {

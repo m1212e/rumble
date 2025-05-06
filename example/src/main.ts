@@ -24,8 +24,6 @@ export const db = drizzle(
 	{ relations },
 );
 
-// console.log(db._.relations.schema);
-
 /*
 
   Next, we can create a rumble instance. The creator returns a set of functions which you
@@ -40,7 +38,6 @@ const {
 	object,
 	query,
 	pubsub,
-	enum_,
 	createYoga,
 } = rumble({
 	// here we pass the db instance from above
@@ -102,6 +99,15 @@ abilityBuilder.posts.allow(["update", "delete"]).when(({ userId }) => {
 	return undefined; // we can return nothing, which does not allow anything
 });
 
+// in case you need to apply more complex filters or need async checks you can use the application level filters
+// these are function which run after the database query has completed and can be used to do additional filtering
+// on the results. Simply return what the user is allowed to see and rumble will take care of the rest
+abilityBuilder.posts.filter("read").by(({ context, entities }) => {
+	// await someAsyncCheck()
+	// we could apply filters here
+	return entities;
+});
+
 /*
 
   Next we need to define the objects shape which will be returned by our queries and mutations.
@@ -115,6 +121,8 @@ abilityBuilder.posts.allow(["update", "delete"]).when(({ userId }) => {
 // we define the schema of the post object so we can later use it in our queries as a return type
 const PostRef = schemaBuilder.drizzleObject("posts", {
 	name: "Post",
+	// this is how you can apply application level filter in manual object definitions
+	applyFilters: abilityBuilder.registeredFilters.posts.read,
 	fields: (t) => ({
 		id: t.exposeInt("id"),
 		content: t.exposeString("content", { nullable: false }),
@@ -139,11 +147,12 @@ const UserRef = object({
 	table: "users",
 	// optionally specify the name of the object ("Post" in the above example)
 	refName: "User",
+	// optionally, we can extend this with some custom fields
 	extend(t) {
 		return {
 			somethingElse: t.field({
 				type: "String",
-				resolve: (root, args, context, info) => "something else",
+				resolve: (parent, args, context, info) => "something else",
 			}),
 		};
 	},
@@ -163,7 +172,7 @@ schemaBuilder.queryFields((t) => {
 			type: [PostRef],
 			resolve: (query, root, args, ctx, info) => {
 				return db.query.posts.findMany(
-					// here we again apply out filters based on the defined abilities
+					// here we again apply our filters based on the defined abilities
 					query(ctx.abilities.posts.filter("read").query.many),
 				);
 			},
@@ -195,16 +204,19 @@ schemaBuilder.queryFields((t) => {
 				// here we set our generated type as type for the where argument
 				where: t.arg({ type: PostWhere }),
 			},
-
 			resolve: (query, root, args, ctx, info) => {
 				return db.query.posts.findMany(
 					query(
 						ctx.abilities.users.filter("read", {
 							// this additional object offers temporarily injecting additional filters to our existing ability filters
-							// the inject field allows for temp, this time only filters to be added to our ability filters. They will only be applied for this specific call.
-							// where conditions which are injected will be applied with an AND rather than an OR so the injected filter will further restrict the existing restrictions rather than expanding them
+							// the inject field allows for temp, this time only filters to be added to our ability filters.
+							// They will only be applied for this specific call. This is a helper which exists because of the old
+							// filter API, and enabled easier handling. It is convenient since it provides proper typings and takes
+							// some boilerplate off your shoulders and will stay in the API. Where conditions which are injected
+							// will be applied with an AND rather than an OR so the injected filter will further restrict the
+							// existing restrictions rather than expanding them.
 							inject: {
-								where: args.where,
+								where: args.where ?? undefined,
 							},
 						}).query.many,
 					),
@@ -259,9 +271,6 @@ schemaBuilder.mutationFields((t) => {
 				newName: t.arg.string({ required: true }),
 			},
 			resolve: async (query, root, args, ctx, info) => {
-				// this notifies all subscribers that the user has been updated
-				updatedUser(args.userId);
-
 				await db
 					.update(schema.users)
 					.set({
@@ -270,9 +279,12 @@ schemaBuilder.mutationFields((t) => {
 					.where(
 						and(
 							eq(schema.users.id, args.userId),
-							ctx.abilities.users.filter("update").write.single.where,
+							ctx.abilities.users.filter("update").sql.where,
 						),
 					);
+
+				// this notifies all subscribers that the user has been updated
+				updatedUser(args.userId);
 
 				return db.query.users
 					.findFirst(

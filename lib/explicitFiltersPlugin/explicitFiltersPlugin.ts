@@ -26,39 +26,6 @@ export const applyFiltersKey = "applyFilters";
 export class ManualFiltersPlugin<
 	Types extends SchemaTypes,
 > extends BasePlugin<Types> {
-	//   override onTypeConfig(typeConfig: PothosTypeConfig) {
-	//     // console.log(this.builder.options.nestedOptionsObject?.exampleOption);
-	//     // console.log(this.options.customBuildTimeOptions);
-
-	//     if (typeConfig.kind === 'Object') {
-	//       console.log(typeConfig.pothosOptions.optionOnObject);
-	//     }
-
-	//     return typeConfig;
-	//   }
-
-	//   override onOutputFieldConfig(fieldConfig: PothosOutputFieldConfig<Types>) {
-	//     if (fieldConfig.kind === 'Mutation') {
-	//       console.log(fieldConfig.pothosOptions.customMutationFieldOption);
-	//     }
-
-	//     return fieldConfig;
-	//   }
-
-	//   override onInputFieldConfig(fieldConfig: PothosInputFieldConfig<Types>) {
-	//     return fieldConfig;
-	//   }
-
-	//   override onEnumValueConfig(valueConfig: PothosEnumValueConfig<Types>) {
-	//     return valueConfig;
-	//   }
-
-	//   override beforeBuild() {}
-
-	//   override afterBuild(schema: GraphQLSchema): GraphQLSchema {
-	//     return schema;
-	//   }
-
 	override wrapResolve(
 		resolver: GraphQLFieldResolver<unknown, Types["Context"], object>,
 		fieldConfig: PothosOutputFieldConfig<Types>,
@@ -94,20 +61,6 @@ export class ManualFiltersPlugin<
 			return allowed[0] ?? null;
 		};
 	}
-
-	//   override wrapSubscribe(
-	//     subscribe: GraphQLFieldResolver<unknown, Types['Context'], object> | undefined,
-	//     fieldConfig: PothosOutputFieldConfig<Types>,
-	//   ) {
-	//     return subscribe;
-	//   }
-
-	//   override wrapResolveType(
-	//     resolveType: GraphQLTypeResolver<unknown, Types['Context']>,
-	//     typeConfig: PothosInterfaceTypeConfig | PothosUnionTypeConfig,
-	//   ) {
-	//     return resolveType;
-	//   }
 }
 
 SchemaBuilder.registerPlugin(pluginName, ManualFiltersPlugin);

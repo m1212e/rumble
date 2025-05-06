@@ -238,7 +238,7 @@ export const createObjectImplementer = <
 							query: (args: any, ctx: any) => {
 								return ctx.abilities[relationSchema.tsName].filter(readAction, {
 									inject: { where: args.where },
-								})[filterSpecifier];
+								}).query[filterSpecifier];
 							},
 						} as any) as any;
 						return acc;
