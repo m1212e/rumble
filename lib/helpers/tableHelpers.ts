@@ -1,9 +1,10 @@
 import type { Column, Many, One, Table } from "drizzle-orm";
+import type { NonEnumFields } from "../enum";
 import type { GenericDrizzleDbTypeConstraints } from "../types/genericDrizzleDbType";
 import { RumbleError } from "../types/rumbleError";
 
 export type TableIdentifierTSName<DB extends GenericDrizzleDbTypeConstraints> =
-	keyof NonNullable<DB["_"]["relations"]["schema"]>;
+	keyof NonEnumFields<NonNullable<DB["_"]["relations"]["schema"]>>;
 
 const nameSymbol = Symbol.for("drizzle:Name");
 const columnsSymbol = Symbol.for("drizzle:Columns");
@@ -63,9 +64,11 @@ export function tableHelper<
 					return acc;
 				}, {}) as Record<string, Column>;
 		},
-		relations: db._.relations.config[tsName as string] as {
-			[key: string]: One<any, any> | Many<any, any>;
-		},
+		relations: db._.relations.config[tsName as string] as
+			| {
+					[key: string]: One<any, any> | Many<any, any>;
+			  }
+			| undefined,
 		dbName: (tableSchema as any)[nameSymbol] as string,
 		get tsName() {
 			return Object.entries(db._.relations.schema)

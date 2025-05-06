@@ -210,7 +210,7 @@ export const createObjectImplementer = <
 					>,
 				);
 
-				const relations = Object.entries(tableSchema.relations).reduce(
+				const relations = Object.entries(tableSchema.relations ?? {}).reduce(
 					(acc, [key, value]) => {
 						const relationSchema = tableHelper({
 							db,
@@ -230,7 +230,7 @@ export const createObjectImplementer = <
 							filterSpecifier = "single";
 						}
 
-						acc[key] = t.relation(key, {
+						(acc as any)[key] = t.relation(key, {
 							args: {
 								where: t.arg({ type: WhereArg, required: false }),
 							},

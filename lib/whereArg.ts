@@ -171,7 +171,7 @@ export const createArgImplementer = <
 						>,
 					);
 
-					const relations = Object.entries(tableSchema.relations).reduce(
+					const relations = Object.entries(tableSchema.relations ?? {}).reduce(
 						(acc, [key, value]) => {
 							const relationSchema = tableHelper({
 								db,

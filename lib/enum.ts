@@ -25,6 +25,10 @@ type EnumFields<T> = {
 	[K in keyof T as T[K] extends EnumTypes ? K : never]: T[K];
 };
 
+export type NonEnumFields<T> = {
+	[K in keyof T as T[K] extends EnumTypes ? never : K]: T[K];
+};
+
 export type EnumImplementerType<
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
