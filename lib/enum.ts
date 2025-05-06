@@ -96,10 +96,7 @@ export const createEnumImplementer = <
 		let enumValues: any[] | undefined = undefined;
 
 		if (tsName) {
-			const schemaEnum = tableHelper({
-				db,
-				tsName,
-			});
+			const schemaEnum = db._.relations.schema[tsName as string];
 
 			enumSchemaName = tsName.toString();
 
