@@ -254,11 +254,23 @@ export const createAbilityBuilder = <
 									return;
 								}
 
-								return options?.inject?.where
-									? {
-											AND: [queryFilters?.where, options?.inject?.where],
-										}
-									: queryFilters?.where;
+								if (options?.inject?.where && queryFilters?.where) {
+									return {
+										AND: [queryFilters?.where, options?.inject?.where],
+									};
+								}
+
+								if (options?.inject?.where && !queryFilters?.where) {
+									return options?.inject?.where;
+								}
+
+								if (!options?.inject?.where && queryFilters?.where) {
+									return queryFilters?.where;
+								}
+
+								if (!options?.inject?.where && !queryFilters?.where) {
+									return undefined;
+								}
 							});
 
 							const transformedWhere = lazy(() => {

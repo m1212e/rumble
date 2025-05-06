@@ -96,9 +96,14 @@ export const createQueryImplementer = <
 						where: t.arg({ type: WhereArg, required: false }),
 					},
 					resolve: (query, root, args, ctx, info) => {
-						const filter = ctx.abilities[table as any].filter(listAction, {
-							inject: { where: args.where },
-						}).query.many;
+						const filter = ctx.abilities[table as any].filter(
+							listAction,
+							args.where
+								? {
+										inject: { where: args.where },
+									}
+								: undefined,
+						).query.many;
 
 						const queryInstance = query(filter as any);
 
@@ -118,9 +123,14 @@ export const createQueryImplementer = <
 							where: t.arg({ type: WhereArg, required: false }),
 						},
 						resolve: (query, root, args, ctx, info) => {
-							const filter = ctx.abilities[table as any].filter(readAction, {
-								inject: { where: args.where },
-							}).query.single;
+							const filter = ctx.abilities[table as any].filter(
+								readAction,
+								args.where
+									? {
+											inject: { where: args.where },
+										}
+									: undefined,
+							).query.single;
 
 							const queryInstance = query(filter as any);
 
