@@ -1,4 +1,4 @@
-import type { FieldMap } from "@pothos/core";
+import type { FieldMap, SchemaTypes } from "@pothos/core";
 import type { DrizzleObjectFieldBuilder } from "@pothos/plugin-drizzle";
 import { One, type Table } from "drizzle-orm";
 import type { AbilityBuilderType } from "./abilityBuilder";
@@ -91,9 +91,10 @@ export const createObjectImplementer = <
 			| ((
 					t: DrizzleObjectFieldBuilder<
 						SchemaBuilder["$inferSchemaTypes"],
-						any,
-						any,
-						any
+						SchemaBuilder["$inferSchemaTypes"]["DrizzleRelationsConfig"][ExplicitTableName],
+						NonNullable<
+							Awaited<ReturnType<DB["query"][ExplicitTableName]["findFirst"]>>
+						>
 					>,
 			  ) => FieldMap)
 			| undefined;
