@@ -324,7 +324,7 @@ export const createAbilityBuilder = <
 								// do some funky stuff with query resolve typing otherwise
 							});
 
-							return {
+							const r = {
 								/**
 								 * Query filters for the drizzle query API.
 								 * @example
@@ -342,9 +342,7 @@ export const createAbilityBuilder = <
 										get where() {
 											return where();
 										},
-										get columns() {
-											return columns();
-										},
+										columns: columns(),
 									},
 									/**
 									 * For find many calls
@@ -353,9 +351,7 @@ export const createAbilityBuilder = <
 										get where() {
 											return where();
 										},
-										get columns() {
-											return columns();
-										},
+										columns: columns(),
 										get limit() {
 											return limit();
 										},
@@ -384,14 +380,26 @@ export const createAbilityBuilder = <
 									get where() {
 										return transformedWhere();
 									},
-									get columns() {
-										return columns();
-									},
+									columns: columns(),
 									get limit() {
 										return limit();
 									},
 								},
 							};
+
+							// columns can't be set to undefined, drizzle will interpret this
+							// as: don't return any columns
+							// therefore we need to delete it
+							if (!columns()) {
+								// biome-ignore lint/performance/noDelete: we need this to not exist
+								delete r.sql.columns;
+								// biome-ignore lint/performance/noDelete: we need this to not exist
+								delete r.query.many.columns;
+								// biome-ignore lint/performance/noDelete: we need this to not exist
+								delete r.query.single.columns;
+							}
+
+							return r;
 						};
 
 						/**
