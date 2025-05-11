@@ -22,12 +22,3 @@ export const posts = pgTable("posts_table", {
 		onDelete: "cascade",
 	}),
 });
-
-export const booksToAuthors = pgTable(
-	"books_to_authors",
-	{
-		authorId: integer(),
-		bookId: integer(),
-	},
-	(table) => [primaryKey({ columns: [table.bookId, table.authorId] })],
-);

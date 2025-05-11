@@ -324,6 +324,7 @@ export const createAbilityBuilder = <
 								// do some funky stuff with query resolve typing otherwise
 							});
 
+							// TODO: strongly type this based on table
 							const r = {
 								/**
 								 * Query filters for the drizzle query API.

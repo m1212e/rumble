@@ -220,6 +220,9 @@ export const createObjectImplementer = <
 						const WhereArg = argImplementer({
 							dbName: relationSchema.dbName,
 						});
+						const relationTable = makePubSubInstance({
+							table: relationSchema.tsName as any,
+						});
 
 						// many relations will return an empty array so we just don't set them nullable
 						let nullable = false;
@@ -234,6 +237,16 @@ export const createObjectImplementer = <
 						(acc as any)[key] = t.relation(key, {
 							args: {
 								where: t.arg({ type: WhereArg, required: false }),
+							},
+							subscribe: (subscriptions, element) => {
+								relationTable.registerOnInstance({
+									instance: subscriptions,
+									action: "created",
+								});
+								relationTable.registerOnInstance({
+									instance: subscriptions,
+									action: "removed",
+								});
 							},
 							nullable,
 							query: (args: any, ctx: any) => {

@@ -83,6 +83,7 @@ export const createPubSubInstance = <
 			}/${actionKey}`;
 		}
 
+		// TODO does caching these make sense?
 		return {
 			/**
 			 * Call this when you want to register a subscription on an instance to this table
