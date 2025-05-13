@@ -82,12 +82,30 @@ export const createObjectImplementer = <
 		table,
 		refName,
 		readAction = "read" as Action,
-		extend,
+		adjust,
 	}: {
+		/**
+		 * The table you want to be used as reference for the object creation.
+		 */
 		table: ExplicitTableName;
+		/**
+		 * The name you want this object to have in your graphql schema.
+		 * Rumble will create a reasonable default if not specified.
+		 */
 		refName?: RefName;
+		/**
+		 * The action used for read access to the table.
+		 * Defaults to "read".
+		 */
 		readAction?: Action;
-		extend?:
+		/**
+		 * A function which can be used to adjust the fields of the object.
+		 * You can extend the object by specifying fields that do not exist as
+		 * per your db schema, or overwrite existing fields with the same name.
+		 * In case you do overwrite, rumble will set proper nullability and
+		 * subscription properties if you do not specify them explicitly.
+		 */
+		adjust?:
 			| ((
 					t: DrizzleObjectFieldBuilder<
 						SchemaBuilder["$inferSchemaTypes"],
@@ -184,8 +202,56 @@ export const createObjectImplementer = <
 					}
 				};
 
+				// in case the user makes adjustments we want to store away which
+				// pothos function was called with what config
+				// this is mapped to the ref which later can be used to
+				// reference these parameters while iterating over the fields
+				// and checking against the userAdjustments object
+				const configMap = new Map<
+					any,
+					{
+						creatorFunction: any;
+						config: any;
+					}
+				>();
+				// stores the results of the user adjustments
+				// also stores all the used pothos functions and the configs
+				// provided by the user so we can extend that if necessary
+				const userAdjustments =
+					adjust?.(
+						new Proxy(t, {
+							get: (target, prop) => {
+								if (typeof (target as any)[prop] === "function") {
+									return (config: any) => {
+										const ref = (target as any)[prop](config);
+										configMap.set(ref, {
+											config,
+											creatorFunction: (target as any)[prop],
+										});
+										return ref;
+									};
+								}
+
+								return (target as any)[prop];
+							},
+						}) as any,
+					) ?? {};
+
 				const fields = Object.entries(columns).reduce(
 					(acc, [key, value]) => {
+						if (userAdjustments[key]) {
+							const { config, creatorFunction } = configMap.get(
+								userAdjustments[key],
+							)!;
+
+							if (typeof config.nullable !== "boolean") {
+								config.nullable = !value.notNull;
+							}
+
+							userAdjustments[key] = creatorFunction(config);
+							return acc;
+						}
+
 						if (isEnumSchema(value)) {
 							const enumImpl = enumImplementer({
 								enumColumn: value,
@@ -234,20 +300,39 @@ export const createObjectImplementer = <
 							filterSpecifier = "single";
 						}
 
+						const subscribe = (subscriptions: any, element: any) => {
+							relationTable.registerOnInstance({
+								instance: subscriptions,
+								action: "created",
+							});
+							relationTable.registerOnInstance({
+								instance: subscriptions,
+								action: "removed",
+							});
+						};
+
+						if (userAdjustments[key]) {
+							const { config, creatorFunction } = configMap.get(
+								userAdjustments[key],
+							)!;
+
+							if (typeof config.nullable !== "boolean") {
+								config.nullable = nullable;
+							}
+
+							if (typeof config.subscribe !== "function") {
+								config.subscribe = subscribe;
+							}
+
+							userAdjustments[key] = creatorFunction(config);
+							return acc;
+						}
+
 						(acc as any)[key] = t.relation(key, {
 							args: {
 								where: t.arg({ type: WhereArg, required: false }),
 							},
-							subscribe: (subscriptions, element) => {
-								relationTable.registerOnInstance({
-									instance: subscriptions,
-									action: "created",
-								});
-								relationTable.registerOnInstance({
-									instance: subscriptions,
-									action: "removed",
-								});
-							},
+							subscribe,
 							nullable,
 							query: (args: any, ctx: any) => {
 								return ctx.abilities[relationSchema.tsName].filter(readAction, {
@@ -263,16 +348,11 @@ export const createObjectImplementer = <
 					>,
 				);
 
-				return extend
-					? {
-							...fields,
-							...relations,
-							...(extend(t as any) ?? {}),
-						}
-					: {
-							...fields,
-							...relations,
-						};
+				return {
+					...fields,
+					...relations,
+					...userAdjustments,
+				};
 			},
 		});
 	};
