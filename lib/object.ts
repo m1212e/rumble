@@ -20,6 +20,30 @@ import type {
 } from "./types/rumbleInput";
 import type { ArgImplementerType } from "./whereArg";
 
+//TODO this is a bit flaky, we should check if we can determine the config object more reliably
+//TODO maybe a plugin can place some marker field on these objects?
+const isProbablyAConfigObject = (t: any) => {
+	if (typeof t !== "object") {
+		return false;
+	}
+
+	if (
+		Object.keys(t).some((k) =>
+			[
+				"args",
+				"nullable",
+				"query",
+				"subscribe",
+				"description",
+				"type",
+				"resolve",
+			].find((e) => e === k),
+		)
+	)
+		return true;
+	return false;
+};
+
 export const createObjectImplementer = <
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
@@ -210,8 +234,9 @@ export const createObjectImplementer = <
 				const configMap = new Map<
 					any,
 					{
-						creatorFunction: any;
-						config: any;
+						creatorFunction: (...p: any[]) => any;
+						params: any[];
+						configObject: any;
 					}
 				>();
 				// stores the results of the user adjustments
@@ -222,11 +247,18 @@ export const createObjectImplementer = <
 						new Proxy(t, {
 							get: (target, prop) => {
 								if (typeof (target as any)[prop] === "function") {
-									return (config: any) => {
-										const ref = (target as any)[prop](config);
+									return (...params: any[]) => {
+										const ref = (target as any)[prop](...params);
+										const configObject = params.find(isProbablyAConfigObject);
+										if (!configObject)
+											throw new RumbleError(
+												"Expected config object to be passed to adjust field",
+											);
+
 										configMap.set(ref, {
-											config,
+											params,
 											creatorFunction: (target as any)[prop],
+											configObject,
 										});
 										return ref;
 									};
@@ -240,15 +272,15 @@ export const createObjectImplementer = <
 				const fields = Object.entries(columns).reduce(
 					(acc, [key, value]) => {
 						if (userAdjustments[key]) {
-							const { config, creatorFunction } = configMap.get(
+							const { params, creatorFunction, configObject } = configMap.get(
 								userAdjustments[key],
 							)!;
 
-							if (typeof config.nullable !== "boolean") {
-								config.nullable = !value.notNull;
+							if (typeof configObject.nullable !== "boolean") {
+								configObject.nullable = !value.notNull;
 							}
 
-							userAdjustments[key] = creatorFunction(config);
+							userAdjustments[key] = creatorFunction.bind(t)(...params);
 							return acc;
 						}
 
@@ -312,19 +344,19 @@ export const createObjectImplementer = <
 						};
 
 						if (userAdjustments[key]) {
-							const { config, creatorFunction } = configMap.get(
+							const { params, creatorFunction, configObject } = configMap.get(
 								userAdjustments[key],
 							)!;
 
-							if (typeof config.nullable !== "boolean") {
-								config.nullable = nullable;
+							if (typeof configObject.nullable !== "boolean") {
+								configObject.nullable = nullable;
 							}
 
-							if (typeof config.subscribe !== "function") {
-								config.subscribe = subscribe;
+							if (typeof configObject.subscribe !== "function") {
+								configObject.subscribe = subscribe;
 							}
 
-							userAdjustments[key] = creatorFunction(config);
+							userAdjustments[key] = creatorFunction.bind(t)(...params);
 							return acc;
 						}
 
