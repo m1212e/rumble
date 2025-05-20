@@ -104,15 +104,16 @@ export const createArgImplementer = <
 		const implement = () => {
 			return schemaBuilder.inputType(inputTypeName, {
 				fields: (t) => {
-					const mapSQLTypeStringToInputPothosType = <
-						Column extends keyof typeof tableSchema.columns,
-						SQLType extends ReturnType<
-							(typeof tableSchema.columns)[Column]["getSQLType"]
-						>,
-					>(
-						sqlType: SQLType,
+					const mapSQLTypeStringToInputPothosType = (
+						sqlType: PossibleSQLType,
+						fieldName: string,
+						isPrimaryKey: boolean,
 					) => {
-						const gqlType = mapSQLTypeToGraphQLType(sqlType as PossibleSQLType);
+						const gqlType = mapSQLTypeToGraphQLType({
+							sqlType,
+							fieldName,
+							isPrimaryKey,
+						});
 						switch (gqlType) {
 							case "Int":
 								return t.int({ required: false });
@@ -159,7 +160,9 @@ export const createArgImplementer = <
 								});
 							} else {
 								acc[key] = mapSQLTypeStringToInputPothosType(
-									value.getSQLType(),
+									value.getSQLType() as PossibleSQLType,
+									key,
+									value.primary,
 								);
 							}
 

@@ -148,7 +148,7 @@ const UserRef = object({
 	// optionally specify the name of the object ("Post" in the above example)
 	refName: "User",
 	// optionally, we can extend this with some custom fields
-	extend(t) {
+	adjust(t) {
 		return {
 			somethingElse: t.field({
 				type: "String",

@@ -17,7 +17,11 @@ export function mapSQLTypeToGraphQLType<
 		Action,
 		PothosConfig
 	>,
->(sqlType: PossibleSQLType) {
+>({
+	sqlType,
+	fieldName,
+	isPrimaryKey,
+}: { sqlType: PossibleSQLType; isPrimaryKey?: boolean; fieldName?: string }) {
 	type ReturnType = Parameters<
 		Parameters<Parameters<SchemaBuilder["queryField"]>[1]>[0]["field"]
 	>[0]["type"];
@@ -37,6 +41,13 @@ export function mapSQLTypeToGraphQLType<
 	}
 
 	if (["string", "text", "varchar", "char", "text(256)"].includes(sqlType)) {
+		if (
+			isPrimaryKey &&
+			fieldName &&
+			(fieldName.toLowerCase().endsWith("_id") ||
+				fieldName.toLowerCase().endsWith("id"))
+		) {
+		}
 		ret = "String";
 	}
 

@@ -178,13 +178,17 @@ export const createObjectImplementer = <
 				const columns = tableSchema.columns;
 				const mapSQLTypeStringToExposedPothosType = <
 					Column extends keyof typeof columns,
-					SQLType extends ReturnType<(typeof columns)[Column]["getSQLType"]>,
 				>(
-					sqlType: SQLType,
+					sqlType: PossibleSQLType,
 					columnName: Column,
 					nullable: boolean,
+					isPrimaryKey: boolean,
 				) => {
-					const gqlType = mapSQLTypeToGraphQLType(sqlType as PossibleSQLType);
+					const gqlType = mapSQLTypeToGraphQLType({
+						sqlType,
+						fieldName: columnName,
+						isPrimaryKey,
+					});
 					switch (gqlType) {
 						case "Int":
 							// @ts-expect-error
@@ -296,9 +300,10 @@ export const createObjectImplementer = <
 							});
 						} else {
 							acc[key] = mapSQLTypeStringToExposedPothosType(
-								value.getSQLType(),
+								value.getSQLType() as PossibleSQLType,
 								key,
 								!value.notNull,
+								value.primary,
 							);
 						}
 						return acc;
