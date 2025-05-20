@@ -47,8 +47,10 @@ export function mapSQLTypeToGraphQLType<
 			(fieldName.toLowerCase().endsWith("_id") ||
 				fieldName.toLowerCase().endsWith("id"))
 		) {
+			ret = "ID";
+		} else {
+			ret = "String";
 		}
-		ret = "String";
 	}
 
 	if (["uuid"].includes(sqlType)) {
