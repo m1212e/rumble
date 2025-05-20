@@ -1,4 +1,3 @@
-import type SchemaBuilder from "@pothos/core";
 import type { SchemaBuilderType } from "../../schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "../../types/genericDrizzleDbType";
 import type { CustomRumblePothosConfig } from "../../types/rumbleInput";
@@ -17,11 +16,7 @@ export function mapSQLTypeToGraphQLType<
 		Action,
 		PothosConfig
 	>,
->({
-	sqlType,
-	fieldName,
-	isPrimaryKey,
-}: { sqlType: PossibleSQLType; isPrimaryKey?: boolean; fieldName?: string }) {
+>({ sqlType, fieldName }: { sqlType: PossibleSQLType; fieldName?: string }) {
 	type ReturnType = Parameters<
 		Parameters<Parameters<SchemaBuilder["queryField"]>[1]>[0]["field"]
 	>[0]["type"];
@@ -42,7 +37,6 @@ export function mapSQLTypeToGraphQLType<
 
 	if (["string", "text", "varchar", "char", "text(256)"].includes(sqlType)) {
 		if (
-			isPrimaryKey &&
 			fieldName &&
 			(fieldName.toLowerCase().endsWith("_id") ||
 				fieldName.toLowerCase().endsWith("id"))

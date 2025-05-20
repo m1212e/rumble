@@ -182,12 +182,10 @@ export const createObjectImplementer = <
 					sqlType: PossibleSQLType,
 					columnName: Column,
 					nullable: boolean,
-					isPrimaryKey: boolean,
 				) => {
 					const gqlType = mapSQLTypeToGraphQLType({
 						sqlType,
 						fieldName: columnName,
-						isPrimaryKey,
 					});
 					switch (gqlType) {
 						case "Int":
@@ -303,7 +301,6 @@ export const createObjectImplementer = <
 								value.getSQLType() as PossibleSQLType,
 								key,
 								!value.notNull,
-								value.primary,
 							);
 						}
 						return acc;

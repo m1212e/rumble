@@ -107,12 +107,10 @@ export const createArgImplementer = <
 					const mapSQLTypeStringToInputPothosType = (
 						sqlType: PossibleSQLType,
 						fieldName: string,
-						isPrimaryKey: boolean,
 					) => {
 						const gqlType = mapSQLTypeToGraphQLType({
 							sqlType,
 							fieldName,
-							isPrimaryKey,
 						});
 						switch (gqlType) {
 							case "Int":
@@ -162,7 +160,6 @@ export const createArgImplementer = <
 								acc[key] = mapSQLTypeStringToInputPothosType(
 									value.getSQLType() as PossibleSQLType,
 									key,
-									value.primary,
 								);
 							}
 
