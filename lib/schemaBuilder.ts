@@ -65,13 +65,13 @@ export const createSchemaBuilder = <
 			};
 		};
 	}>({
+		...pothosConfig,
 		plugins: [
 			ExplicitChecksPlugin,
 			DrizzlePlugin,
 			SmartSubscriptionsPlugin,
 			...(pothosConfig?.plugins ?? []),
 		],
-		...pothosConfig,
 		drizzle: {
 			client: db,
 			relations: db._.relations,
