@@ -365,13 +365,28 @@ export const createObjectImplementer = <
 						(acc as any)[key] = t.relation(key, {
 							args: {
 								where: t.arg({ type: WhereArg, required: false }),
+								...(isMany
+									? {
+											offset: t.arg.int({ required: false }),
+											limit: t.arg.int({ required: false }),
+										}
+									: {}),
 							},
 							subscribe,
 							nullable,
 							query: (args: any, ctx: any) => {
-								return ctx.abilities[relationSchema.tsName].filter(readAction, {
-									inject: { where: args.where },
-								}).query[filterSpecifier];
+								const filter = ctx.abilities[relationSchema.tsName].filter(
+									readAction,
+									{
+										inject: { where: args.where, limit: args.limit },
+									},
+								).query[filterSpecifier];
+
+								if (args.offset) {
+									(filter as any).offset = args.offset;
+								}
+
+								return filter;
 							},
 						} as any) as any;
 						return acc;

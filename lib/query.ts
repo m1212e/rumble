@@ -94,16 +94,25 @@ export const createQueryImplementer = <
 					},
 					args: {
 						where: t.arg({ type: WhereArg, required: false }),
+						limit: t.arg.int({ required: false }),
+						offset: t.arg.int({ required: false }),
 					},
 					resolve: (query, root, args, ctx, info) => {
 						const filter = ctx.abilities[table as any].filter(
 							listAction,
-							args.where
+							args.where || args.limit || args.offset
 								? {
-										inject: { where: args.where },
+										inject: {
+											where: args.where,
+											limit: args.limit,
+										},
 									}
 								: undefined,
 						).query.many;
+
+						if (args.offset) {
+							(filter as any).offset = args.offset;
+						}
 
 						const queryInstance = query(filter as any);
 
