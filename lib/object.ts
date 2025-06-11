@@ -320,7 +320,7 @@ export const createObjectImplementer = <
 						const WhereArg = argImplementer({
 							dbName: relationSchema.dbName,
 						});
-						const relationTable = makePubSubInstance({
+						const relationTablePubSub = makePubSubInstance({
 							table: relationSchema.tsName as any,
 						});
 
@@ -335,11 +335,11 @@ export const createObjectImplementer = <
 						}
 
 						const subscribe = (subscriptions: any, element: any) => {
-							relationTable.registerOnInstance({
+							relationTablePubSub.registerOnInstance({
 								instance: subscriptions,
 								action: "created",
 							});
-							relationTable.registerOnInstance({
+							relationTablePubSub.registerOnInstance({
 								instance: subscriptions,
 								action: "removed",
 							});
@@ -375,6 +375,9 @@ export const createObjectImplementer = <
 							subscribe,
 							nullable,
 							query: (args: any, ctx: any) => {
+								// transform null prototyped object
+								// biome-ignore lint/style/noParameterAssign: Its really not a problem here
+								args = JSON.parse(JSON.stringify(args));
 								const filter = ctx.abilities[relationSchema.tsName].filter(
 									readAction,
 									{

@@ -16,6 +16,12 @@ import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
 } from "./types/rumbleInput";
+import {
+	type DateWhereInputArgument,
+	type NumberWhereInputArgument,
+	type StringWhereInputArgument,
+	implementDefaultWhereInputArgs,
+} from "./whereArg";
 
 export type SchemaBuilderType<
 	UserContext extends Record<string, any>,
@@ -64,6 +70,12 @@ export const createSchemaBuilder = <
 				Output: Date;
 			};
 		};
+		Inputs: {
+			IntWhereInputArgument: NumberWhereInputArgument;
+			FloatWhereInputArgument: NumberWhereInputArgument;
+			StringWhereInputArgument: StringWhereInputArgument;
+			DateWhereInputArgument: DateWhereInputArgument;
+		};
 	}>({
 		...pothosConfig,
 		plugins: [
@@ -95,6 +107,7 @@ export const createSchemaBuilder = <
 	schemaBuilder.addScalarType("JSON", JSONResolver);
 	schemaBuilder.addScalarType("Date", DateResolver);
 	schemaBuilder.addScalarType("DateTime", DateTimeISOResolver);
+	implementDefaultWhereInputArgs(schemaBuilder as any);
 
 	if (!disableDefaultObjects?.query) {
 		schemaBuilder.queryType({});

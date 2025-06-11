@@ -98,6 +98,9 @@ export const createQueryImplementer = <
 						offset: t.arg.int({ required: false }),
 					},
 					resolve: (query, root, args, ctx, info) => {
+						// transform null prototyped object
+						// biome-ignore lint/style/noParameterAssign: Its really not a problem here
+						args = JSON.parse(JSON.stringify(args));
 						const filter = ctx.abilities[table as any].filter(
 							listAction,
 							args.where || args.limit || args.offset
@@ -132,6 +135,9 @@ export const createQueryImplementer = <
 							where: t.arg({ type: WhereArg, required: false }),
 						},
 						resolve: (query, root, args, ctx, info) => {
+							// transform null prototyped object
+							// biome-ignore lint/style/noParameterAssign: Its really not a problem here
+							args = JSON.parse(JSON.stringify(args));
 							const filter = ctx.abilities[table as any].filter(
 								readAction,
 								args.where
