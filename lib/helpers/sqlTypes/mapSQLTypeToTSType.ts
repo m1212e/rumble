@@ -21,7 +21,7 @@ export function mapSQLTypeToGraphQLType<
 		Parameters<Parameters<SchemaBuilder["queryField"]>[1]>[0]["field"]
 	>[0]["type"];
 
-	let ret: ReturnType | undefined = undefined;
+	let ret: ReturnType | undefined;
 
 	if (
 		["serial", "int", "integer", "tinyint", "smallint", "mediumint"].includes(

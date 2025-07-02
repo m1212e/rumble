@@ -242,7 +242,7 @@ export const createAbilityBuilder = <
 						},
 					) => {
 						/**
-						 * Packs the fitlers into a response object that can be applied for queries by the user
+						 * Packs the filters into a response object that can be applied for queries by the user
 						 */
 						const transformToResponse = <
 							F extends QueryFilterInput<DB, TableNameT>,
@@ -494,7 +494,7 @@ export const createAbilityBuilder = <
 							allQueryFilters = [getBlockEverythingFilter()];
 						}
 
-						let highestLimit: number | undefined = undefined;
+						let highestLimit: number | undefined;
 						for (const conditionObject of allQueryFilters) {
 							if (conditionObject?.limit) {
 								if (
@@ -506,8 +506,7 @@ export const createAbilityBuilder = <
 							}
 						}
 
-						let combinedAllowedColumns: Record<string, any> | undefined =
-							undefined;
+						let combinedAllowedColumns: Record<string, any> | undefined;
 						for (const conditionObject of [
 							...allQueryFilters,
 							options?.inject,

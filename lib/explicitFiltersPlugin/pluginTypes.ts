@@ -1,8 +1,8 @@
 import type { SchemaTypes } from "@pothos/core";
 
 import type {
-	ManualFiltersPlugin,
 	applyFiltersKey,
+	ManualFiltersPlugin,
 } from "./explicitFiltersPlugin";
 import pluginName from "./explicitFiltersPlugin";
 

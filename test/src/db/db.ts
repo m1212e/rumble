@@ -52,11 +52,12 @@ export async function makeSeededDBInstanceForTest() {
 				postId: r.valuesFromArray({
 					values: posts.map((u) => u.id),
 				}),
+				published: r.boolean(),
 			},
 		},
 	}));
 
 	const comments = await db.query.comments.findMany();
 
-	return { db, data: { users, posts, comments } };
+	return { db, data: { users, posts, comments }, schema };
 }

@@ -92,8 +92,8 @@ export const createEnumImplementer = <
 		)) => {
 		//TODO check if this can be done typesafe
 
-		let enumSchemaName: string | undefined = undefined;
-		let enumValues: any[] | undefined = undefined;
+		let enumSchemaName: string | undefined;
+		let enumValues: any[] | undefined;
 
 		if (tsName) {
 			const schemaEnum = db._.relations.schema[tsName as string];

@@ -100,7 +100,11 @@ export const applyFilters = async <Context, T, H extends T>({
 	filters,
 	entities,
 	context,
-}: { entities: T[]; filters: Filter<Context, H>[]; context: Context }) => {
+}: {
+	entities: T[];
+	filters: Filter<Context, H>[];
+	context: Context;
+}) => {
 	return (
 		await Promise.all(
 			filters.map((f) =>

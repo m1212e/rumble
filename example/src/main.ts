@@ -207,7 +207,7 @@ schemaBuilder.queryFields((t) => {
 			resolve: (query, root, args, ctx, info) => {
 				return db.query.posts.findMany(
 					query(
-						ctx.abilities.users.filter("read", {
+						ctx.abilities.posts.filter("read", {
 							// this additional object offers temporarily injecting additional filters to our existing ability filters
 							// the inject field allows for temp, this time only filters to be added to our ability filters.
 							// They will only be applied for this specific call. This is a helper which exists because of the old

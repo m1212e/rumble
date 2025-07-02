@@ -18,9 +18,9 @@ import type {
 } from "./types/rumbleInput";
 import {
 	type DateWhereInputArgument,
+	implementDefaultWhereInputArgs,
 	type NumberWhereInputArgument,
 	type StringWhereInputArgument,
-	implementDefaultWhereInputArgs,
 } from "./whereArg";
 
 export type SchemaBuilderType<

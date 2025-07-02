@@ -4,7 +4,7 @@ import { makeSeededDBInstanceForTest } from "./db/db";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
 describe("test rumble abilities", async () => {
-	let { db, data } = await makeSeededDBInstanceForTest();
+	let { db, data, schema } = await makeSeededDBInstanceForTest();
 	let { rumble, build } = makeRumbleSeedInstance(db, data.users.at(0)?.id, 9);
 
 	beforeEach(async () => {
@@ -43,8 +43,6 @@ describe("test rumble abilities", async () => {
 	});
 
 	test("deny simple read with helper implementation", async () => {
-		rumble.abilityBuilder.users.allow(["read"]);
-
 		const { executor, yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
@@ -359,4 +357,72 @@ describe("test rumble abilities", async () => {
 		expect((r as any).errors.length).toEqual(1);
 		expect((r as any).errors.at(0).path).toEqual(["findFirstUsers", "id"]);
 	});
+
+	test("deny read with stacked wildcard permission", async () => {
+		rumble.abilityBuilder.comments.allow("read").when({
+			where: {
+				AND: [{ published: true }, { published: false }],
+			},
+		});
+		// we do not want this to take action since we already have a published condition
+		// acting differently would allow to override the published condition which might lead to unexpected behavior
+		rumble.abilityBuilder.comments.allow("read");
+
+		const { executor, yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          findManyComments {
+            id
+          }
+        }
+      `),
+		});
+
+		expect((r as any).data.findManyComments.length).toEqual(0);
+	});
+
+	//TODO
+	// test("perform read with applied condition and injection filters", async () => {
+	// 	rumble.abilityBuilder.comments.allow("read").when({
+	// 		limit: 100,
+	// 		where: {
+	// 			published: true,
+	// 		},
+	// 	});
+
+	// 	rumble.schemaBuilder.mutationFields((t) => {
+	// 		return {
+	// 			customFindComments: t.drizzleField({
+	// 				type: ["comments"],
+	// 				resolve: (query, root, args, ctx, info) => {
+	// 					return db.query.comments.findMany(
+	// 						query(
+	// 							ctx.abilities.comments.filter("read", {
+	// 								inject: {
+	// 									where: {
+	// 										text: { like: "a" },
+	// 									},
+	// 								},
+	// 							}).query.many,
+	// 						),
+	// 					);
+	// 				},
+	// 			}),
+	// 		};
+	// 	});
+
+	// 	const { executor, yogaInstance } = build();
+	// 	const r = await executor({
+	// 		document: parse(/* GraphQL */ `
+	//     query {
+	//       customFindComments {
+	//         id
+	//       }
+	//     }
+	//   `),
+	// 	});
+
+	// 	expect((r as any).data.customFindComments.length).toEqual(0);
+	// });
 });

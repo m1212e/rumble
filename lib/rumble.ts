@@ -1,6 +1,6 @@
 import {
-	type YogaServerOptions,
 	createYoga as nativeCreateYoga,
+	type YogaServerOptions,
 } from "graphql-yoga";
 import { createAbilityBuilder } from "./abilityBuilder";
 import { createContextFunction } from "./context";
