@@ -2,9 +2,11 @@ import {
 	createYoga as nativeCreateYoga,
 	type YogaServerOptions,
 } from "graphql-yoga";
+import { useSofa } from "sofa-api";
 import { createAbilityBuilder } from "./abilityBuilder";
 import { createContextFunction } from "./context";
 import { createEnumImplementer } from "./enum";
+import { lazy } from "./helpers/lazy";
 import { createObjectImplementer } from "./object";
 import { createPubSubInstance } from "./pubsub";
 import { createQueryImplementer } from "./query";
@@ -130,6 +132,8 @@ export const rumble = <
 		makePubSubInstance,
 	});
 
+	const builtSchema = lazy(() => schemaBuilder.toSchema());
+
 	const createYoga = (
 		args?:
 			| Omit<YogaServerOptions<RequestEvent, any>, "schema" | "context">
@@ -137,7 +141,16 @@ export const rumble = <
 	) =>
 		nativeCreateYoga<RequestEvent>({
 			...args,
-			schema: schemaBuilder.toSchema(),
+			schema: builtSchema(),
+			context,
+		});
+
+	const createSofa = (
+		args: Omit<Parameters<typeof useSofa>[0], "schema" | "context">,
+	) =>
+		useSofa({
+			...args,
+			schema: builtSchema(),
 			context,
 		});
 
@@ -169,14 +182,29 @@ export const rumble = <
        * @example
        * 
        * ```ts
+	   * 
         import { createServer } from "node:http";
-       * const server = createServer(createYoga());
-       server.listen(3000, () => {
+		* const server = createServer(createYoga());
+		server.listen(3000, () => {
             console.info("Visit http://localhost:3000/graphql");
-       });
-       * ```
+			});
+			* ```
+	   * https://the-guild.dev/graphql/yoga-server/docs#server
        */
 		createYoga,
+		/**
+		 * Creates a sofa instance to offer a REST API.
+		```ts
+		import express from 'express';
+		
+		const app = express();
+		const sofa = createSofa(...);
+		
+		app.use('/api', useSofa({ schema }));
+		```
+		* https://the-guild.dev/graphql/sofa-api/docs#usage
+		 */
+		createSofa,
 		/**
 		 * A function for creating default objects for your schema
 		 */
