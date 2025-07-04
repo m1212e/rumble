@@ -7,6 +7,7 @@ import { createAbilityBuilder } from "./abilityBuilder";
 import { createContextFunction } from "./context";
 import { createEnumImplementer } from "./enum";
 import { lazy } from "./helpers/lazy";
+import { sofaOpenAPIWebhookDocs } from "./helpers/sofaOpenAPIWebhookDocs";
 import { createObjectImplementer } from "./object";
 import { createPubSubInstance } from "./pubsub";
 import { createQueryImplementer } from "./query";
@@ -147,12 +148,19 @@ export const rumble = <
 
 	const createSofa = (
 		args: Omit<Parameters<typeof useSofa>[0], "schema" | "context">,
-	) =>
-		useSofa({
+	) => {
+		if (args.openAPI) {
+			args.openAPI = {
+				...sofaOpenAPIWebhookDocs,
+				...args.openAPI,
+			};
+		}
+		return useSofa({
 			...args,
 			schema: builtSchema(),
 			context,
 		});
+	};
 
 	return {
 		/**
