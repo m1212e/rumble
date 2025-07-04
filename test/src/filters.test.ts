@@ -115,4 +115,42 @@ describe("test rumble abilities and filters", async () => {
 				.length,
 		).toEqual(0);
 	});
+
+	test("filter out some related on application level filters with applied ability", async () => {
+		rumble.abilityBuilder.users.allow(["read"]);
+		rumble.abilityBuilder.posts.allow(["read"]).when({
+			where: {
+				id: "c4391cfa-dd0e-4f2c-843f-a2aec9f8a396",
+			},
+		});
+		rumble.abilityBuilder.posts.filter("read").by(({ entities }) => {
+			return entities.slice(0, 3);
+		});
+
+		const { executor, yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          findManyUsers {
+            id
+            firstName
+            posts {
+              id
+			  title
+			  text
+            }
+          }
+        }
+      `),
+		});
+
+		// all users should be readable
+		expect((r as any).data.findManyUsers.length).toEqual(data.users.length);
+		// no user should have any posts returned
+		expect(
+			(r as any).data.findManyUsers
+				.map((u: any) => u.posts)
+				.filter((u: any) => u.length > 0).length,
+		).toEqual(1);
+	});
 });
