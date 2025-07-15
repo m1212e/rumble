@@ -9,6 +9,7 @@ import { createEnumImplementer } from "./enum";
 import { lazy } from "./helpers/lazy";
 import { sofaOpenAPIWebhookDocs } from "./helpers/sofaOpenAPIWebhookDocs";
 import { createObjectImplementer } from "./object";
+import { createOrderArgImplementer } from "./orderArg";
 import { createPubSubInstance } from "./pubsub";
 import { createQueryImplementer } from "./query";
 import { createSchemaBuilder } from "./schemaBuilder";
@@ -17,7 +18,7 @@ import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
 } from "./types/rumbleInput";
-import { createArgImplementer } from "./whereArg";
+import { createWhereArgImplementer } from "./whereArg";
 
 export const rumble = <
 	UserContext extends Record<string, any>,
@@ -85,7 +86,7 @@ export const rumble = <
 		...rumbleInput,
 		schemaBuilder,
 	});
-	const arg = createArgImplementer<
+	const whereArg = createWhereArgImplementer<
 		UserContext,
 		DB,
 		RequestEvent,
@@ -98,6 +99,17 @@ export const rumble = <
 		schemaBuilder,
 		enumImplementer: enum_,
 	});
+	const orderArg = createOrderArgImplementer<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action,
+		PothosConfig,
+		typeof schemaBuilder
+	>({
+		...rumbleInput,
+		schemaBuilder,
+	});
 	const object = createObjectImplementer<
 		UserContext,
 		DB,
@@ -105,7 +117,8 @@ export const rumble = <
 		Action,
 		PothosConfig,
 		typeof schemaBuilder,
-		typeof arg,
+		typeof whereArg,
+		typeof orderArg,
 		typeof enum_,
 		typeof makePubSubInstance,
 		typeof abilityBuilder
@@ -113,7 +126,8 @@ export const rumble = <
 		...rumbleInput,
 		schemaBuilder,
 		makePubSubInstance,
-		argImplementer: arg,
+		whereArgImplementer: whereArg,
+		orderArgImplementer: orderArg,
 		enumImplementer: enum_,
 		abilityBuilder,
 	});
@@ -124,12 +138,14 @@ export const rumble = <
 		Action,
 		PothosConfig,
 		typeof schemaBuilder,
-		typeof arg,
+		typeof whereArg,
+		typeof orderArg,
 		typeof makePubSubInstance
 	>({
 		...rumbleInput,
 		schemaBuilder,
-		argImplementer: arg,
+		whereArgImplementer: whereArg,
+		orderArgImplementer: orderArg,
 		makePubSubInstance,
 	});
 
@@ -220,7 +236,11 @@ export const rumble = <
 		/**
 		 * A function for creating where args to filter entities
 		 */
-		arg,
+		whereArg,
+		/**
+		 * A function for creating order args to sort entities
+		 */
+		orderArg,
 		/**
 		 * A function for creating default READ queries.
 		 * Make sure the objects for the table you are creating the queries for are implemented

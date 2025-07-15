@@ -10,6 +10,7 @@ import {
 	type TableIdentifierTSName,
 	tableHelper,
 } from "./helpers/tableHelpers";
+import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
@@ -18,7 +19,7 @@ import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
 } from "./types/rumbleInput";
-import type { ArgImplementerType } from "./whereArg";
+import type { WhereArgImplementerType } from "./whereArg";
 
 //TODO this is a bit flaky, we should check if we can determine the config object more reliably
 //TODO maybe a plugin can place some marker field on these objects?
@@ -57,7 +58,14 @@ export const createObjectImplementer = <
 		Action,
 		PothosConfig
 	>,
-	ArgImplementer extends ArgImplementerType<
+	WhereArgImplementer extends WhereArgImplementerType<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action,
+		PothosConfig
+	>,
+	OrderArgImplementer extends OrderArgImplementerType<
 		UserContext,
 		DB,
 		RequestEvent,
@@ -89,12 +97,14 @@ export const createObjectImplementer = <
 	db,
 	schemaBuilder,
 	makePubSubInstance,
-	argImplementer,
+	whereArgImplementer,
+	orderArgImplementer,
 	enumImplementer,
 	abilityBuilder,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
 	schemaBuilder: SchemaBuilder;
-	argImplementer: ArgImplementer;
+	whereArgImplementer: WhereArgImplementer;
+	orderArgImplementer: OrderArgImplementer;
 	enumImplementer: EnumImplementer;
 	makePubSubInstance: MakePubSubInstance;
 	abilityBuilder: AbilityBuilderInstance;
@@ -317,7 +327,10 @@ export const createObjectImplementer = <
 							db,
 							table: value.targetTable as Table,
 						});
-						const WhereArg = argImplementer({
+						const WhereArg = whereArgImplementer({
+							dbName: relationSchema.dbName,
+						});
+						const OrderArg = orderArgImplementer({
 							dbName: relationSchema.dbName,
 						});
 						const relationTablePubSub = makePubSubInstance({
@@ -365,6 +378,7 @@ export const createObjectImplementer = <
 						(acc as any)[key] = t.relation(key, {
 							args: {
 								where: t.arg({ type: WhereArg, required: false }),
+								orderBy: t.arg({ type: OrderArg, required: false }),
 								...(isMany
 									? {
 											offset: t.arg.int({ required: false }),
@@ -387,6 +401,10 @@ export const createObjectImplementer = <
 
 								if (args.offset) {
 									(filter as any).offset = args.offset;
+								}
+
+								if (args.orderBy) {
+									(filter as any).orderBy = args.orderBy;
 								}
 
 								return filter;

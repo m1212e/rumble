@@ -16,14 +16,14 @@ import type {
 	RumbleInput,
 } from "./types/rumbleInput";
 
-export type ArgImplementerType<
+export type WhereArgImplementerType<
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
 > = ReturnType<
-	typeof createArgImplementer<
+	typeof createWhereArgImplementer<
 		UserContext,
 		DB,
 		RequestEvent,
@@ -37,7 +37,7 @@ export type ArgImplementerType<
 const makeDefaultName = (dbName: string) =>
 	`${capitalizeFirstLetter(toCamelCase(dbName.toString()))}WhereInputArgument`;
 
-export const createArgImplementer = <
+export const createWhereArgImplementer = <
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,
 	RequestEvent extends Record<string, any>,
@@ -67,7 +67,7 @@ export const createArgImplementer = <
 }) => {
 	const referenceStorage = new Map<string, any>();
 
-	const argImplementer = <
+	const whereArgImplementer = <
 		ExplicitTableName extends TableIdentifierTSName<DB>,
 		RefName extends string,
 	>({
@@ -176,7 +176,7 @@ export const createArgImplementer = <
 								db,
 								table: value.targetTable as Table,
 							});
-							const referenceModel = argImplementer({
+							const referenceModel = whereArgImplementer({
 								dbName: relationSchema.dbName,
 							});
 
@@ -206,7 +206,7 @@ export const createArgImplementer = <
 		return ret;
 	};
 
-	return argImplementer;
+	return whereArgImplementer;
 };
 
 export type NumberWhereInputArgument = {

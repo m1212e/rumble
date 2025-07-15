@@ -1,9 +1,7 @@
 import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { assertFindFirstExists } from "./helpers/helper";
-import {
-	type TableIdentifierTSName,
-	tableHelper,
-} from "./helpers/tableHelpers";
+import type { TableIdentifierTSName } from "./helpers/tableHelpers";
+import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
@@ -11,7 +9,9 @@ import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
 } from "./types/rumbleInput";
-import type { ArgImplementerType } from "./whereArg";
+import type { WhereArgImplementerType } from "./whereArg";
+
+// TODO: consider removing the whole inject helper thing since we dont need a syntax transform anymore
 
 export const createQueryImplementer = <
 	UserContext extends Record<string, any>,
@@ -26,7 +26,14 @@ export const createQueryImplementer = <
 		Action,
 		PothosConfig
 	>,
-	ArgImplementer extends ArgImplementerType<
+	WhereArgImplementer extends WhereArgImplementerType<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action,
+		PothosConfig
+	>,
+	OrderArgImplementer extends OrderArgImplementerType<
 		UserContext,
 		DB,
 		RequestEvent,
@@ -43,11 +50,13 @@ export const createQueryImplementer = <
 >({
 	db,
 	schemaBuilder,
-	argImplementer,
+	whereArgImplementer,
+	orderArgImplementer,
 	makePubSubInstance,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
 	schemaBuilder: SchemaBuilder;
-	argImplementer: ArgImplementer;
+	whereArgImplementer: WhereArgImplementer;
+	orderArgImplementer: OrderArgImplementer;
 	makePubSubInstance: MakePubSubInstance;
 }) => {
 	return <ExplicitTableName extends TableIdentifierTSName<DB>>({
@@ -70,7 +79,10 @@ export const createQueryImplementer = <
 		 */
 		listAction?: Action;
 	}) => {
-		const WhereArg = argImplementer({
+		const WhereArg = whereArgImplementer({
+			table: table,
+		});
+		const OrderArg = orderArgImplementer({
 			table: table,
 		});
 
@@ -94,6 +106,7 @@ export const createQueryImplementer = <
 					},
 					args: {
 						where: t.arg({ type: WhereArg, required: false }),
+						orderBy: t.arg({ type: OrderArg, required: false }),
 						limit: t.arg.int({ required: false }),
 						offset: t.arg.int({ required: false }),
 					},
@@ -115,6 +128,10 @@ export const createQueryImplementer = <
 
 						if (args.offset) {
 							(filter as any).offset = args.offset;
+						}
+
+						if (args.orderBy) {
+							(filter as any).orderBy = args.orderBy;
 						}
 
 						const queryInstance = query(filter as any);

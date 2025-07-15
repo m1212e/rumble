@@ -34,7 +34,7 @@ export const db = drizzle(
 const {
 	abilityBuilder,
 	schemaBuilder,
-	arg,
+	whereArg,
 	object,
 	query,
 	pubsub,
@@ -67,11 +67,12 @@ const {
 */
 
 // users can edit themselves
-abilityBuilder.users.allow(["read", "update", "delete"]).when(({ userId }) => ({
-	where: {
-		id: userId,
-	},
-}));
+abilityBuilder.users.allow(["read", "update", "delete"]);
+// .when(({ userId }) => ({
+// 	where: {
+// 		id: userId,
+// 	},
+// }));
 
 // everyone can read posts
 abilityBuilder.posts.allow("read");
@@ -166,18 +167,22 @@ const UserRef = object({
 
 */
 
-schemaBuilder.queryFields((t) => {
-	return {
-		findManyPosts: t.drizzleField({
-			type: [PostRef],
-			resolve: (query, root, args, ctx, info) => {
-				return db.query.posts.findMany(
-					// here we again apply our filters based on the defined abilities
-					query(ctx.abilities.posts.filter("read").query.many),
-				);
-			},
-		}),
-	};
+// schemaBuilder.queryFields((t) => {
+// 	return {
+// 		findManyPosts: t.drizzleField({
+// 			type: [PostRef],
+// 			resolve: (query, root, args, ctx, info) => {
+// 				return db.query.posts.findMany(
+// 					// here we again apply our filters based on the defined abilities
+// 					query(ctx.abilities.posts.filter("read").query.many),
+// 				);
+// 			},
+// 		}),
+// 	};
+// });
+
+query({
+	table: "posts",
 });
 
 /*
@@ -190,7 +195,7 @@ schemaBuilder.queryFields((t) => {
 
  */
 
-const PostWhere = arg({
+const PostWhere = whereArg({
 	// for which table to implement this
 	table: "posts",
 });
