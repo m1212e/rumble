@@ -166,7 +166,7 @@
 // 		const sub = await executor({
 // 			document: parse(/* GraphQL */ `
 //                 subscription FindFirstComment {
-//                   findManyComments(where: { id: "${commentId}" }) {
+//                   comments(where: { id: "${commentId}" }) {
 //                     id
 //                     text
 //                   }
@@ -197,7 +197,7 @@
 // 			iterationCounter++;
 // 			expect(message).toEqual({
 // 				data: {
-// 					findManyComments: [
+// 					comments: [
 // 						{
 // 							id: commentId,
 // 							text: currentText,
@@ -261,7 +261,7 @@
 // 		const sub = await executor({
 // 			document: parse(/* GraphQL */ `
 //                 subscription FindFirstComment {
-//                   findManyComments(where: { id: "${commentId}" }) {
+//                   comments(where: { id: "${commentId}" }) {
 //                     id
 //                     text
 //                   }
@@ -293,7 +293,7 @@
 // 			if (iterationCounter === 1) {
 // 				expect(message).toEqual({
 // 					data: {
-// 						findManyComments: [
+// 						comments: [
 // 							{
 // 								id: commentId,
 // 								text: data.comments[0].text,
@@ -306,7 +306,7 @@
 // 			if (iterationCounter === 2) {
 // 				expect(message).toEqual({
 // 					data: {
-// 						findManyComments: [],
+// 						comments: [],
 // 					},
 // 				});
 // 				break;
@@ -366,7 +366,7 @@
 // 		const sub = await executor({
 // 			document: parse(/* GraphQL */ `
 //         subscription FindFirstComment {
-//           findManyComments {
+//           comments {
 //             id
 //             text
 //           }
@@ -396,11 +396,11 @@
 // 			iterationCounter++;
 
 // 			if (iterationCounter === 1) {
-// 				expect(message.data.findManyComments.length).toEqual(200);
+// 				expect(message.data.comments.length).toEqual(200);
 // 			}
 
 // 			if (iterationCounter === 2) {
-// 				expect(message.data.findManyComments.length).toEqual(201);
+// 				expect(message.data.comments.length).toEqual(201);
 // 				break;
 // 			}
 // 		}

@@ -1,5 +1,4 @@
 import { plural, singular } from "pluralize";
-import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { assertFindFirstExists } from "./helpers/helper";
 import {
 	type TableIdentifierTSName,
@@ -99,7 +98,7 @@ export const createQueryImplementer = <
 
 		return schemaBuilder.queryFields((t) => {
 			return {
-				[singular(table.toString())]: t.drizzleField({
+				[plural(table.toString())]: t.drizzleField({
 					type: [table],
 					nullable: false,
 					smartSubscription: true,
@@ -152,7 +151,7 @@ export const createQueryImplementer = <
 						return db.query[table as any].findMany(queryInstance);
 					},
 				}),
-				[plural(table.toString())]: t.drizzleField({
+				[singular(table.toString())]: t.drizzleField({
 					type: table,
 					nullable: false,
 					smartSubscription: true,

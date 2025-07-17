@@ -25,7 +25,7 @@ describe("test rumble abilities and filters", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
 			query {
-			  findFirstUsers {
+			  user(id: "3e0bb3d0-2074-4a1e-6263-d13dd10cb0cf") {
 				id
 				firstName
 			  }
@@ -35,7 +35,7 @@ describe("test rumble abilities and filters", async () => {
 
 		expect(r).toEqual({
 			data: {
-				findFirstUsers: {
+				user: {
 					id: data.users[0].id,
 					firstName: data.users[0].firstName,
 				},
@@ -53,7 +53,7 @@ describe("test rumble abilities and filters", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyUsers {
+          users {
             id
           }
         }
@@ -61,7 +61,7 @@ describe("test rumble abilities and filters", async () => {
 		});
 
 		// all users should be readable
-		expect((r as any).data.findManyUsers.length).toEqual(0);
+		expect((r as any).data.users.length).toEqual(0);
 	});
 
 	test("filter out some on application level filters", async () => {
@@ -74,7 +74,7 @@ describe("test rumble abilities and filters", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyUsers {
+          users {
             id
           }
         }
@@ -82,7 +82,7 @@ describe("test rumble abilities and filters", async () => {
 		});
 
 		// all users should be readable
-		expect((r as any).data.findManyUsers.length).toEqual(197);
+		expect((r as any).data.users.length).toEqual(197);
 	});
 
 	test("filter out related on application level filters", async () => {
@@ -96,7 +96,7 @@ describe("test rumble abilities and filters", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyUsers {
+          users {
             id
             firstName
             posts {
@@ -108,11 +108,10 @@ describe("test rumble abilities and filters", async () => {
 		});
 
 		// all users should be readable
-		expect((r as any).data.findManyUsers.length).toEqual(data.users.length);
+		expect((r as any).data.users.length).toEqual(data.users.length);
 		// no user should have any posts returned
 		expect(
-			(r as any).data.findManyUsers.filter((u: any) => u.posts.length > 0)
-				.length,
+			(r as any).data.users.filter((u: any) => u.posts.length > 0).length,
 		).toEqual(0);
 	});
 
@@ -131,7 +130,7 @@ describe("test rumble abilities and filters", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyUsers {
+          users {
             id
             firstName
             posts {
@@ -145,10 +144,10 @@ describe("test rumble abilities and filters", async () => {
 		});
 
 		// all users should be readable
-		expect((r as any).data.findManyUsers.length).toEqual(data.users.length);
+		expect((r as any).data.users.length).toEqual(data.users.length);
 		// no user should have any posts returned
 		expect(
-			(r as any).data.findManyUsers
+			(r as any).data.users
 				.map((u: any) => u.posts)
 				.filter((u: any) => u.length > 0).length,
 		).toEqual(1);

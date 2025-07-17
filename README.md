@@ -82,7 +82,7 @@ As you might have noticed, abilities resolve around drizzle query filters. This 
 ```ts
 schemaBuilder.queryFields((t) => {
  return {
-  findManyPosts: t.drizzleField({
+  posts: t.drizzleField({
    type: [PostRef],
    resolve: (query, root, args, ctx, info) => {
     return db.query.posts.findMany(
@@ -136,7 +136,7 @@ const WhereArgs = arg({
 
 schemaBuilder.queryFields((t) => {
  return {
-  findManyPostsFiltered: t.drizzleField({
+  postsFiltered: t.drizzleField({
    type: [PostRef],
    args: {
     // here we set our generated type as type for the where argument
@@ -169,7 +169,7 @@ const UserRef = object({
 ```
 
 ### query
-The `query` helper is even simpler. It implements a `findFirst` and `findMany` query for the specified entity.
+The `query` helper is even simpler. It implements a `findFirst` and `findMany` query for the specified entity named as singular and plural of the entities name.
 ```ts
 query({
  table: "users",

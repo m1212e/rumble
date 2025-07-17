@@ -24,7 +24,7 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findFirstUsers {
+          user(id: "3e0bb3d0-2074-4a1e-6263-d13dd10cb0cf") {
             id
             firstName
           }
@@ -34,7 +34,7 @@ describe("test rumble abilities", async () => {
 
 		expect(r).toEqual({
 			data: {
-				findFirstUsers: {
+				user: {
 					id: data.users[0].id,
 					firstName: data.users[0].firstName,
 				},
@@ -47,7 +47,7 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findFirstPosts {
+          post(id: "ee25b2d9-72ce-4839-3c39-c9de183c81ec") {
             id
           }
         }
@@ -55,7 +55,7 @@ describe("test rumble abilities", async () => {
 		});
 
 		expect((r as any).errors.length).toEqual(1);
-		expect((r as any).errors.at(0).path).toEqual(["findFirstPosts"]);
+		expect((r as any).errors.at(0).path).toEqual(["post"]);
 	});
 
 	test("omit indirect read with helper implementation", async () => {
@@ -65,7 +65,7 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyUsers {
+          users {
             id
             firstName
             posts {
@@ -77,11 +77,10 @@ describe("test rumble abilities", async () => {
 		});
 
 		// all users should be readable
-		expect((r as any).data.findManyUsers.length).toEqual(9);
+		expect((r as any).data.users.length).toEqual(9);
 		// no user should have any posts returned
 		expect(
-			(r as any).data.findManyUsers.filter((u: any) => u.posts.length > 0)
-				.length,
+			(r as any).data.users.filter((u: any) => u.posts.length > 0).length,
 		).toEqual(0);
 	});
 
@@ -93,7 +92,7 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyUsers {
+          users {
             id
             firstName
             posts {
@@ -104,10 +103,9 @@ describe("test rumble abilities", async () => {
       `),
 		});
 
-		expect((r as any).data.findManyUsers.length).toEqual(9);
+		expect((r as any).data.users.length).toEqual(9);
 		expect(
-			(r as any).data.findManyUsers.filter((u: any) => u.posts.length === 1)
-				.length,
+			(r as any).data.users.filter((u: any) => u.posts.length === 1).length,
 		).toEqual(2);
 	});
 
@@ -118,7 +116,7 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyComments {
+          comments {
             id
             author {
               id
@@ -129,11 +127,7 @@ describe("test rumble abilities", async () => {
 		});
 
 		expect((r as any).errors.length).toEqual(1);
-		expect((r as any).errors.at(0).path).toEqual([
-			"findManyComments",
-			0,
-			"author",
-		]);
+		expect((r as any).errors.at(0).path).toEqual(["comments", 0, "author"]);
 	});
 
 	test("deny indirect read with helper implementation on one to one with error on nullable relationship", async () => {
@@ -143,7 +137,7 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyComments {
+          comments {
             id
             post {
               id
@@ -154,11 +148,7 @@ describe("test rumble abilities", async () => {
 		});
 
 		expect((r as any).errors.length).toEqual(1);
-		expect((r as any).errors.at(0).path).toEqual([
-			"findManyComments",
-			0,
-			"post",
-		]);
+		expect((r as any).errors.at(0).path).toEqual(["comments", 0, "post"]);
 	});
 
 	test("allow indirect read with helper implementation on one to one", async () => {
@@ -169,7 +159,7 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyComments {
+          comments {
             id
             author {
               id
@@ -179,9 +169,9 @@ describe("test rumble abilities", async () => {
       `),
 		});
 
-		expect((r as any).data.findManyComments.length).toEqual(9);
+		expect((r as any).data.comments.length).toEqual(9);
 		expect(
-			(r as any).data.findManyComments.filter((u: any) => u.author).length,
+			(r as any).data.comments.filter((u: any) => u.author).length,
 		).toEqual(9);
 	});
 
@@ -196,14 +186,14 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyComments {
+          comments {
             id
           }
         }
       `),
 		});
 
-		expect((r as any).data.findManyComments.length).toEqual(9);
+		expect((r as any).data.comments.length).toEqual(9);
 	});
 
 	test("deny with dynamic specific condition", async () => {
@@ -222,14 +212,14 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyComments {
+          comments {
             id
           }
         }
       `),
 		});
 
-		expect((r as any).data.findManyComments.length).toEqual(0);
+		expect((r as any).data.comments.length).toEqual(0);
 	});
 
 	test("deny read with dynamic specific condition AND static condition with diverging permissions", async () => {
@@ -242,14 +232,14 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyComments {
+          comments {
             id
           }
         }
       `),
 		});
 
-		expect((r as any).data.findManyComments.length).toEqual(0);
+		expect((r as any).data.comments.length).toEqual(0);
 	});
 
 	test("allow read with dynamic specific wildcard condition", async () => {
@@ -261,14 +251,14 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyComments {
+          comments {
             id
           }
         }
       `),
 		});
 
-		expect((r as any).data.findManyComments.length).toEqual(9);
+		expect((r as any).data.comments.length).toEqual(9);
 	});
 
 	test("allow read only with specific condition based on request context", async () => {
@@ -280,14 +270,14 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyComments {
+          comments {
             id
           }
         }
       `),
 		});
 
-		expect((r as any).data.findManyComments.length).toEqual(2);
+		expect((r as any).data.comments.length).toEqual(2);
 	});
 
 	test("limit read amount with abilities", async () => {
@@ -299,14 +289,14 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyComments {
+          comments {
             id
           }
         }
       `),
 		});
 
-		expect((r as any).data.findManyComments.length).toEqual(3);
+		expect((r as any).data.comments.length).toEqual(3);
 	});
 
 	test("limit read amount to max value with abilities", async () => {
@@ -322,14 +312,14 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyComments {
+          comments {
             id
           }
         }
       `),
 		});
 
-		expect((r as any).data.findManyComments.length).toEqual(4);
+		expect((r as any).data.comments.length).toEqual(4);
 	});
 
 	test("error simple read with helper implementation with column restrictions", async () => {
@@ -345,7 +335,7 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findFirstUsers {
+          user(id: "3e0bb3d0-2074-4a1e-6263-d13dd10cb0cf") {
             id
             firstName
             email
@@ -355,7 +345,7 @@ describe("test rumble abilities", async () => {
 		});
 
 		expect((r as any).errors.length).toEqual(1);
-		expect((r as any).errors.at(0).path).toEqual(["findFirstUsers", "id"]);
+		expect((r as any).errors.at(0).path).toEqual(["user", "id"]);
 	});
 
 	test("deny read with stacked wildcard permission", async () => {
@@ -372,14 +362,14 @@ describe("test rumble abilities", async () => {
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
-          findManyComments {
+          comments {
             id
           }
         }
       `),
 		});
 
-		expect((r as any).data.findManyComments.length).toEqual(0);
+		expect((r as any).data.comments.length).toEqual(0);
 	});
 
 	//TODO

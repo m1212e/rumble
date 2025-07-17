@@ -169,7 +169,7 @@ const UserRef = object({
 
 // schemaBuilder.queryFields((t) => {
 // 	return {
-// 		findManyPosts: t.drizzleField({
+// 		posts: t.drizzleField({
 // 			type: [PostRef],
 // 			resolve: (query, root, args, ctx, info) => {
 // 				return db.query.posts.findMany(
@@ -203,7 +203,7 @@ const PostWhere = whereArg({
 // now we can use this in a query
 schemaBuilder.queryFields((t) => {
 	return {
-		findManyPostsFiltered: t.drizzleField({
+		postsFiltered: t.drizzleField({
 			type: [PostRef],
 			args: {
 				// here we set our generated type as type for the where argument
