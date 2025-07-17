@@ -1,6 +1,10 @@
+import { plural, singular } from "pluralize";
 import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { assertFindFirstExists } from "./helpers/helper";
-import type { TableIdentifierTSName } from "./helpers/tableHelpers";
+import {
+	type TableIdentifierTSName,
+	tableHelper,
+} from "./helpers/tableHelpers";
 import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
@@ -85,12 +89,17 @@ export const createQueryImplementer = <
 		const OrderArg = orderArgImplementer({
 			table: table,
 		});
+		const tableSchema = tableHelper({
+			db,
+			tsName: table!,
+		});
+		const primaryKeyField = Object.values(tableSchema.primaryColumns)[0];
 
 		const { registerOnInstance } = makePubSubInstance({ table: table });
 
 		return schemaBuilder.queryFields((t) => {
 			return {
-				[`findMany${capitalizeFirstLetter(table.toString())}`]: t.drizzleField({
+				[singular(table.toString())]: t.drizzleField({
 					type: [table],
 					nullable: false,
 					smartSubscription: true,
@@ -143,39 +152,33 @@ export const createQueryImplementer = <
 						return db.query[table as any].findMany(queryInstance);
 					},
 				}),
-				[`findFirst${capitalizeFirstLetter(table.toString())}`]: t.drizzleField(
-					{
-						type: table,
-						nullable: false,
-						smartSubscription: true,
-						args: {
-							where: t.arg({ type: WhereArg, required: false }),
-						},
-						resolve: (query, root, args, ctx, info) => {
-							// transform null prototyped object
-							// biome-ignore lint/style/noParameterAssign: Its really not a problem here
-							args = JSON.parse(JSON.stringify(args));
-							const filter = ctx.abilities[table as any].filter(
-								readAction,
-								args.where
-									? {
-											inject: { where: args.where },
-										}
-									: undefined,
-							).query.single;
-
-							const queryInstance = query(filter as any);
-
-							if (filter.columns) {
-								queryInstance.columns = filter.columns;
-							}
-
-							return db.query[table as any]
-								.findFirst(queryInstance)
-								.then(assertFindFirstExists);
-						},
+				[plural(table.toString())]: t.drizzleField({
+					type: table,
+					nullable: false,
+					smartSubscription: true,
+					args: {
+						// where: t.arg({ type: WhereArg, required: false }),
+						id: t.arg.id({ required: true }),
 					},
-				),
+					resolve: (query, root, args, ctx, info) => {
+						// transform null prototyped object
+						args = JSON.parse(JSON.stringify(args));
+
+						const filter = ctx.abilities[table as any].filter(readAction, {
+							inject: { where: { [primaryKeyField.name]: args.id } },
+						}).query.single;
+
+						const queryInstance = query(filter as any);
+
+						if (filter.columns) {
+							queryInstance.columns = filter.columns;
+						}
+
+						return db.query[table as any]
+							.findFirst(queryInstance)
+							.then(assertFindFirstExists);
+					},
+				}),
 			};
 		});
 	};

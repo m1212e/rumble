@@ -17,9 +17,10 @@
 		"@graphql-tools/executor-http": "^2.0.3",
 		"@types/bun": "latest",
 		"@types/pg": "^8.15.4",
+		"@types/pluralize": "^0.0.33",
 		"drizzle-kit": "1.0.0-beta.1-c0277c0",
-		"drizzle-seed": "0.3.1-c0277c0",
 		"drizzle-orm": "1.0.0-beta.1-c0277c0",
+		"drizzle-seed": "0.3.1-c0277c0",
 		"lefthook": "^1.12.2",
 		"pg": "^8.16.3",
 		"tsup": "^8.5.0"
@@ -32,6 +33,7 @@
 		"@pothos/core": "^4.7.2",
 		"@pothos/plugin-drizzle": "^0.11.0",
 		"@pothos/plugin-smart-subscriptions": "^4.1.4",
+		"pluralize": "^8.0.0",
 		"graphql-scalars": "^1.24.2",
 		"graphql-yoga": "^5.15.1",
 		"sofa-api": "^0.18.8"
