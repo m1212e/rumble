@@ -32,6 +32,7 @@ await build({
 	external: [
 		...Object.keys(packagejson.dependencies),
 		...Object.keys(packagejson.peerDependencies),
+		...Object.keys(packagejson.devDependencies),
 	],
 });
 
