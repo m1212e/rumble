@@ -148,7 +148,7 @@ const UserRef = object({
 	table: "users",
 	// optionally specify the name of the object ("Post" in the above example)
 	refName: "User",
-	// optionally, we can extend this with some custom fields
+	// optionally, we can extend this with some custom fields (you can also overwrite existing fields in case you need to change default behavior)
 	adjust(t) {
 		return {
 			somethingElse: t.field({
@@ -167,23 +167,19 @@ const UserRef = object({
 
 */
 
-// schemaBuilder.queryFields((t) => {
-// 	return {
-// 		posts: t.drizzleField({
-// 			type: [PostRef],
-// 			resolve: (query, root, args, ctx, info) => {
-// 				return db.query.posts.findMany(
-// 					// here we again apply our filters based on the defined abilities
-// 					query(ctx.abilities.posts.filter("read").query.many),
-// 				);
-// 			},
-// 		}),
-// 	};
-// });
-
-query({
-	table: "posts",
-});
+ schemaBuilder.queryFields((t) => {
+ 	return {
+ 		posts: t.drizzleField({
+ 			type: [PostRef],
+ 			resolve: (query, root, args, ctx, info) => {
+ 				return db.query.posts.findMany(
+ 					// here we again apply our filters based on the defined abilities
+ 					query(ctx.abilities.posts.filter("read").query.many),
+ 				);
+ 			},
+ 		}),
+ 	};
+ });
 
 /*
 
@@ -199,6 +195,7 @@ const PostWhere = whereArg({
 	// for which table to implement this
 	table: "posts",
 });
+// there is also an orderArg which you can use to apply 'orderBy' just as you can do with 'where'
 
 // now we can use this in a query
 schemaBuilder.queryFields((t) => {
@@ -260,7 +257,7 @@ query({
 
 // OPTIONAL: If you want to use graphql subscriptions, you can use the pubsub helper
 // this makes notifying subscribers easier. The rumble helpers all support subscriptions
-// right out of the box, so all READ queries will automatically get notified if necessary
+// right out of the box, so all subscriptions will automatically get notified if necessary
 // the only thing you have to do is to call the pubsub helper with the table name
 // and embed the helper into your mutations
 const { updated: updatedUser, created: createdUser } = pubsub({
@@ -301,6 +298,7 @@ schemaBuilder.mutationFields((t) => {
 							}).query.single,
 						),
 					)
+					// this maps the db response to a graphql response
 					.then(assertFindFirstExists);
 			},
 		}),
@@ -361,3 +359,5 @@ const server = createServer(createYoga());
 server.listen(3000, () => {
 	console.info("Visit http://localhost:3000/graphql");
 });
+
+// if you also need a REST API built from your GraphQL API, you can use 'createSofa()' instead or in addition
