@@ -185,6 +185,6 @@ export function mapNullFieldsToUndefined<T extends object>(obj: T) {
 			value === null ? undefined : value,
 		]),
 	) as {
-		[K in keyof T]: T[K] extends null ? undefined : T[K];
+		[K in keyof T]: T[K] extends null ? undefined : Exclude<T[K], null>;
 	};
 }
