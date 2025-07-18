@@ -273,6 +273,9 @@ schemaBuilder.mutationFields((t) => {
 				newName: t.arg.string({ required: true }),
 			},
 			resolve: async (query, root, args, ctx, info) => {
+				// for update mutations, rumble exports the 'mapNullFieldsToUndefined' helper
+				// which might become handy in some situtations
+				
 				await db
 					.update(schema.users)
 					.set({
