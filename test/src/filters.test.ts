@@ -152,4 +152,31 @@ describe("test rumble abilities and filters", async () => {
 				.filter((u: any) => u.length > 0).length,
 		).toEqual(1);
 	});
+
+	test("ensure presence of non requested fields on entity in filter", async () => {
+		rumble.abilityBuilder.users.allow(["read"]);
+		rumble.abilityBuilder.users.filter("read").by(({ entities }) => {
+			for (const e of entities) {
+				expect(e).toHaveProperty("email");
+				expect(e).toHaveProperty("firstName");
+				expect(e).toHaveProperty("lastName");
+			}
+
+			return [];
+		});
+
+		const { executor, yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          users {
+            id
+          }
+        }
+      `),
+		});
+
+		// all users should be readable
+		expect((r as any).data.users.length).toEqual(0);
+	});
 });
