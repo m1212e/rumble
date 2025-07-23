@@ -32,12 +32,18 @@ export class ManualFiltersPlugin<
 	): GraphQLFieldResolver<unknown, Types["Context"], object> {
 		return async (parent, args, context, info) => {
 			//TODO: https://github.com/hayes/pothos/discussions/1431#discussioncomment-12974130
-			const filters: ApplyFiltersField<Types["Context"], any> = (
-				fieldConfig?.type as any
-			).type?.ref.currentConfig.pothosOptions[applyFiltersKey];
+			let filters: ApplyFiltersField<Types["Context"], any> | undefined;
+			const fieldType = fieldConfig?.type as any;
 
-			// if no filter should be applied, just continue
+			if (fieldType.kind === "List") {
+				filters =
+					fieldType.type?.ref.currentConfig.pothosOptions[applyFiltersKey];
+			} else if (fieldType.kind === "Object") {
+				filters = fieldType.ref.currentConfig.pothosOptions[applyFiltersKey];
+			}
+
 			if (!filters || !Array.isArray(filters) || filters.length === 0) {
+				// if no filter should be applied, just continue
 				return resolver(parent, args, context, info);
 			}
 

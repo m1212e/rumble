@@ -43,6 +43,27 @@ describe("test rumble abilities and filters", async () => {
 		});
 	});
 
+	test("filter out one on application level filters", async () => {
+		rumble.abilityBuilder.users.allow(["read"]);
+		rumble.abilityBuilder.users.filter("read").by(({ entities }) => {
+			return [];
+		});
+
+		const { executor, yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          user(id: "3e0bb3d0-2074-4a1e-6263-d13dd10cb0cf") {
+				id
+				firstName
+			  }
+        }
+      `),
+		});
+
+		expect((r as any).errors.length).toEqual(1);
+	});
+
 	test("filter out everything on application level filters", async () => {
 		rumble.abilityBuilder.users.allow(["read"]);
 		rumble.abilityBuilder.users.filter("read").by(({ entities }) => {
