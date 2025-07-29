@@ -5,8 +5,6 @@ rumble is a combined ability and graphql builder built around [drizzle](https://
 
 > Using rumble and reading these docs requires some basic knowledge about the above mentioned tools. If you feel stuck, please make sure to familiarize yourself with those first! Especially familiarity with pothos and its drizzle plugin are very helpful!
 
-> This is still in a very early stage and needs more testing. Please feel free to report everything you find/your feedback via the issues/discussion section of this repo!
-
 ## Getting started
 The following example is an excerpt from the example setup you can find [here](./example).
 
