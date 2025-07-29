@@ -153,7 +153,11 @@ const UserRef = object({
 		return {
 			somethingElse: t.field({
 				type: "String",
-				resolve: (parent, args, context, info) => "something else",
+				args: {
+					amount: t.arg.int({ required: true }),
+				},
+				resolve: (parent, args, context, info) =>
+					`Hello ${parent.name}, you have provided the number: ${args.amount}`,
 			}),
 		};
 	},

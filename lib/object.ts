@@ -243,6 +243,8 @@ export const createObjectImplementer = <
 				// this is mapped to the ref which later can be used to
 				// reference these parameters while iterating over the fields
 				// and checking against the userAdjustments object
+				// this is necessary to e.g. merge nullability info from the database schema
+				// or register subscriptions on relations
 				const configMap = new Map<
 					any,
 					{
@@ -258,25 +260,42 @@ export const createObjectImplementer = <
 					adjust?.(
 						new Proxy(t, {
 							get: (target, prop) => {
-								if (typeof (target as any)[prop] === "function") {
-									return (...params: any[]) => {
-										const ref = (target as any)[prop](...params);
-										const configObject = params.find(isProbablyAConfigObject);
-										if (!configObject)
-											throw new RumbleError(
-												"Expected config object to be passed to adjust field",
-											);
-
-										configMap.set(ref, {
-											params,
-											creatorFunction: (target as any)[prop],
-											configObject,
-										});
-										return ref;
-									};
+								if (
+									// we only care for field/relation functions
+									typeof (target as any)[prop] !== "function" ||
+									prop === "arg" ||
+									prop === "builder" ||
+									prop === "graphqlKind" ||
+									prop === "kind" ||
+									prop === "listRef" ||
+									prop === "table" ||
+									prop === "typename" ||
+									prop === "variant" ||
+									prop.toString().startsWith("boolean") ||
+									prop.toString().startsWith("float") ||
+									prop.toString().startsWith("id") ||
+									prop.toString().startsWith("int") ||
+									prop.toString().startsWith("string") ||
+									prop.toString().startsWith("expose")
+								) {
+									return (target as any)[prop];
 								}
 
-								return (target as any)[prop];
+								return (...params: any[]) => {
+									const ref = (target as any)[prop](...params);
+									const configObject = params.find(isProbablyAConfigObject);
+									if (!configObject)
+										throw new RumbleError(
+											"Expected config object to be passed to adjust field",
+										);
+
+									configMap.set(ref, {
+										params,
+										creatorFunction: (target as any)[prop],
+										configObject,
+									});
+									return ref;
+								};
 							},
 						}) as any,
 					) ?? {};

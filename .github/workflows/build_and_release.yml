@@ -19,16 +19,50 @@ jobs:
         run: bun run build
         env:
           REF_NAME: ${{ github.ref_name }}
-      - name: Set tag
-        id: tag
-        run: |
-          if [[ "${{ github.event.release.prerelease }}" == "true"  ]]; then
-            echo "tag=dev" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event.release.prerelease }}" == "false" ]]; then
-            echo "tag=latest" >> $GITHUB_OUTPUT
-          fi
-      - uses: JS-DevTools/npm-publish@v3
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.NPM_TOKEN }}
-          package: ./out/package.json
-          tag: ${{ steps.tag.outputs.tag }}
+          name: client-build-output
+          path: out
+
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        registry-url: ["https://npm.pkg.github.com", "https://npmjs.com"]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+      id-token: write
+    needs: [test_and_build]
+    steps:
+    - name: Download build output
+      uses: actions/download-artifact@v4
+      with:
+        name: client-build-output
+        path: .
+    - name: Set tag
+      id: tag
+      run: |
+        if [[ "${{ github.event.release.prerelease }}" == "true"  ]]; then
+          echo "tag=dev" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.event.release.prerelease }}" == "false" ]]; then
+          echo "tag=latest" >> $GITHUB_OUTPUT
+        fi
+    - name: Set registry token
+      id: token
+      run: |
+        if [[ "${{ matrix.registry-url }}" == "https://npm.pkg.github.com" ]]; then
+          echo "token=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_OUTPUT
+        fi
+
+        if [[ "${{ matrix.registry-url }}" == "https://npmjs.com" ]]; then
+          echo "token=${{ secrets.NPM_TOKEN }}" >> $GITHUB_OUTPUT
+        fi
+    - uses: JS-DevTools/npm-publish@v3
+      with:
+        package: ./out/package.json
+        token: ${{ steps.token.outputs.token }} 
+        registry: ${{ matrix.registry-url }}
+        tag: ${{ steps.tag.outputs.tag }}
