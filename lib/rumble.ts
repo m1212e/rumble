@@ -157,6 +157,12 @@ export const rumble = <
 	const createYoga = (
 		args?:
 			| (Omit<YogaServerOptions<RequestEvent, any>, "schema" | "context"> & {
+					/**
+					 * Determines if the API should disclose various things about its structure.
+					 * Defaults to `process.env.NODE_ENV === "development"`.
+					 * If enabled, the api will allow introspection requests, provide the graphiql
+					 * explorer and will not apply the additional envelop armor plugin.
+					 */
 					enableApiDocs?: boolean;
 			  })
 			| undefined,

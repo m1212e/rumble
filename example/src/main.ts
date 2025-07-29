@@ -167,19 +167,19 @@ const UserRef = object({
 
 */
 
- schemaBuilder.queryFields((t) => {
- 	return {
- 		posts: t.drizzleField({
- 			type: [PostRef],
- 			resolve: (query, root, args, ctx, info) => {
- 				return db.query.posts.findMany(
- 					// here we again apply our filters based on the defined abilities
- 					query(ctx.abilities.posts.filter("read").query.many),
- 				);
- 			},
- 		}),
- 	};
- });
+schemaBuilder.queryFields((t) => {
+	return {
+		posts: t.drizzleField({
+			type: [PostRef],
+			resolve: (query, root, args, ctx, info) => {
+				return db.query.posts.findMany(
+					// here we again apply our filters based on the defined abilities
+					query(ctx.abilities.posts.filter("read").query.many),
+				);
+			},
+		}),
+	};
+});
 
 /*
 
@@ -275,7 +275,7 @@ schemaBuilder.mutationFields((t) => {
 			resolve: async (query, root, args, ctx, info) => {
 				// for update mutations, rumble exports the 'mapNullFieldsToUndefined' helper
 				// which might become handy in some situtations
-				
+
 				await db
 					.update(schema.users)
 					.set({
@@ -291,18 +291,20 @@ schemaBuilder.mutationFields((t) => {
 				// this notifies all subscribers that the user has been updated
 				updatedUser(args.userId);
 
-				return db.query.users
-					.findFirst(
-						query(
-							ctx.abilities.users.filter("read", {
-								inject: {
-									where: { id: args.userId },
-								},
-							}).query.single,
-						),
-					)
-					// this maps the db response to a graphql response
-					.then(assertFindFirstExists);
+				return (
+					db.query.users
+						.findFirst(
+							query(
+								ctx.abilities.users.filter("read", {
+									inject: {
+										where: { id: args.userId },
+									},
+								}).query.single,
+							),
+						)
+						// this maps the db response to a graphql response
+						.then(assertFindFirstExists)
+				);
 			},
 		}),
 	};
