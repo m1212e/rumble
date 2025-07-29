@@ -1,3 +1,5 @@
+import { EnvelopArmorPlugin } from "@escape.tech/graphql-armor";
+import { useDisableIntrospection } from "@graphql-yoga/plugin-disable-introspection";
 import { merge } from "es-toolkit";
 import {
 	createYoga as nativeCreateYoga,
@@ -154,14 +156,27 @@ export const rumble = <
 
 	const createYoga = (
 		args?:
-			| Omit<YogaServerOptions<RequestEvent, any>, "schema" | "context">
+			| (Omit<YogaServerOptions<RequestEvent, any>, "schema" | "context"> & {
+					enableApiDocs?: boolean;
+			  })
 			| undefined,
-	) =>
-		nativeCreateYoga<RequestEvent>({
+	) => {
+		const enableApiDocs =
+			args?.enableApiDocs ?? process?.env?.NODE_ENV === "development" ?? false;
+
+		return nativeCreateYoga<RequestEvent>({
 			...args,
+			graphiql: enableApiDocs,
+			plugins: [
+				...(args?.plugins ?? []),
+				...(enableApiDocs
+					? []
+					: [useDisableIntrospection(), EnvelopArmorPlugin()]),
+			].filter(Boolean),
 			schema: builtSchema(),
 			context,
 		});
+	};
 
 	const createSofa = (
 		args: Omit<Parameters<typeof useSofa>[0], "schema" | "context">,
