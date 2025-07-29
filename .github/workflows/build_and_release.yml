@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        registry-url: ["https://npm.pkg.github.com", "https://npmjs.com"]
+        registry-url: ["https://npm.pkg.github.com", "https://registry.npmjs.org"]
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -57,7 +57,7 @@ jobs:
           echo "token=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_OUTPUT
         fi
 
-        if [[ "${{ matrix.registry-url }}" == "https://npmjs.com" ]]; then
+        if [[ "${{ matrix.registry-url }}" == "https://registry.npmjs.org" ]]; then
           echo "token=${{ secrets.NPM_TOKEN }}" >> $GITHUB_OUTPUT
         fi
     - uses: JS-DevTools/npm-publish@v3
