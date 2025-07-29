@@ -1,10 +1,7 @@
 import type { Table } from "drizzle-orm";
 import { toCamelCase } from "drizzle-orm/casing";
-import { type EnumImplementerType, isEnumSchema } from "./enum";
-import { capitalizeFirstLetter } from "./helpers/capitalize";
+import { capitalize } from "es-toolkit";
 import { lazy } from "./helpers/lazy";
-import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
-import type { PossibleSQLType } from "./helpers/sqlTypes/types";
 import {
 	type TableIdentifierTSName,
 	tableHelper,
@@ -34,7 +31,7 @@ export type OrderArgImplementerType<
 >;
 
 const makeDefaultName = (dbName: string) =>
-	`${capitalizeFirstLetter(toCamelCase(dbName.toString()))}OrderInputArgument`;
+	`${capitalize(toCamelCase(dbName.toString()))}OrderInputArgument`;
 
 export const createOrderArgImplementer = <
 	UserContext extends Record<string, any>,

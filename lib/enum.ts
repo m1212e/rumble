@@ -1,7 +1,6 @@
 import { toCamelCase } from "drizzle-orm/casing";
 import { type PgEnum, PgEnumColumn } from "drizzle-orm/pg-core";
-import { capitalizeFirstLetter } from "./helpers/capitalize";
-import { tableHelper } from "./helpers/tableHelpers";
+import { capitalize } from "es-toolkit";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
@@ -132,7 +131,7 @@ Please ensure that you use the enum at least once as a column of a table!`);
 		}
 
 		const graphqlImplementationName =
-			refName ?? `${capitalizeFirstLetter(toCamelCase(enumSchemaName))}Enum`;
+			refName ?? `${capitalize(toCamelCase(enumSchemaName))}Enum`;
 
 		let ret: ReturnType<typeof implement> | undefined = referenceStorage.get(
 			graphqlImplementationName,

@@ -1,9 +1,9 @@
-import type { FieldMap, SchemaTypes } from "@pothos/core";
+import type { FieldMap } from "@pothos/core";
 import type { DrizzleObjectFieldBuilder } from "@pothos/plugin-drizzle";
 import { One, type Table } from "drizzle-orm";
+import { capitalize } from "es-toolkit";
 import type { AbilityBuilderType } from "./abilityBuilder";
 import { type EnumImplementerType, isEnumSchema } from "./enum";
-import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
 import {
@@ -162,7 +162,7 @@ export const createObjectImplementer = <
 		const { registerOnInstance } = makePubSubInstance({ table: table });
 
 		return schemaBuilder.drizzleObject(table, {
-			name: refName ?? capitalizeFirstLetter(table.toString()),
+			name: refName ?? capitalize(table.toString()),
 			subscribe: (subscriptions, element, context) => {
 				if (!primaryKey) return;
 				const primaryKeyValue = (element as any)[primaryKey.name];
