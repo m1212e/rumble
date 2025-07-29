@@ -1,3 +1,4 @@
+import { merge } from "es-toolkit";
 import {
 	createYoga as nativeCreateYoga,
 	type YogaServerOptions,
@@ -166,10 +167,7 @@ export const rumble = <
 		args: Omit<Parameters<typeof useSofa>[0], "schema" | "context">,
 	) => {
 		if (args.openAPI) {
-			args.openAPI = {
-				...sofaOpenAPIWebhookDocs,
-				...args.openAPI,
-			};
+			merge(args.openAPI, sofaOpenAPIWebhookDocs);
 		}
 		return useSofa({
 			...args,
