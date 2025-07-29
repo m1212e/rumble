@@ -62,7 +62,6 @@ jobs:
         fi
     - uses: JS-DevTools/npm-publish@v3
       with:
-        package: ./out/package.json
         token: ${{ steps.token.outputs.token }} 
         registry: ${{ matrix.registry-url }}
         tag: ${{ steps.tag.outputs.tag }}
