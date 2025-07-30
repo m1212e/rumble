@@ -183,7 +183,7 @@ export const createObjectImplementer = <
 				});
 			},
 			applyFilters:
-				abilityBuilder?.registeredFilters?.[table as any]?.[readAction],
+				abilityBuilder?.z_registeredFilters?.[table as any]?.[readAction],
 			fields: (t) => {
 				const columns = tableSchema.columns;
 				const mapSQLTypeStringToExposedPothosType = <

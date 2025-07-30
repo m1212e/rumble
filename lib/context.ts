@@ -64,7 +64,7 @@ export const createContextFunction = <
 			: ({} as UserContext);
 		return {
 			...userContext,
-			abilities: abilityBuilder.buildWithUserContext(userContext),
+			abilities: abilityBuilder.z_buildWithUserContext(userContext),
 		};
 	};
 };
