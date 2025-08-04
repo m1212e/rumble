@@ -211,12 +211,21 @@ export const createAbilityBuilder = <
 
 	return {
 		...registrators,
-		/** @internal */
-		registeredQueryFilters: registeredQueryFilters,
-		/** @internal */
-		registeredFilters,
-		/** @internal */
-		buildWithUserContext: (userContext: UserContext) => {
+		/**
+		 * @internal
+		 * @ignore
+		 */
+		z_registeredQueryFilters: registeredQueryFilters,
+		/**
+		 * @internal
+		 * @ignore
+		 */
+		z_registeredFilters: registeredFilters,
+		/**
+		 * @internal
+		 * @ignore
+		 */
+		z_buildWithUserContext: (userContext: UserContext) => {
 			const builder: {
 				[key in TableName<DB>]: ReturnType<typeof createEntityObject<key>>;
 			} = {} as any;
@@ -324,7 +333,6 @@ export const createAbilityBuilder = <
 								// do some funky stuff with query resolve typing otherwise
 							});
 
-							// TODO: strongly type this based on table
 							const r = {
 								/**
 								 * Query filters for the drizzle query API.
@@ -344,7 +352,14 @@ export const createAbilityBuilder = <
 											return where();
 										},
 										columns: columns(),
-									},
+									} as Pick<
+										NonNullable<
+											NonNullable<
+												Parameters<DB["query"][TableNameT]["findFirst"]>[0]
+											>
+										>,
+										"columns" | "where"
+									>,
 									/**
 									 * For find many calls
 									 */
@@ -356,7 +371,14 @@ export const createAbilityBuilder = <
 										get limit() {
 											return limit();
 										},
-									},
+									} as Pick<
+										NonNullable<
+											NonNullable<
+												Parameters<DB["query"][TableNameT]["findMany"]>[0]
+											>
+										>,
+										"columns" | "where" | "limit"
+									>,
 								},
 								/**
 								 * Query filters for the drizzle SQL API as used in e.g. updates.
@@ -392,11 +414,8 @@ export const createAbilityBuilder = <
 							// as: don't return any columns
 							// therefore we need to delete it
 							if (!columns()) {
-								// biome-ignore lint/performance/noDelete: we need this to not exist
 								delete r.sql.columns;
-								// biome-ignore lint/performance/noDelete: we need this to not exist
 								delete r.query.many.columns;
-								// biome-ignore lint/performance/noDelete: we need this to not exist
 								delete r.query.single.columns;
 							}
 
@@ -533,7 +552,6 @@ export const createAbilityBuilder = <
 								? { OR: accumulatedWhereConditions }
 								: undefined;
 
-						//TODO make this actually typesafe
 						return transformToResponse({
 							where: combinedWhere,
 							columns: combinedAllowedColumns,

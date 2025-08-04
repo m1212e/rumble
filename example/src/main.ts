@@ -126,7 +126,7 @@ abilityBuilder.posts.filter("read").by(({ context, entities }) => {
 const PostRef = schemaBuilder.drizzleObject("posts", {
 	name: "Post",
 	// this is how you can apply application level filter in manual object definitions
-	applyFilters: abilityBuilder.registeredFilters.posts.read,
+	applyFilters: abilityBuilder.z_registeredFilters.posts.read,
 	fields: (t) => ({
 		id: t.exposeInt("id"),
 		content: t.exposeString("content", { nullable: false }),
@@ -156,7 +156,11 @@ const UserRef = object({
 		return {
 			somethingElse: t.field({
 				type: "String",
-				resolve: (parent, args, context, info) => "something else",
+				args: {
+					amount: t.arg.int({ required: true }),
+				},
+				resolve: (parent, args, context, info) =>
+					`Hello ${parent.name}, you have provided the number: ${args.amount}`,
 			}),
 		};
 	},

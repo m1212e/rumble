@@ -1,3 +1,6 @@
+import { EnvelopArmorPlugin } from "@escape.tech/graphql-armor";
+import { useDisableIntrospection } from "@graphql-yoga/plugin-disable-introspection";
+import { merge } from "es-toolkit";
 import {
 	createYoga as nativeCreateYoga,
 	type YogaServerOptions,
@@ -158,23 +161,39 @@ export const rumble = <
 
 	const createYoga = (
 		args?:
-			| Omit<YogaServerOptions<RequestEvent, any>, "schema" | "context">
+			| (Omit<YogaServerOptions<RequestEvent, any>, "schema" | "context"> & {
+					/**
+					 * Determines if the API should disclose various things about its structure.
+					 * Defaults to `process.env.NODE_ENV === "development"`.
+					 * If enabled, the api will allow introspection requests, provide the graphiql
+					 * explorer and will not apply the additional envelop armor plugin.
+					 */
+					enableApiDocs?: boolean;
+			  })
 			| undefined,
-	) =>
-		nativeCreateYoga<RequestEvent>({
+	) => {
+		const enableApiDocs =
+			args?.enableApiDocs ?? process?.env?.NODE_ENV === "development" ?? false;
+
+		return nativeCreateYoga<RequestEvent>({
 			...args,
+			graphiql: enableApiDocs,
+			plugins: [
+				...(args?.plugins ?? []),
+				...(enableApiDocs
+					? []
+					: [useDisableIntrospection(), EnvelopArmorPlugin()]),
+			].filter(Boolean),
 			schema: builtSchema(),
 			context,
 		});
+	};
 
 	const createSofa = (
 		args: Omit<Parameters<typeof useSofa>[0], "schema" | "context">,
 	) => {
 		if (args.openAPI) {
-			args.openAPI = {
-				...sofaOpenAPIWebhookDocs,
-				...args.openAPI,
-			};
+			merge(args.openAPI, sofaOpenAPIWebhookDocs);
 		}
 		return useSofa({
 			...args,

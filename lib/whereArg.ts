@@ -1,7 +1,7 @@
 import type { Table } from "drizzle-orm";
 import { toCamelCase } from "drizzle-orm/casing";
+import { capitalize } from "es-toolkit";
 import { type EnumImplementerType, isEnumSchema } from "./enum";
-import { capitalizeFirstLetter } from "./helpers/capitalize";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
 import {
@@ -35,7 +35,7 @@ export type WhereArgImplementerType<
 >;
 
 const makeDefaultName = (dbName: string) =>
-	`${capitalizeFirstLetter(toCamelCase(dbName.toString()))}WhereInputArgument`;
+	`${capitalize(toCamelCase(dbName.toString()))}WhereInputArgument`;
 
 export const createWhereArgImplementer = <
 	UserContext extends Record<string, any>,
