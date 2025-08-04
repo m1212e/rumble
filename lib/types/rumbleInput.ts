@@ -50,4 +50,16 @@ export type RumbleInput<
 	 * @default 100
 	 */
 	defaultLimit?: number | undefined | null;
+	/**
+	 * rumble supports fuzzy search for the query helpers. This enables the users of your API to search for entities via fuzzy search inputs.
+	 * This currently only is supported by postgres databases and will fails if enabled on other dialects.
+	 */
+	search?:
+		| {
+				/**
+				 * Whether search is enabled
+				 */
+				enabled?: boolean;
+		  }
+		| undefined;
 };

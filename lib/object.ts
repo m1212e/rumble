@@ -390,7 +390,6 @@ export const createObjectImplementer = <
 							nullable,
 							query: (args: any, ctx: any) => {
 								// transform null prototyped object
-								// biome-ignore lint/style/noParameterAssign: Its really not a problem here
 								args = JSON.parse(JSON.stringify(args));
 								const filter = ctx.abilities[relationSchema.tsName].filter(
 									readAction,

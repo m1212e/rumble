@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { plural, singular } from "pluralize";
 import { assertFindFirstExists } from "./helpers/helper";
 import {
@@ -53,6 +54,7 @@ export const createQueryImplementer = <
 >({
 	db,
 	schemaBuilder,
+	search,
 	whereArgImplementer,
 	orderArgImplementer,
 	makePubSubInstance,
@@ -117,11 +119,30 @@ export const createQueryImplementer = <
 						orderBy: t.arg({ type: OrderArg, required: false }),
 						limit: t.arg.int({ required: false }),
 						offset: t.arg.int({ required: false }),
+						search: t.arg.string({ required: false }),
 					},
 					resolve: (query, root, args, ctx, info) => {
 						// transform null prototyped object
-						// biome-ignore lint/style/noParameterAssign: Its really not a problem here
 						args = JSON.parse(JSON.stringify(args));
+
+						//     AND (similarity(name, ${query.search}) > 0.1 OR similarity(description, ${query.search}) > 0.1)
+						//     ORDER BY GREATEST(similarity(name, ${query.search}), similarity(description, ${query.search})) DESC
+
+						// levenshtein_less_equal('extensive', 'exhaustive', 4)
+
+						if (args.search) {
+							const searchSQL = sql.empty();
+							// sql`levenshtein_less_equal(${table}, 'exhaustive', 8)`
+							args.where = {
+								AND: [
+									args.where,
+									{
+										RAW: searchSQL,
+									},
+								],
+							};
+						}
+
 						const filter = ctx.abilities[table as any].filter(
 							listAction,
 							args.where || args.limit || args.offset
