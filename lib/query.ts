@@ -1,4 +1,6 @@
 import { sql } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
+import { clone, cloneDeep } from "es-toolkit";
 import { plural, singular } from "pluralize";
 import { assertFindFirstExists } from "./helpers/helper";
 import {
@@ -99,6 +101,18 @@ export const createQueryImplementer = <
 		const { registerOnInstance } = makePubSubInstance({ table: table });
 
 		return schemaBuilder.queryFields((t) => {
+			const manyArgs = {
+				where: t.arg({ type: WhereArg, required: false }),
+				orderBy: t.arg({ type: OrderArg, required: false }),
+				limit: t.arg.int({ required: false }),
+				offset: t.arg.int({ required: false }),
+				search: t.arg.string({ required: false }),
+			};
+
+			if (!search?.enabled) {
+				delete (manyArgs as any).search;
+			}
+
 			return {
 				[plural(table.toString())]: t.drizzleField({
 					type: [table],
@@ -114,32 +128,48 @@ export const createQueryImplementer = <
 							action: "removed",
 						});
 					},
-					args: {
-						where: t.arg({ type: WhereArg, required: false }),
-						orderBy: t.arg({ type: OrderArg, required: false }),
-						limit: t.arg.int({ required: false }),
-						offset: t.arg.int({ required: false }),
-						search: t.arg.string({ required: false }),
-					},
+					args: manyArgs,
 					resolve: (query, root, args, ctx, info) => {
 						// transform null prototyped object
 						args = JSON.parse(JSON.stringify(args));
 
-						//     AND (similarity(name, ${query.search}) > 0.1 OR similarity(description, ${query.search}) > 0.1)
-						//     ORDER BY GREATEST(similarity(name, ${query.search}), similarity(description, ${query.search})) DESC
+						// TODO: in general, several of the filter methods should be more
+						// restrictive in case of explicitly allowed columns
+						// search, order and filter should be restricted to allowed cols
+						// and should completely ignore other fields since one might be ably
+						// to narrow down and guess the actual values behind forbidden columns by
+						// using the provided args. This way one could guess, e.g. secrets which are forbidden by
+						// the column abilitiy settings but will be respected in searches, etc.
+						if (search?.enabled && args.search && args.search.length > 0) {
+							const originalOrderBy = cloneDeep(args.orderBy);
+							(args as any).orderBy = (table) => {
+								const argsOrderBySQL = sql.join(
+									Object.entries(originalOrderBy ?? {}).map(([key, value]) => {
+										// value is "asc" or "desc"
+										if (value === "asc") {
+											return sql`${table[key]} ASC`;
+										} else if (value === "desc") {
+											return sql`${table[key]} DESC`;
+										} else {
+											throw new Error(`Invalid value ${value} for orderBy`);
+										}
+									}),
+									sql.raw(", "),
+								);
 
-						// levenshtein_less_equal('extensive', 'exhaustive', 4)
+								// GREATEST(similarity(name, ${query.search}), similarity(description, ${query.search})) DESC
+								const searchSQL = sql`GREATEST(${sql.join(
+									Object.entries(tableSchema.columns).map(([key, value]) => {
+										return sql`similarity(${table[key]}::TEXT, ${args.search})`;
+									}),
+									sql.raw(", "),
+								)}) DESC`;
 
-						if (args.search) {
-							const searchSQL = sql.empty();
-							// sql`levenshtein_less_equal(${table}, 'exhaustive', 8)`
-							args.where = {
-								AND: [
-									args.where,
-									{
-										RAW: searchSQL,
-									},
-								],
+								const ret = originalOrderBy
+									? sql.join([argsOrderBySQL, searchSQL], sql.raw(", "))
+									: searchSQL;
+
+								return ret;
 							};
 						}
 

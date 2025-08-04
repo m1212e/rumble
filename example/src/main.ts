@@ -55,6 +55,7 @@ const {
 	},
 	search: {
 		enabled: true,
+		levenshteinThreshold: 2,
 	},
 });
 

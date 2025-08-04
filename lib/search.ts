@@ -13,9 +13,7 @@ export async function initSearchIfApplicable<
 		return;
 	}
 
-	console.info("Initializing fuzzystrmatch extension for database search...");
-	await db.execute(sql`CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;`);
-	console.info("fuzzystrmatch initialized successfully!");
+	console.info("Initializing pg_trgm extension for database search...");
+	await db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
+	console.info("pg_trgm initialized successfully!");
 }
-
-// SELECT levenshtein_less_equal('extensive', 'exhaustive', 4);
