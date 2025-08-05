@@ -16,6 +16,7 @@ import { createOrderArgImplementer } from "./orderArg";
 import { createPubSubInstance } from "./pubsub";
 import { createQueryImplementer } from "./query";
 import { createSchemaBuilder } from "./schemaBuilder";
+import { initSearchIfApplicable } from "./search";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import type {
 	CustomRumblePothosConfig,
@@ -39,6 +40,10 @@ export const rumble = <
 
 	if (rumbleInput.defaultLimit === undefined) {
 		rumbleInput.defaultLimit = 100;
+	}
+
+	if (rumbleInput.search?.enabled) {
+		initSearchIfApplicable(rumbleInput.db);
 	}
 
 	const abilityBuilder = createAbilityBuilder<

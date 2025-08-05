@@ -7,6 +7,7 @@ import {
 import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
+import { adjustQueryForSearch } from "./search";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import type {
 	CustomRumblePothosConfig,
@@ -53,6 +54,7 @@ export const createQueryImplementer = <
 >({
 	db,
 	schemaBuilder,
+	search,
 	whereArgImplementer,
 	orderArgImplementer,
 	makePubSubInstance,
@@ -97,6 +99,18 @@ export const createQueryImplementer = <
 		const { registerOnInstance } = makePubSubInstance({ table: table });
 
 		return schemaBuilder.queryFields((t) => {
+			const manyArgs = {
+				where: t.arg({ type: WhereArg, required: false }),
+				orderBy: t.arg({ type: OrderArg, required: false }),
+				limit: t.arg.int({ required: false }),
+				offset: t.arg.int({ required: false }),
+				search: t.arg.string({ required: false }),
+			};
+
+			if (!search?.enabled) {
+				delete (manyArgs as any).search;
+			}
+
 			return {
 				[plural(table.toString())]: t.drizzleField({
 					type: [table],
@@ -112,16 +126,18 @@ export const createQueryImplementer = <
 							action: "removed",
 						});
 					},
-					args: {
-						where: t.arg({ type: WhereArg, required: false }),
-						orderBy: t.arg({ type: OrderArg, required: false }),
-						limit: t.arg.int({ required: false }),
-						offset: t.arg.int({ required: false }),
-					},
+					args: manyArgs,
 					resolve: (query, root, args, ctx, info) => {
 						// transform null prototyped object
-						// biome-ignore lint/style/noParameterAssign: Its really not a problem here
 						args = JSON.parse(JSON.stringify(args));
+
+						adjustQueryForSearch({
+							search,
+							args,
+							tableSchema,
+							abilities: ctx.abilities[table as any].filter(listAction),
+						});
+
 						const filter = ctx.abilities[table as any].filter(
 							listAction,
 							args.where || args.limit || args.offset

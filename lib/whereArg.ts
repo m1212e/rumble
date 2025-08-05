@@ -16,6 +16,14 @@ import type {
 	RumbleInput,
 } from "./types/rumbleInput";
 
+// TODO: in general, several of the filter methods should be more
+// restrictive in case of explicitly allowed columns
+// search, order and filter should be restricted to allowed cols
+// and should completely ignore other fields since one might be ably
+// to narrow down and guess the actual values behind forbidden columns by
+// using the provided args. This way one could guess, e.g. secrets which are forbidden by
+// the column abilitiy settings but will be respected in searches, etc.
+
 export type WhereArgImplementerType<
 	UserContext extends Record<string, any>,
 	DB extends GenericDrizzleDbTypeConstraints,

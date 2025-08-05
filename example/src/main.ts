@@ -53,6 +53,10 @@ const {
 			userId: 2,
 		};
 	},
+	// in case you want to allow searching via string in the helper implementations
+	// search: {
+	// 	enabled: true,
+	// },
 });
 
 /*

@@ -1,4 +1,4 @@
-import type { Filter } from "../explicitFiltersPlugin/pluginTypes";
+import type { Filter } from "../runtimeFiltersPlugin/pluginTypes";
 import { RumbleErrorSafe } from "../types/rumbleError";
 
 /**
