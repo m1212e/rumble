@@ -6,9 +6,9 @@ rumble is a combined ability and graphql builder built around [drizzle](https://
 > Using rumble and reading these docs requires some basic knowledge about the above mentioned tools. If you feel stuck, please make sure to familiarize yourself with those first! Especially familiarity with pothos and its drizzle plugin are very helpful!
 
 ## Getting started
-The following example is an excerpt from the example setup you can find [here](./example).
+The following example is an excerpt from the example setup you can find [here](./example). If you are interested in a real world app thats using rumble (and is still work in progress) please see [CHASE](https://github.com/DeutscheModelUnitedNations/munify-chase).
 
-First install into your existing TS project:
+First, install rumble into your project:
 ```
 bun add @m1212e/rumble
 npm i @m1212e/rumble
