@@ -13,6 +13,7 @@ import {
 import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
+import { adjustQueryForSearch } from "./search";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
 import type {
@@ -95,6 +96,7 @@ export const createObjectImplementer = <
 	>,
 >({
 	db,
+	search,
 	schemaBuilder,
 	makePubSubInstance,
 	whereArgImplementer,
@@ -394,22 +396,40 @@ export const createObjectImplementer = <
 							return acc;
 						}
 
+						const args = {
+							where: t.arg({ type: WhereArg, required: false }),
+							orderBy: t.arg({ type: OrderArg, required: false }),
+							...(isMany
+								? {
+										offset: t.arg.int({ required: false }),
+										limit: t.arg.int({ required: false }),
+									}
+								: {}),
+							search: t.arg.string({ required: false }),
+						};
+
+						if (!search?.enabled || !isMany) {
+							delete (args as any).search;
+						}
+
 						(acc as any)[key] = t.relation(key, {
-							args: {
-								where: t.arg({ type: WhereArg, required: false }),
-								orderBy: t.arg({ type: OrderArg, required: false }),
-								...(isMany
-									? {
-											offset: t.arg.int({ required: false }),
-											limit: t.arg.int({ required: false }),
-										}
-									: {}),
-							},
+							args,
 							subscribe,
 							nullable,
 							query: (args: any, ctx: any) => {
 								// transform null prototyped object
 								args = JSON.parse(JSON.stringify(args));
+
+								if (isMany) {
+									adjustQueryForSearch({
+										search,
+										args,
+										tableSchema: relationSchema,
+										abilities:
+											ctx.abilities[relationSchema.tsName].filter(readAction),
+									});
+								}
+
 								const filter = ctx.abilities[relationSchema.tsName].filter(
 									readAction,
 									{

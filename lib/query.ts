@@ -1,6 +1,3 @@
-import { sql } from "drizzle-orm";
-import { PgDialect } from "drizzle-orm/pg-core";
-import { clone, cloneDeep } from "es-toolkit";
 import { plural, singular } from "pluralize";
 import { assertFindFirstExists } from "./helpers/helper";
 import {
@@ -10,6 +7,7 @@ import {
 import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
+import { adjustQueryForSearch } from "./search";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import type {
 	CustomRumblePothosConfig,
@@ -133,45 +131,12 @@ export const createQueryImplementer = <
 						// transform null prototyped object
 						args = JSON.parse(JSON.stringify(args));
 
-						// TODO: in general, several of the filter methods should be more
-						// restrictive in case of explicitly allowed columns
-						// search, order and filter should be restricted to allowed cols
-						// and should completely ignore other fields since one might be ably
-						// to narrow down and guess the actual values behind forbidden columns by
-						// using the provided args. This way one could guess, e.g. secrets which are forbidden by
-						// the column abilitiy settings but will be respected in searches, etc.
-						if (search?.enabled && args.search && args.search.length > 0) {
-							const originalOrderBy = cloneDeep(args.orderBy);
-							(args as any).orderBy = (table) => {
-								const argsOrderBySQL = sql.join(
-									Object.entries(originalOrderBy ?? {}).map(([key, value]) => {
-										// value is "asc" or "desc"
-										if (value === "asc") {
-											return sql`${table[key]} ASC`;
-										} else if (value === "desc") {
-											return sql`${table[key]} DESC`;
-										} else {
-											throw new Error(`Invalid value ${value} for orderBy`);
-										}
-									}),
-									sql.raw(", "),
-								);
-
-								// GREATEST(similarity(name, ${query.search}), similarity(description, ${query.search})) DESC
-								const searchSQL = sql`GREATEST(${sql.join(
-									Object.entries(tableSchema.columns).map(([key, value]) => {
-										return sql`similarity(${table[key]}::TEXT, ${args.search})`;
-									}),
-									sql.raw(", "),
-								)}) DESC`;
-
-								const ret = originalOrderBy
-									? sql.join([argsOrderBySQL, searchSQL], sql.raw(", "))
-									: searchSQL;
-
-								return ret;
-							};
-						}
+						adjustQueryForSearch({
+							search,
+							args,
+							tableSchema,
+							abilities: ctx.abilities[table as any].filter(listAction),
+						});
 
 						const filter = ctx.abilities[table as any].filter(
 							listAction,

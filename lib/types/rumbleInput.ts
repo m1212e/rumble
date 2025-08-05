@@ -52,7 +52,10 @@ export type RumbleInput<
 	defaultLimit?: number | undefined | null;
 	/**
 	 * rumble supports fuzzy search for the query helpers. This enables the users of your API to search for entities via fuzzy search inputs.
-	 * This currently only is supported by postgres databases and will fails if enabled on other dialects.
+	 * This currently only is supported by postgres databases and will fail if enabled on other dialects.
+	 *
+	 * Please note that this will install the pg_trgm extension on startup if your database does not have it already installed.
+	 * https://www.postgresql.org/docs/current/pgtrgm.html
 	 */
 	search?:
 		| {
@@ -60,6 +63,10 @@ export type RumbleInput<
 				 * Whether search is enabled
 				 */
 				enabled?: boolean;
+				/**
+				 * The threshold for cutting off non matching results. Defaults to 0.1. Lower = more results.
+				 */
+				threshold?: number;
 		  }
 		| undefined;
 };

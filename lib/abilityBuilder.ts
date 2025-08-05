@@ -1,8 +1,8 @@
 import { relationsFilterToSQL } from "drizzle-orm";
-import type { Filter } from "./explicitFiltersPlugin/pluginTypes";
 import { lazy } from "./helpers/lazy";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
 import { tableHelper } from "./helpers/tableHelpers";
+import type { Filter } from "./runtimeFiltersPlugin/pluginTypes";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import { RumbleError } from "./types/rumbleError";
 import type {
@@ -100,7 +100,7 @@ export const createAbilityBuilder = <
 		};
 	} = {} as any;
 
-	const registeredFilters: {
+	const registeredRuntimeFilters: {
 		[key in TableName<DB>]: {
 			//TODO add a run all helper
 			[key in Action]: Filter<UserContext, any>[];
@@ -114,11 +114,11 @@ export const createAbilityBuilder = <
 		// that the implementaiton helpers pass an object by reference when creating
 		// the implementation, instead of a copy like it would be the case with undefined
 		for (const action of actions!) {
-			if (!registeredFilters[tableName]) {
-				registeredFilters[tableName] = {} as any;
+			if (!registeredRuntimeFilters[tableName]) {
+				registeredRuntimeFilters[tableName] = {} as any;
 			}
-			if (!registeredFilters[tableName][action]) {
-				registeredFilters[tableName][action] = [];
+			if (!registeredRuntimeFilters[tableName][action]) {
+				registeredRuntimeFilters[tableName][action] = [];
 			}
 		}
 
@@ -197,7 +197,7 @@ export const createAbilityBuilder = <
 						>,
 					) => {
 						for (const action of actions) {
-							registeredFilters[tableName][action].push(explicitFilter);
+							registeredRuntimeFilters[tableName][action].push(explicitFilter);
 						}
 					},
 				};
@@ -220,7 +220,7 @@ export const createAbilityBuilder = <
 		 * @internal
 		 * @ignore
 		 */
-		z_registeredFilters: registeredFilters,
+		z_registeredFilters: registeredRuntimeFilters,
 		/**
 		 * @internal
 		 * @ignore
@@ -558,8 +558,8 @@ export const createAbilityBuilder = <
 							limit: highestLimit,
 						});
 					},
-					explicitFilters: (action: Action) => {
-						return registeredFilters[tableName][action];
+					runtimeFilters: (action: Action) => {
+						return registeredRuntimeFilters[tableName][action];
 					},
 				};
 			};

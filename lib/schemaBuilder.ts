@@ -10,7 +10,7 @@ import {
 } from "graphql-scalars";
 import type { createPubSub } from "graphql-yoga";
 import type { ContextType } from "./context";
-import ExplicitChecksPlugin from "./explicitFiltersPlugin/explicitFiltersPlugin";
+import ExplicitChecksPlugin from "./runtimeFiltersPlugin/runtimeFiltersPlugin";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
 import type {
 	CustomRumblePothosConfig,
