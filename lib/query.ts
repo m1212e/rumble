@@ -172,7 +172,7 @@ export const createQueryImplementer = <
 					type: table,
 					nullable: false,
 					smartSubscription: true,
-					description: `Get a single ${singular(table.toString())}`,
+					description: `Get a single ${singular(table.toString())} by ID`,
 					args: {
 						// where: t.arg({ type: WhereArg, required: false }),
 						id: t.arg.id({ required: true }),

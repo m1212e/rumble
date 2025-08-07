@@ -417,7 +417,7 @@ export const createObjectImplementer = <
 							args,
 							subscribe,
 							nullable,
-							description: `Get the ${plural(relationSchema.tsName)} related to this ${singular(tableSchema.tsName)}.`,
+							description: `Get the ${plural(relationSchema.tsName)} related to this ${singular(tableSchema.tsName)}`,
 							query: (args: any, ctx: any) => {
 								// transform null prototyped object
 								args = JSON.parse(JSON.stringify(args));
