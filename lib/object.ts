@@ -2,6 +2,7 @@ import type { FieldMap } from "@pothos/core";
 import type { DrizzleObjectFieldBuilder } from "@pothos/plugin-drizzle";
 import { One, type Table } from "drizzle-orm";
 import { capitalize } from "es-toolkit";
+import { plural, singular } from "pluralize";
 import type { AbilityBuilderType } from "./abilityBuilder";
 import { type EnumImplementerType, isEnumSchema } from "./enum";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
@@ -416,6 +417,7 @@ export const createObjectImplementer = <
 							args,
 							subscribe,
 							nullable,
+							description: `Get the ${plural(relationSchema.tsName)} related to this ${singular(tableSchema.tsName)}.`,
 							query: (args: any, ctx: any) => {
 								// transform null prototyped object
 								args = JSON.parse(JSON.stringify(args));

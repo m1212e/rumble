@@ -116,6 +116,7 @@ export const createQueryImplementer = <
 					type: [table],
 					nullable: false,
 					smartSubscription: true,
+					description: `List all ${plural(table.toString())}`,
 					subscribe: (subscriptions, root, args, ctx, info) => {
 						registerOnInstance({
 							instance: subscriptions,
@@ -171,6 +172,7 @@ export const createQueryImplementer = <
 					type: table,
 					nullable: false,
 					smartSubscription: true,
+					description: `Get a single ${singular(table.toString())}`,
 					args: {
 						// where: t.arg({ type: WhereArg, required: false }),
 						id: t.arg.id({ required: true }),
