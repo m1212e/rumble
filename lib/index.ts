@@ -1,3 +1,4 @@
+export { mobiusWrapper } from "./client/mobiusWrapper";
 export {
 	assertFindFirstExists,
 	assertFirstEntryExists,

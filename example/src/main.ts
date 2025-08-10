@@ -39,6 +39,7 @@ const {
 	query,
 	pubsub,
 	createYoga,
+	clientCreator,
 } = rumble({
 	// here we pass the db instance from above
 	db,
@@ -358,6 +359,11 @@ schemaBuilder.mutationFields((t) => {
 		}),
 	};
 });
+
+// this can run on the dev machine to create a client for
+// api consumption. Make sure to call this after registering
+// all objects, queries and mutations
+await clientCreator("./example/src/generated-client");
 
 // /*
 

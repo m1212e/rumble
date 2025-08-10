@@ -23,6 +23,7 @@
 		"drizzle-seed": "0.3.1-c0277c0",
 		"lefthook": "^1.12.2",
 		"pg": "^8.16.3",
+		"svelte": "^5.38.0",
 		"tsup": "^8.5.0"
 	},
 	"peerDependencies": {
