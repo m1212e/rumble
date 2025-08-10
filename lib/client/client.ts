@@ -1,4 +1,4 @@
-import { exists, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { exists, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { printSchema } from "graphql";
 import type { SchemaBuilderType } from "../schemaBuilder";
@@ -7,7 +7,6 @@ import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
 } from "../types/rumbleInput";
-import mobius from "./mobius.txt";
 
 export const clientCreatorImplementer = <
 	UserContext extends Record<string, any>,
@@ -37,17 +36,11 @@ export const clientCreatorImplementer = <
 		}
 		await mkdir(outputPath, { recursive: true });
 
-		// TODO: replace all {} inside comments since that break mobius
 		const schemaString = printSchema(schema).replaceAll("`", "'");
 		await Promise.all([
 			writeFile(
 				join(outputPath, "schema.graphql"),
 				schemaString,
-				fileWriteOptions,
-			),
-			writeFile(
-				join(outputPath, "client.ts"),
-				mobius.replaceAll("%REPLACE_SCHEMA_HERE%", schemaString),
 				fileWriteOptions,
 			),
 		]);
