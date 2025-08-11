@@ -21,6 +21,7 @@ export const sofaOpenAPIWebhookDocs: NonNullable<
 				},
 				responses: {
 					"200": {
+						description: "",
 						content: {
 							"application/json": {
 								schema: {
@@ -58,6 +59,7 @@ export const sofaOpenAPIWebhookDocs: NonNullable<
 				},
 				responses: {
 					"200": {
+						description: "",
 						content: {
 							"application/json": {
 								schema: {
@@ -85,6 +87,7 @@ export const sofaOpenAPIWebhookDocs: NonNullable<
 				],
 				responses: {
 					"200": {
+						description: "",
 						content: {
 							"application/json": {
 								schema: {
@@ -126,6 +129,14 @@ export const sofaOpenAPIWebhookDocs: NonNullable<
 						type: "string",
 					},
 				},
+			},
+			DateTime: {
+				type: "string",
+				format: "date-time",
+			},
+			Date: {
+				type: "string",
+				format: "date",
 			},
 		},
 	},
