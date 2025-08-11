@@ -127,6 +127,14 @@ export const sofaOpenAPIWebhookDocs: NonNullable<
 					},
 				},
 			},
+			DateTime: {
+				type: "string",
+				format: "date-time",
+			},
+			Date: {
+				type: "string",
+				format: "date",
+			},
 		},
 	},
 };
