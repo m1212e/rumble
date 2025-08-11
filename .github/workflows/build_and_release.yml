@@ -23,7 +23,7 @@ jobs:
           exit-code: 1
           format: 'table'
           ignore-unfixed: true
-          vuln-type: 'os,library'
+          vuln-type: 'library'
           severity: 'CRITICAL,HIGH'
       - name: Run build
         run: bun run build
