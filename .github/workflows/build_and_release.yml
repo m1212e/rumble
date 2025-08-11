@@ -16,7 +16,7 @@ jobs:
       - name: Run tests
         run: bun test
       - name: Run Trivy scanner on fs
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.32.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
