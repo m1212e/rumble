@@ -362,7 +362,7 @@ schemaBuilder.mutationFields((t) => {
 
 // this can run on the dev machine to create a client for
 // api consumption. Make sure to call this after registering
-// all objects, queries and mutations
+// all objects, queries and mutations and only in dev mode
 await clientCreator("./example/src/generated-client");
 
 // /*
@@ -374,9 +374,9 @@ await clientCreator("./example/src/generated-client");
 
 // when we are done defining the objects, queries and mutations,
 // we can start the server
-const server = createServer(createYoga());
-server.listen(3000, () => {
-	console.info("Visit http://localhost:3000/graphql");
-});
+// const server = createServer(createYoga());
+// server.listen(3000, () => {
+// 	console.info("Visit http://localhost:3000/graphql");
+// });
 
 // if you also need a REST API built from your GraphQL API, you can use 'createSofa()' instead or in addition

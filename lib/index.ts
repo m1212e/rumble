@@ -1,3 +1,4 @@
+export { generateFromSchema } from "./client/generateFromSchema";
 export {
 	assertFindFirstExists,
 	assertFirstEntryExists,

@@ -1,5 +1,6 @@
-import { exists, mkdir, rm, writeFile } from "node:fs/promises";
+import { exists, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { type CodegenConfig, generate } from "@graphql-codegen/cli";
 import { printSchema } from "graphql";
 import type { SchemaBuilderType } from "../schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "../types/genericDrizzleDbType";
@@ -7,6 +8,7 @@ import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
 } from "../types/rumbleInput";
+import { generateFromSchema } from "./generateFromSchema";
 
 export const clientCreatorImplementer = <
 	UserContext extends Record<string, any>,
@@ -26,24 +28,15 @@ export const clientCreatorImplementer = <
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
 	builtSchema: () => ReturnType<SchemaBuilder["toSchema"]>;
 }) => {
-	const clientCreator = async (
-		outputPath: string,
-		fileWriteOptions?: Parameters<typeof writeFile>[2],
-	) => {
-		const schema = builtSchema();
-		if (await exists(outputPath)) {
-			await rm(outputPath, { recursive: true, force: true });
-		}
-		await mkdir(outputPath, { recursive: true });
+	if (process.env.NODE_ENV !== "development") {
+		console.warn(
+			"Running rumble client generation in non development mode. Are you sure this is correct?",
+		);
+	}
 
-		const schemaString = printSchema(schema).replaceAll("`", "'");
-		await Promise.all([
-			writeFile(
-				join(outputPath, "schema.graphql"),
-				schemaString,
-				fileWriteOptions,
-			),
-		]);
+	const clientCreator = async (outputPath: string) => {
+		const schema = builtSchema();
+		await generateFromSchema({ schema, outputPath });
 	};
 
 	return clientCreator;
