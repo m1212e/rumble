@@ -46,5 +46,5 @@ export function makeQuery<Query extends Record<string, any>>() {
 
 const q = makeQuery<Query>();
 q.users({
-	select: (s) => s.,
-})
+	select: (s) => s,
+});
