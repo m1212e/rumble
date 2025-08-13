@@ -1,5 +1,5 @@
 import type { Query } from "../../example/src/generated-client/graphql";
-import type { ApplySelector, makeSelector, Selector } from "./selections";
+import { type ApplySelector, makeSelector, type Selector } from "./selections";
 
 type StripGraphqlStuffFromObject<T> = Required<{
 	[K in keyof Omit<T, "__typename">]: NonNullable<Omit<T, "__typename">[K]>;
@@ -15,21 +15,7 @@ type QueryFieldFunction<Object extends Record<string, any>> = <
 	) => Selector<Partial<Record<string, any>>>,
 >(
 	f: SelectionFunction,
-) => ApplySelector<Object, ReturnType<SelectionFunction>>;
-
-// function field<Object extends Record<string, any>>() {
-// 	return <
-// 		SelectionFunction extends (
-// 			s: Selector<Required<Object>>,
-// 		) => Selector<Partial<Record<string, any>>>,
-// 	>(
-// 		f: SelectionFunction,
-// 	): ApplySelector<Object, ReturnType<SelectionFunction>> => {
-// 		return {} as any;
-// 	};
-// }
-
-// const r = ex<User>()((s) => s.moodcol.name.id);
+) => Promise<ApplySelector<Object, ReturnType<SelectionFunction>>>;
 
 export function makeQuery<Query extends Record<string, any>>() {
 	type TransformedQuery = NonArrayFields<StripGraphqlStuffFromObject<Query>>;
@@ -40,7 +26,7 @@ export function makeQuery<Query extends Record<string, any>>() {
 			: undefined;
 	};
 
-	const selectionProxy = new Proxy(
+	const queryProxy = new Proxy(
 		{},
 		{
 			get: (target, prop) => {
@@ -48,17 +34,33 @@ export function makeQuery<Query extends Record<string, any>>() {
 					console.warn(
 						"The selector seems to be have called with a symbol instead of a string, this is incorrect and cannot be handled",
 					);
-					return selectionProxy;
+					return queryProxy;
 				}
 
-				// selectedkeys.push(prop as keyof Object);
-				return selectionProxy;
+				const queryFunction = (fieldSelectorCallback: any) => {
+					const { selectedFields, selectionProxy } = makeSelector();
+					fieldSelectorCallback(selectionProxy);
+
+					const req = (async () => {
+						console.log(selectedFields);
+						// TODO: perform query
+
+						return {
+							id: 10,
+						};
+					})();
+
+					return req;
+				};
+
+				return queryFunction;
 			},
 		},
 	) as QueryObject;
 
-	return selectionProxy;
+	return queryProxy;
 }
 
 const q = makeQuery<Query>();
-const r = q.users((s) => s.id.moodcol.name);
+const r = await q.users((s) => s.id.moodcol.name);
+console.log(r);

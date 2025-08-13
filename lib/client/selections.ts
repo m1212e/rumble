@@ -18,7 +18,7 @@ export type ApplySelector<
 };
 
 export function makeSelector<Object extends Record<string, any>>() {
-	const selectedkeys: (keyof Object)[] = [];
+	const selectedFields: (keyof Object)[] = [];
 	const selectionProxy = new Proxy(
 		{},
 		{
@@ -30,11 +30,11 @@ export function makeSelector<Object extends Record<string, any>>() {
 					return selectionProxy;
 				}
 
-				selectedkeys.push(prop as keyof Object);
+				selectedFields.push(prop as keyof Object);
 				return selectionProxy;
 			},
 		},
 	) as Selector<Object>;
 
-	return { selectionProxy, selectedkeys };
+	return { selectionProxy, selectedFields };
 }
