@@ -1,5 +1,5 @@
 import type { Query } from "../../example/src/generated-client/graphql";
-import type { makeSelector } from "./selections";
+import type { makeSelector, ApplySelector, Selector } from "./selections";
 
 type StripGraphqlStuffFromObject<T> = Required<{
 	[K in keyof Omit<T, "__typename">]: NonNullable<Omit<T, "__typename">[K]>;
@@ -13,14 +13,18 @@ export function makeQuery<Query extends Record<string, any>>() {
 			: NonNullableFields[K];
 	};
 
-	type Selector<Type extends object> = ReturnType<typeof makeSelector<Type>>;
-	type QueryFieldFunction<ReturnType extends object> = (p: {
-		select: (s: Selector<ReturnType>) => Selector<ReturnType>;
-	}) => ReturnType;
+	type QueryFieldFunction<
+		Object extends Record<string, any>,
+		SelectionOutput extends Selector<
+			Partial<Record<keyof Object, any>>
+		> = Selector<Partial<Record<keyof Object, any>>>,
+	> = (
+		f: (s: Selector<Object>) => SelectionOutput,
+	) => ApplySelector<Object, SelectionOutput>;
 
 	type QueryObject = {
 		[K in keyof NonArrayFields]: NonArrayFields[K] extends object
-			? QueryFieldFunction<NonArrayFields[K]>
+			? QueryFieldFunction<StripGraphqlStuffFromObject<NonArrayFields[K]>>
 			: undefined;
 	};
 
@@ -45,6 +49,5 @@ export function makeQuery<Query extends Record<string, any>>() {
 }
 
 const q = makeQuery<Query>();
-q.users({
-	select: (s) => s,
-});
+const r = q.users((s) => s.id.moodcol.name);
+r.

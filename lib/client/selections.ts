@@ -1,3 +1,5 @@
+import type { User } from "../../example/src/generated-client/graphql";
+
 /**
  * Can be used to transform a set of keys into a selector which can be chained
  */
@@ -8,12 +10,11 @@ export type Selector<Object extends Record<string, any>> = {
 /**
  * Applies a selector to a response type, retaining only the selected fields
  */
-export type Selected<
+export type ApplySelector<
 	Object extends Record<string, any>,
 	Selection extends Selector<Record<string, any>>,
-	Response extends Record<keyof Object, any>,
 > = {
-	[K in Exclude<keyof Object, keyof Selection>]: Response[K];
+	[K in Extract<keyof Object, keyof Selection>]: keyof Selection; //Object[K];
 };
 
 export function makeSelector<Object extends Record<string, any>>() {
@@ -37,3 +38,20 @@ export function makeSelector<Object extends Record<string, any>>() {
 
 	return { selectionProxy, selectedkeys };
 }
+
+
+
+
+function ex<Object extends Record<string, any>>() {
+	return <
+    SelectionOutput extends Selector<Partial<Record<keyof Object, any>>>,
+    SelectionFunction extends (s: Selector<Required<Object>>) => SelectionOutput,
+
+    QueryOutput extends ApplySelector<Required<Object>, SelectionOutput>
+	>(f: SelectionFunction): QueryOutput => {
+		return {} as any;
+	};
+}
+
+const r = ex<User>()((s) => s.moodcol.name.posts);
+r.somethingElse;
