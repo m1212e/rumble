@@ -1,5 +1,5 @@
 import type { Query } from "../../example/src/generated-client/graphql";
-import type { makeSelector, ApplySelector, Selector } from "./selections";
+import type { ApplySelector, makeSelector, Selector } from "./selections";
 
 type StripGraphqlStuffFromObject<T> = Required<{
 	[K in keyof Omit<T, "__typename">]: NonNullable<Omit<T, "__typename">[K]>;

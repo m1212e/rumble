@@ -39,16 +39,16 @@ export function makeSelector<Object extends Record<string, any>>() {
 	return { selectionProxy, selectedkeys };
 }
 
-
-
-
 function ex<Object extends Record<string, any>>() {
 	return <
-    SelectionOutput extends Selector<Partial<Record<keyof Object, any>>>,
-    SelectionFunction extends (s: Selector<Required<Object>>) => SelectionOutput,
-
-    QueryOutput extends ApplySelector<Required<Object>, SelectionOutput>
-	>(f: SelectionFunction): QueryOutput => {
+		SelectionOutput extends Selector<Partial<Record<keyof Object, any>>>,
+		SelectionFunction extends (
+			s: Selector<Required<Object>>,
+		) => SelectionOutput,
+		QueryOutput extends ApplySelector<Required<Object>, SelectionOutput>,
+	>(
+		f: SelectionFunction,
+	): QueryOutput => {
 		return {} as any;
 	};
 }
