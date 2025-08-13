@@ -5,26 +5,38 @@ type StripGraphqlStuffFromObject<T> = Required<{
 	[K in keyof Omit<T, "__typename">]: NonNullable<Omit<T, "__typename">[K]>;
 }>;
 
-export function makeQuery<Query extends Record<string, any>>() {
-	type NonNullableFields = StripGraphqlStuffFromObject<Query>;
-	type NonArrayFields = {
-		[K in keyof NonNullableFields]: NonNullableFields[K] extends Array<any>
-			? NonNullableFields[K][number]
-			: NonNullableFields[K];
-	};
+type NonArrayFields<T> = {
+	[K in keyof T]: T[K] extends Array<any> ? T[K][number] : T[K];
+};
 
-	type QueryFieldFunction<
-		Object extends Record<string, any>,
-		SelectionOutput extends Selector<
-			Partial<Record<keyof Object, any>>
-		> = Selector<Partial<Record<keyof Object, any>>>,
-	> = (
-		f: (s: Selector<Object>) => SelectionOutput,
-	) => ApplySelector<Object, SelectionOutput>;
+type QueryFieldFunction<Object extends Record<string, any>> = <
+	SelectionFunction extends (
+		s: Selector<Required<Object>>,
+	) => Selector<Partial<Record<string, any>>>,
+>(
+	f: SelectionFunction,
+) => ApplySelector<Object, ReturnType<SelectionFunction>>;
+
+// function field<Object extends Record<string, any>>() {
+// 	return <
+// 		SelectionFunction extends (
+// 			s: Selector<Required<Object>>,
+// 		) => Selector<Partial<Record<string, any>>>,
+// 	>(
+// 		f: SelectionFunction,
+// 	): ApplySelector<Object, ReturnType<SelectionFunction>> => {
+// 		return {} as any;
+// 	};
+// }
+
+// const r = ex<User>()((s) => s.moodcol.name.id);
+
+export function makeQuery<Query extends Record<string, any>>() {
+	type TransformedQuery = NonArrayFields<StripGraphqlStuffFromObject<Query>>;
 
 	type QueryObject = {
-		[K in keyof NonArrayFields]: NonArrayFields[K] extends object
-			? QueryFieldFunction<StripGraphqlStuffFromObject<NonArrayFields[K]>>
+		[K in keyof TransformedQuery]: TransformedQuery[K] extends object
+			? QueryFieldFunction<StripGraphqlStuffFromObject<TransformedQuery[K]>>
 			: undefined;
 	};
 
