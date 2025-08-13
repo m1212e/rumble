@@ -50,4 +50,3 @@ export function makeQuery<Query extends Record<string, any>>() {
 
 const q = makeQuery<Query>();
 const r = q.users((s) => s.id.moodcol.name);
-r.
