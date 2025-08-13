@@ -1,26 +1,11 @@
-import type {
-	Maybe,
-	Post,
-	User,
-} from "../../example/src/generated-client/graphql";
-import { makeSelector } from "./selections";
-
-type awawd = {
-	__typename?: "Query";
-	posts?: Maybe<Array<Post>>;
-	postsFiltered?: Maybe<Array<Post>>;
-	status: string;
-	/** Get a single user by ID */
-	user: User;
-	/** List all users */
-	users: Array<User>;
-};
+import type { Query } from "../../example/src/generated-client/graphql";
+import type { makeSelector } from "./selections";
 
 type StripGraphqlStuffFromObject<T> = Required<{
 	[K in keyof Omit<T, "__typename">]: NonNullable<Omit<T, "__typename">[K]>;
 }>;
 
-export function makeQuery<Query extends Record<string, any>>(query: Query) {
+export function makeQuery<Query extends Record<string, any>>() {
 	type NonNullableFields = StripGraphqlStuffFromObject<Query>;
 	type NonArrayFields = {
 		[K in keyof NonNullableFields]: NonNullableFields[K] extends Array<any>
@@ -28,32 +13,38 @@ export function makeQuery<Query extends Record<string, any>>(query: Query) {
 			: NonNullableFields[K];
 	};
 
-	function queryField<FieldReturnType>() {
-		return "adawd";
-	}
+	type Selector<Type extends object> = ReturnType<typeof makeSelector<Type>>;
+	type QueryFieldFunction<ReturnType extends object> = (p: {
+		select: (s: Selector<ReturnType>) => Selector<ReturnType>;
+	}) => ReturnType;
 
-	const selectors = Object.fromEntries(
-		Object.entries(query as NonArrayFields).map(([key, value]) => [
-			key,
-			queryField(),
-		]),
-	) as {
-		[K in keyof NonArrayFields]: ReturnType<
-			typeof queryField<NonArrayFields[K]>
-		>;
+	type QueryObject = {
+		[K in keyof NonArrayFields]: NonArrayFields[K] extends object
+			? QueryFieldFunction<NonArrayFields[K]>
+			: undefined;
 	};
+
+	const selectionProxy = new Proxy(
+		{},
+		{
+			get: (target, prop) => {
+				if (typeof prop === "symbol") {
+					console.warn(
+						"The selector seems to be have called with a symbol instead of a string, this is incorrect and cannot be handled",
+					);
+					return selectionProxy;
+				}
+
+				// selectedkeys.push(prop as keyof Object);
+				return selectionProxy;
+			},
+		},
+	) as QueryObject;
+
+	return selectionProxy;
 }
 
-const p: awawd = {
-	__typename: "Query",
-	posts: null,
-	postsFiltered: null,
-	user: {} as any,
-	users: [],
-	status: "ok",
-} as any;
-const q = makeQuery(p);
-
-q.posts.selectionProxy.content.author;
-
-console.log(q.posts.selectedkeys);
+const q = makeQuery<Query>();
+q.users({
+	select: (s) => s.,
+})
