@@ -62,5 +62,5 @@ export function makeQuery<Query extends Record<string, any>>() {
 }
 
 const q = makeQuery<Query>();
-const r = await q.users((s) => s.id.moodcol.name);
+const r = await q.users((s) => s.moodcol.name.posts((s) => s));
 console.log(r);
