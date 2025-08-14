@@ -12,7 +12,7 @@ type NonArrayFields<T> = {
 type QueryFieldFunction<Object extends Record<string, any>> = <
 	SelectionFunction extends (
 		s: Selector<Required<Object>>,
-	) => Selector<Partial<Record<string, any>>>,
+	) => Selector<Record<string, any>>,
 >(
 	f: SelectionFunction,
 ) => Promise<ApplySelector<Object, ReturnType<SelectionFunction>>>;
@@ -62,5 +62,5 @@ export function makeQuery<Query extends Record<string, any>>() {
 }
 
 const q = makeQuery<Query>();
-const r = await q.users((s) => s.moodcol.name.posts((s) => s));
-console.log(r);
+const r = await q.users((s) => s.id.moodcol.posts((s) => s.content.id));
+console.log(r.posts);

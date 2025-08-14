@@ -1,4 +1,5 @@
 import type { User } from "../../example/src/generated-client/graphql";
+import type { UnArray } from "./utilTypes";
 
 type RelationType = object | Array<object>;
 
@@ -10,63 +11,39 @@ export type Selector<Object extends Record<string, any>> = InternalSelector<
 	Object
 >;
 
-type UnArray<T> = T extends Array<infer U> ? U : T;
-
 type InternalSelector<
-	ExcludedObject extends Record<string, any>,
+	StrippedObject extends Record<string, any>,
 	OriginalObject extends Record<string, any>,
 > = {
-	[SelectedFieldKey in keyof ExcludedObject &
+	[SelectedFieldKey in keyof StrippedObject &
 		keyof OriginalObject]: OriginalObject[SelectedFieldKey] extends RelationType
-		? (
-				relationSelectorFunction: (
-					relationSelector: InternalSelector<
-						UnArray<OriginalObject[SelectedFieldKey]>,
-						OriginalObject
+		? <
+				SelectionFunction extends (
+					s: Selector<
+						Required<Required<UnArray<OriginalObject[SelectedFieldKey]>>>
 					>,
-				) => InternalSelector<
-					UnArray<OriginalObject[SelectedFieldKey]>,
-					OriginalObject
-				>,
-			) => ReducedSelectorFieldValue<
-				ExcludedObject,
-				OriginalObject,
-				SelectedFieldKey
+				) => Selector<Record<string, any>>,
+			>(
+				s: SelectionFunction,
+			) => InternalSelector<
+				{
+					[k in Exclude<
+						keyof StrippedObject,
+						SelectedFieldKey
+					>]: StrippedObject[SelectedFieldKey];
+				},
+				OriginalObject
 			>
-		: ReducedSelectorFieldValue<
-				ExcludedObject,
-				OriginalObject,
-				SelectedFieldKey
+		: InternalSelector<
+				{
+					[k in Exclude<
+						keyof StrippedObject,
+						SelectedFieldKey
+					>]: StrippedObject[SelectedFieldKey];
+				},
+				OriginalObject
 			>;
 };
-
-type ReducedSelectorFieldValue<
-	ExcludedObject extends Record<string, any>,
-	OriginalObject extends Record<string, any>,
-	SelectedFieldKey extends keyof ExcludedObject,
-> = InternalSelector<
-	{
-		[k in Exclude<
-			keyof ExcludedObject,
-			SelectedFieldKey
-		>]: ExcludedObject[SelectedFieldKey];
-	},
-	OriginalObject
->;
-
-// (s: Selector<OriginalObjectType[K]>) => Selector<OriginalObjectType[K]>
-
-// type InternalSelector<
-// 	Key extends string | number | symbol,
-// 	OriginalObjectType extends Record<Key, any>,
-// 	RecursiveObjectType extends Record<Key, any>,
-// > = {
-// 	[K in Key]: OriginalObjectType[K] extends RelationType
-// 		? RelationSelectorFunction<OriginalObjectType[K]>
-// 		: InternalSelector<{
-// 				[k in Exclude<keyof Object, K>]: RecursiveObjectType[K];
-// 			}>;
-// };
 
 /**
  * Applies a selector to a response type, retaining only the selected fields
@@ -75,7 +52,14 @@ export type ApplySelector<
 	Object extends Record<string, any>,
 	Selection extends Selector<Record<string, any>>,
 > = {
-	[K in Exclude<keyof Object, keyof Selection>]: Object[K];
+	[SelectedField in Exclude<
+		keyof Object,
+		keyof Selection
+	>]: Object[SelectedField] extends RelationType
+		? //   ApplySelector<UnArray<Object[SelectedField]>, Selection[SelectedField]>
+			// Object[SelectedField]
+			Selection
+		: Object[SelectedField];
 };
 
 export function makeSelector<Object extends Record<string, any>>() {
