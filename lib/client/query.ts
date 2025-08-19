@@ -1,31 +1,7 @@
 import type { Query } from "../../example/src/generated-client/graphql";
-import { type ApplySelector, makeSelector, type Selector } from "./selections";
-
-type StripGraphqlStuffFromObject<T> = Required<{
-	[K in keyof Omit<T, "__typename">]: NonNullable<Omit<T, "__typename">[K]>;
-}>;
-
-type NonArrayFields<T> = {
-	[K in keyof T]: T[K] extends Array<any> ? T[K][number] : T[K];
-};
-
-type QueryFieldFunction<Object extends Record<string, any>> = <
-	SelectionFunction extends (
-		s: Selector<Required<Object>>,
-	) => Selector<Record<string, any>>,
->(
-	f: SelectionFunction,
-) => Promise<ApplySelector<Object, ReturnType<SelectionFunction>>>;
+import type { UnArray } from "./utilTypes";
 
 export function makeQuery<Query extends Record<string, any>>() {
-	type TransformedQuery = NonArrayFields<StripGraphqlStuffFromObject<Query>>;
-
-	type QueryObject = {
-		[K in keyof TransformedQuery]: TransformedQuery[K] extends object
-			? QueryFieldFunction<StripGraphqlStuffFromObject<TransformedQuery[K]>>
-			: undefined;
-	};
-
 	const queryProxy = new Proxy(
 		{},
 		{
@@ -37,30 +13,53 @@ export function makeQuery<Query extends Record<string, any>>() {
 					return queryProxy;
 				}
 
-				const queryFunction = (fieldSelectorCallback: any) => {
-					const { selectedFields, selectionProxy } = makeSelector();
-					fieldSelectorCallback(selectionProxy);
-
-					const req = (async () => {
-						console.log(selectedFields);
-						// TODO: perform query
-
-						return {
-							id: 10,
-						};
-					})();
-
-					return req;
-				};
-
-				return queryFunction;
+				// return queryFunction;
 			},
 		},
-	) as QueryObject;
+	) as QueryObject<Query>;
 
 	return queryProxy;
 }
 
+type ScalarTypeI = Date | string | number | boolean;
+type ScalarType = ScalarTypeI | ScalarTypeI[];
+
+type QueryObject<Q> = {
+	[Key in keyof Q]: QueryField<Q[Key]>;
+};
+
+type QueryField<T> = T extends ScalarType
+	? T
+	: <S extends SelectionObjectType<Partial<UnArray<T>>>>(
+			selection: S,
+		) => Promise<ApplySelection<UnArray<T>, S>>;
+
+type SelectionObjectType<O> = {
+	[Key in keyof O]: NonNullable<UnArray<O[Key]>> extends ScalarType
+		? boolean
+		: SelectionObjectType<Partial<UnArray<O[Key]>>>;
+};
+
+type ApplySelection<Object, Selection> = {
+	[Key in keyof Selection & keyof Object]: Selection[Key] extends
+		| true
+		| Record<any, any>
+		? Object[Key] extends ScalarType
+			? Object[Key]
+			: ApplySelection<UnArray<Object[Key]>, Selection[Key]>
+		: never;
+};
+
+// TODO: array fixes needed
+
 const q = makeQuery<Query>();
-const r = await q.users((s) => s.id.moodcol.posts((s) => s.content.id));
-console.log(r.posts);
+const users = await q.users({
+	id: true,
+	name: true,
+	moodcol: true,
+	somethingElse: true,
+	posts: {
+		id: true,
+	},
+});
+users.posts;
