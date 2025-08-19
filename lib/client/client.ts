@@ -34,9 +34,22 @@ export const clientCreatorImplementer = <
 		);
 	}
 
-	const clientCreator = async (outputPath: string) => {
+	const clientCreator = async ({
+		apiUrl,
+		outputPath,
+		rumbleImportPath,
+	}: {
+		outputPath: string;
+		apiUrl: string;
+		rumbleImportPath?: string;
+	}) => {
 		const schema = builtSchema();
-		await generateFromSchema({ schema, outputPath });
+		await generateFromSchema({
+			schema,
+			outputPath,
+			rumbleImportPath,
+			apiUrl,
+		});
 	};
 
 	return clientCreator;

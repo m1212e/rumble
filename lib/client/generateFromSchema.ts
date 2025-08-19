@@ -13,9 +13,13 @@ import {
 export async function generateFromSchema({
 	outputPath,
 	schema,
+	rumbleImportPath = "@m1212e/rumble",
+	apiUrl,
 }: {
 	schema: GraphQLSchema;
 	outputPath: string;
+	rumbleImportPath?: string;
+	apiUrl: string;
 }) {
 	if (await exists(outputPath)) {
 		await rm(outputPath, { recursive: true, force: true });
@@ -45,38 +49,22 @@ export async function generateFromSchema({
 	console.info("Generating client at", outputPath);
 	await generate(config);
 
-	const output = `export const client = {
-	query: ${query(schema)},
-	mutation: ${mutation(schema)}
+	const output = `import { Client, cacheExchange, fetchExchange } from '@urql/core';
+import { makeQuery } from "${rumbleImportPath}";
+import type { Query } from './graphql';
+
+const urqlClient = new Client({
+  url: "${apiUrl}",
+  exchanges: [cacheExchange, fetchExchange],
+  fetchOptions: {
+		credentials: "include",
+	},
+});
+
+
+export const client = {
+	query: makeQuery<Query>({ urqlClient }),
 }`;
 
 	await writeFile(join(outputPath, "client.ts"), output);
 }
-
-function query(schema: GraphQLSchema) {
-	return `{
-${Object.entries(schema.getQueryType()?.getFields() ?? {}).reduce(
-	(acc, [key, field]) => {
-		return (
-			acc +
-			`
-		${key}: '${field.name}',`
-		);
-	},
-	"",
-)}
-	}`;
-}
-
-function mutation(schema: GraphQLSchema) {
-	// for (const [key, field] of Object.entries(
-	// 	schema.getQueryType()?.getFields() ?? {},
-	// )) {
-	// 	queryField(field);
-	// }
-	// console.log(field);
-
-	return `"string"`;
-}
-
-import "./query";

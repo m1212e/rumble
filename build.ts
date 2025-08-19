@@ -34,7 +34,6 @@ await build({
 		...Object.keys(packagejson.peerDependencies),
 		...Object.keys(packagejson.devDependencies),
 	],
-	noExternal: ["svelte"],
 });
 
 // ==============================

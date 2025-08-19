@@ -23,7 +23,6 @@
 		"drizzle-seed": "^0.3.1-84d9a79",
 		"lefthook": "^1.12.2",
 		"pg": "^8.16.3",
-		"svelte": "^5.38.0",
 		"tsup": "^8.5.0"
 	},
 	"peerDependencies": {
@@ -37,6 +36,7 @@
 		"@pothos/core": "^4.7.2",
 		"@pothos/plugin-drizzle": "^0.11.0",
 		"@pothos/plugin-smart-subscriptions": "^4.1.4",
+		"@urql/core": "^6.0.1",
 		"es-toolkit": "^1.39.8",
 		"graphql-scalars": "^1.24.2",
 		"graphql-yoga": "^5.15.1",

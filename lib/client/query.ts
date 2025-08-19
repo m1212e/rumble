@@ -1,7 +1,12 @@
-import type { Query } from "../../example/src/generated-client/graphql";
+import type { Client } from "@urql/core";
+import { makeGraphQLRequest } from "./request";
 import type { UnArray } from "./utilTypes";
 
-export function makeQuery<Query extends Record<string, any>>() {
+export function makeQuery<Query extends Record<string, any>>({
+	urqlClient,
+}: {
+	urqlClient: Client;
+}) {
 	const queryProxy = new Proxy(
 		{},
 		{
@@ -13,7 +18,13 @@ export function makeQuery<Query extends Record<string, any>>() {
 					return queryProxy;
 				}
 
-				// return queryFunction;
+				return (selection: Record<string, any>) => {
+					return makeGraphQLRequest({
+						queryName: prop as string,
+						selection,
+						client: urqlClient,
+					});
+				};
 			},
 		},
 	) as QueryObject<Query>;
@@ -30,9 +41,11 @@ type QueryObject<Q> = {
 
 type QueryField<T> = T extends ScalarType
 	? T
-	: <S extends SelectionObjectType<Partial<UnArray<T>>>>(
+	: <S extends SelectionObjectType<Partial<Omit<UnArray<T>, "__typename">>>>(
 			selection: S,
-		) => Promise<ApplySelection<UnArray<T>, S>>;
+		) => T extends Array<any>
+			? Response<ApplySelection<UnArray<T>, S>[]>
+			: Response<ApplySelection<UnArray<T>, S>>;
 
 type SelectionObjectType<O> = {
 	[Key in keyof O]: NonNullable<UnArray<O[Key]>> extends ScalarType
@@ -46,20 +59,16 @@ type ApplySelection<Object, Selection> = {
 		| Record<any, any>
 		? Object[Key] extends ScalarType
 			? Object[Key]
-			: ApplySelection<UnArray<Object[Key]>, Selection[Key]>
+			: Object[Key] extends Array<any>
+				? Array<ApplySelection<UnArray<Object[Key]>, Selection[Key]>>
+				: ApplySelection<UnArray<Object[Key]>, Selection[Key]>
 		: never;
 };
 
-// TODO: array fixes needed
+export type Subscribeable<Data> = {
+	subscribe: (subscription: (value: Data) => void) => () => void;
+};
 
-const q = makeQuery<Query>();
-const users = await q.users({
-	id: true,
-	name: true,
-	moodcol: true,
-	somethingElse: true,
-	posts: {
-		id: true,
-	},
-});
-users.posts;
+export type Response<Data> = {
+	then: (onFulfilled: (value: Subscribeable<Data> & Data) => void) => void;
+} & Subscribeable<Data | undefined>;
