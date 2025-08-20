@@ -51,20 +51,28 @@ export async function generateFromSchema({
 
 	const output = `import { Client, cacheExchange, fetchExchange } from '@urql/core';
 import { makeQuery } from "${rumbleImportPath}";
-import type { Query } from './graphql';
+import type { Query } from "./graphql";
 
 const urqlClient = new Client({
   url: "${apiUrl}",
-  exchanges: [cacheExchange, fetchExchange],
+  fetchSubscriptions: true,
+  exchanges: [ cacheExchange, fetchExchange ],
   fetchOptions: {
 		credentials: "include",
 	},
 });
 
-
 export const client = {
-	query: makeQuery<Query>({ urqlClient }),
-}`;
+	query: makeQuery<Query>({
+		urqlClient,
+		availableSubscriptions: new Set([${Object.keys(
+			schema.getSubscriptionType()?.getFields() ?? {},
+		)
+			.map((e) => `"${e}"`)
+			.join(", ")}]),
+	}),
+};
+`;
 
 	await writeFile(join(outputPath, "client.ts"), output);
 }

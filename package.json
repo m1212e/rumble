@@ -41,6 +41,7 @@
 		"graphql-scalars": "^1.24.2",
 		"graphql-yoga": "^5.15.1",
 		"pluralize": "^8.0.0",
-		"sofa-api": "^0.18.8"
+		"sofa-api": "^0.18.8",
+		"wonka": "^6.3.5"
 	}
 }

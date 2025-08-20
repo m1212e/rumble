@@ -398,3 +398,6 @@ const r = await client.query.users({
 		content: true,
 	},
 });
+
+// console.log("initial:", r[0]);
+// r.subscribe((users) => console.log(users));

@@ -4,8 +4,10 @@ import type { UnArray } from "./utilTypes";
 
 export function makeQuery<Query extends Record<string, any>>({
 	urqlClient,
+	availableSubscriptions,
 }: {
 	urqlClient: Client;
+	availableSubscriptions: Set<string>;
 }) {
 	const queryProxy = new Proxy(
 		{},
@@ -23,6 +25,7 @@ export function makeQuery<Query extends Record<string, any>>({
 						queryName: prop as string,
 						selection,
 						client: urqlClient,
+						enableSubscription: availableSubscriptions.has(prop as string),
 					});
 				};
 			},
