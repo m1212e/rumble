@@ -388,16 +388,17 @@ await clientCreator({
 });
 
 // which then can be used like this:
-import { client } from "./generated-client/client";
+// import { client } from "./generated-client/client";
 
-const r = await client.query.users({
-	id: true,
-	name: true,
-	posts: {
-		id: true,
-		content: true,
-	},
-});
+// const r = await client.data.users({
+// 	__args: {},
+// 	id: true,
+// 	name: true,
 
-// console.log("initial:", r[0]);
-// r.subscribe((users) => console.log(users));
+// 	posts: {
+
+// 	},
+// });
+
+// console.log("first user:", r[0]);
+// r.subscribe((users) => console.log("live user data:", users));

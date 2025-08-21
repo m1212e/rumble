@@ -37,6 +37,7 @@
 		"@pothos/plugin-drizzle": "^0.11.0",
 		"@pothos/plugin-smart-subscriptions": "^4.1.4",
 		"@urql/core": "^6.0.1",
+		"@urql/exchange-graphcache": "^8.1.0",
 		"es-toolkit": "^1.39.8",
 		"graphql-scalars": "^1.24.2",
 		"graphql-yoga": "^5.15.1",

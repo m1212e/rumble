@@ -38,10 +38,26 @@ export const clientCreatorImplementer = <
 		apiUrl,
 		outputPath,
 		rumbleImportPath,
+		useExternalUrqlClient,
 	}: {
+		/**
+		 * Path to the output directory where the client files will be generated.
+		 */
 		outputPath: string;
+		/**
+		 * The base URL of the Rumble API.
+		 */
 		apiUrl: string;
+		/**
+		 * The import path for the rumble library, defaults to "@m1212e/rumble".
+		 */
 		rumbleImportPath?: string;
+		/**
+		 * Set this to use an external urql client exported from a module.
+		 * If a string, uses the provided path to the urql client for importing the client.
+		 * If false, creates a new urql client with the provided apiUrl.
+		 */
+		useExternalUrqlClient?: string;
 	}) => {
 		const schema = builtSchema();
 		await generateFromSchema({
@@ -49,6 +65,7 @@ export const clientCreatorImplementer = <
 			outputPath,
 			rumbleImportPath,
 			apiUrl,
+			useExternalUrqlClient,
 		});
 	};
 

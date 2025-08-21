@@ -57,66 +57,46 @@ export function makeGraphQLRequest({
 		onPush((data) => {
 			currentValue = data;
 		}),
+		toObservable,
 	);
 
-	// let currentValue: any;
-	// const subscribeable: Subscribeable<any> = {
-	// 	subscribe(subscription) {
-	// 		const s = response.subscribe((v) => {
-	// 			const data = v.data?.[queryName];
+	let awaited = false;
 
-	// if (!data && v.error) {
-	// 	throw v.error;
-	// }
-
-	// 			currentValue = data;
-	// 			subscription(data);
-	// 		});
-	// 		return () => {
-	// 			s.unsubscribe();
-	// 		};
-	// 	},
-	// };
-
-	const awaited = false;
-
-	// const firstDataPushedToStore = (async () => {
-	// 	let unsub: (() => void) | undefined;
-	// 	await new Promise((resolve) => {
-	// 		unsub = response.subscribe((d) => {
-	// 			resolve(d);
-	// 		}).unsubscribe;
-	// 	});
-
-	// 	unsub!();
-	// 	awaited = true;
-	// 	return ret;
-	// })();
-
-	const ret = new Proxy(toObservable(response), {
-		get: (target, prop) => {
-			if (prop === "then" && !awaited) {
-				return async (onFullfilled: any) => {
-					console.log("a");
-					await toPromise(response);
-					console.log("b");
-					onFullfilled(ret);
-				};
-				// return (async () => {
-				// 	console.log("adwadwad");
-				// 	console.log("resolved", g);
-				// 	awaited = true;
-				// 	return ret;
-				// })().then.bind(ret);
-			}
-
-			if ((target as any)[prop] !== undefined) {
-				return (target as any)[prop];
-			}
-
-			return currentValue?.[prop];
+	const ret = new Proxy(
+		{
+			warning:
+				"This is only a JS proxy passing on the current value of the latest received data. It will not work properly if serialized via JSON.stringify. If you want the actual data, use the '__raw' getter field on this exact object or subscribe to it via the subscribe method.",
+			get __raw() {
+				return currentValue;
+			},
+			...response,
 		},
-	});
+		{
+			get: (target, prop) => {
+				if (prop === "then" && !awaited) {
+					return (onFullfilled: any) => {
+						(async () => {
+							let unsub: (() => void) | undefined;
+							await new Promise((resolve) => {
+								unsub = response.subscribe((d) => {
+									resolve(d);
+								}).unsubscribe;
+							});
+							unsub!();
+							awaited = true;
+							onFullfilled(ret);
+						})();
+					};
+				}
+
+				if ((target as any)[prop] !== undefined) {
+					return (target as any)[prop];
+				}
+
+				return currentValue?.[prop];
+			},
+		},
+	);
 
 	return ret;
 }

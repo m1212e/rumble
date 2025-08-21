@@ -1,25 +1,20 @@
-import { exists, mkdir, rm, writeFile } from "node:fs/promises";
+import { exists, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type CodegenConfig, generate } from "@graphql-codegen/cli";
-import {
-	type GraphQLField,
-	type GraphQLFieldMap,
-	type GraphQLInputType,
-	GraphQLObjectType,
-	type GraphQLSchema,
-	printSchema,
-} from "graphql";
+import { type GraphQLSchema, printSchema } from "graphql";
 
 export async function generateFromSchema({
 	outputPath,
 	schema,
 	rumbleImportPath = "@m1212e/rumble",
 	apiUrl,
+	useExternalUrqlClient = false,
 }: {
 	schema: GraphQLSchema;
 	outputPath: string;
 	rumbleImportPath?: string;
 	apiUrl: string;
+	useExternalUrqlClient?: boolean | string;
 }) {
 	if (await exists(outputPath)) {
 		await rm(outputPath, { recursive: true, force: true });
@@ -49,21 +44,62 @@ export async function generateFromSchema({
 	console.info("Generating client at", outputPath);
 	await generate(config);
 
-	const output = `import { Client, cacheExchange, fetchExchange } from '@urql/core';
-import { makeQuery } from "${rumbleImportPath}";
-import type { Query } from "./graphql";
+	const generatedTypeExports = (
+		await readFile(join(outputPath, "graphql.ts"), "utf-8")
+	)
+		.matchAll(/export type (\w+) = {/gms)
+		.toArray()
+		.map((e) => e[1]);
+
+	const output = `import { makeQuery } from "${rumbleImportPath}";
+import type * as schema from "./graphql";
+${
+	typeof useExternalUrqlClient === "string"
+		? `import { urqlClient } from "${useExternalUrqlClient}";`
+		: `import { Client, fetchExchange } from '@urql/core';
+import { cacheExchange } from '@urql/exchange-graphcache';
 
 const urqlClient = new Client({
   url: "${apiUrl}",
   fetchSubscriptions: true,
-  exchanges: [ cacheExchange, fetchExchange ],
+  exchanges: [ cacheExchange({}), fetchExchange ],
   fetchOptions: {
 		credentials: "include",
 	},
-});
+  requestPolicy: "cache-and-network",
+});`
+}
 
+type Schema = { ${generatedTypeExports.map((e) => `${e}: schema.${e}`).join(", ")} };
+
+/**
+ * Client object to be used for the rumble api. Provides a nice, typesafe access to query all data from the api.
+ * If existent (as per default if using the query implementation helpers) this automatically subscribes to subscriptions
+ * which equal the query name provided. See the below example for usage.
+ * 
+ * @example
+ * \`\`\`ts
+ * 
+ * import { client } from "./generated-client/client";
+ *
+ * // await to ensure there is data present in the response
+ * // if not awaited, only the subscribe method will be available
+ * const r = await client.data.users({
+ *	id: true,
+ *	name: true,
+ *	posts: {
+ *		id: true,
+ *		content: true,
+ *	},
+ * });
+ * 
+ * console.log("first user:", r[0]);
+ * r.subscribe((users) => console.log("live user data:", users));
+ * 
+ * \`\`\` 
+ */
 export const client = {
-	query: makeQuery<Query>({
+	data: makeQuery<Schema>({
 		urqlClient,
 		availableSubscriptions: new Set([${Object.keys(
 			schema.getSubscriptionType()?.getFields() ?? {},
@@ -72,6 +108,14 @@ export const client = {
 			.join(", ")}]),
 	}),
 };
+
+const s = ${JSON.stringify(
+		{
+			queryType: schema.getQueryType()?.toConfig(),
+		},
+		null,
+		2,
+	)};
 `;
 
 	await writeFile(join(outputPath, "client.ts"), output);
