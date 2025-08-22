@@ -8,7 +8,7 @@ import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
 } from "../types/rumbleInput";
-import { generateFromSchema } from "./generateFromSchema";
+import { generateFromSchema } from "./generate/generate";
 
 export const clientCreatorImplementer = <
 	UserContext extends Record<string, any>,

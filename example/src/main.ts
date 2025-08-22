@@ -369,10 +369,10 @@ schemaBuilder.mutationFields((t) => {
 
 // when we are done defining the objects, queries and mutations,
 // we can start the server
-const server = createServer(createYoga());
-server.listen(3000, () => {
-	console.info("Visit http://localhost:3000/graphql");
-});
+// const server = createServer(createYoga());
+// server.listen(3000, () => {
+// 	console.info("Visit http://localhost:3000/graphql");
+// });
 
 // if you also need a REST API built from your GraphQL API, you can use 'createSofa()' instead or in addition
 

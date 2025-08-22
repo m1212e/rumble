@@ -1,5 +1,4 @@
-export { generateFromSchema } from "./client/generateFromSchema";
-export { makeQuery } from "./client/query";
+export { generateFromSchema } from "./client/generate/generate";
 export {
 	assertFindFirstExists,
 	assertFirstEntryExists,
