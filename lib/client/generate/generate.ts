@@ -1,8 +1,7 @@
-import { exists, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { exists, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { type CodegenConfig, generate } from "@graphql-codegen/cli";
 import { type GraphQLSchema, printSchema } from "graphql";
-import { makeModel } from "./modelRef";
+import { makeTSRepresentation } from "./tsRepresentation";
 import { generateClient } from "./urqlClient";
 
 export async function generateFromSchema({
@@ -23,42 +22,27 @@ export async function generateFromSchema({
 	}
 	await mkdir(outputPath, { recursive: true });
 
-	const schemaString = printSchema(schema).replaceAll("`", "'");
-
 	if (!outputPath.endsWith("/")) {
 		outputPath += "/";
 	}
 
-	const config: CodegenConfig = {
-		schema: schemaString,
-		// documents: ["src/**/*.tsx"],
-		generates: {
-			[outputPath]: {
-				preset: "client",
-				plugins: [],
-			},
-			[join(outputPath, "schema.graphql")]: {
-				plugins: ["schema-ast"],
-			},
-		},
-	};
+	// const schemaString = printSchema(schema).replaceAll("`", "'");
+	// const config: CodegenConfig = {
+	// 	schema: schemaString,
+	// 	// documents: ["src/**/*.tsx"],
+	// 	generates: {
+	// 		[outputPath]: {
+	// 			preset: "client",
+	// 			plugins: [],
+	// 		},
+	// 		[join(outputPath, "schema.graphql")]: {
+	// 			plugins: ["schema-ast"],
+	// 		},
+	// 	},
+	// };
 
-	console.info("Generating client at", outputPath);
-	await generate(config);
-
-	// const generatedTypeExports = (
-	// 	await readFile(join(outputPath, "graphql.ts"), "utf-8")
-	// )
-	// 	.matchAll(/export type (\w+) = {/gms)
-	// 	.toArray()
-	// 	.map((e) => e[1]);
-	// type Schema = { ${generatedTypeExports.map((e) => `${e}: schema.${e}`).join(", ")} };
-
-	// const availableSubscriptions = new Set([${Object.keys(
-	// 		schema.getSubscriptionType()?.getFields() ?? {},
-	// 	)
-	// 		.map((e) => `"${e}"`)
-	// 		.join(", ")}])
+	// console.info("Generating client at", outputPath);
+	// await generate(config);
 
 	const imports: string[] = [];
 	let code = "";
@@ -77,49 +61,17 @@ export async function generateFromSchema({
 		typeMap.set(key, object);
 	}
 
-	const query = makeModel(typeMap.get("Query")!);
+	for (const [key, object] of typeMap.entries()) {
+		const rep = makeTSRepresentation(object);
 
-	console.log(query);
+		if (rep === key) {
+			continue;
+		}
 
-	// const stringifiedTypeMap = new Map<string, Generation>();
-	// for (const [key, value] of typeMap) {
-	// 	stringifiedTypeMap.set(key, makeModel(value));
-	// }
-
-	// console.log(stringifiedTypeMap);
-
-	// /**
-	//  * Client object to be used for the rumble api. Provides a nice, typesafe access to query all data from the api.
-	//  * If existent (as per default if using the query implementation helpers) this automatically subscribes to subscriptions
-	//  * which equal the query name provided. See the below example for usage.
-	//  *
-	//  * @example
-	//  * \`\`\`ts
-	//  *
-	//  * import { client } from "./generated-client/client";
-	//  *
-	//  * // await to ensure there is data present in the response
-	//  * // if not awaited, only the subscribe method will be available
-	//  * const r = await client.data.users({
-	//  *	id: true,
-	//  *	name: true,
-	//  *	posts: {
-	//  *		id: true,
-	//  *		content: true,
-	//  *	},
-	//  * });
-	//  *
-	//  * console.log("first user:", r[0]);
-	//  * r.subscribe((users) => console.log("live user data:", users));
-	//  *
-	//  * \`\`\`
-	//  */
-	// export const client = {
-	// 	data: makeQuery<Schema>({
-	// 		urqlClient,
-	// 	}),
-	// };
-	// `;
+		code += `
+export type ${key} = ${makeTSRepresentation(object)};
+		`;
+	}
 
 	await writeFile(
 		join(outputPath, "client.ts"),

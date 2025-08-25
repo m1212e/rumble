@@ -20,12 +20,13 @@ export function generateClient({
 const urqlClient = new Client({
   url: "${apiUrl}",
   fetchSubscriptions: true,
-  exchanges: [ cacheExchange({}), fetchExchange ],
+  exchanges: [cacheExchange({}), fetchExchange],
   fetchOptions: {
     credentials: "include",
   },
   requestPolicy: "cache-and-network",
-});`;
+});
+`;
 	}
 
 	return {
