@@ -1,8 +1,8 @@
 import { exists, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type GraphQLSchema, printSchema } from "graphql";
+import { generateClient } from "./client";
 import { makeTSRepresentation } from "./tsRepresentation";
-import { generateClient } from "./urqlClient";
 
 export async function generateFromSchema({
 	outputPath,
@@ -47,14 +47,6 @@ export async function generateFromSchema({
 	const imports: string[] = [];
 	let code = "";
 
-	const c = generateClient({
-		apiUrl,
-		useExternalUrqlClient,
-	});
-
-	imports.push(...c.imports);
-	code += c.code;
-
 	const typeMap = new Map<string, any>();
 	for (const [key, object] of Object.entries(schema.getTypeMap())) {
 		if (key.startsWith("__")) continue;
@@ -72,6 +64,18 @@ export async function generateFromSchema({
 export type ${key} = ${makeTSRepresentation(object)};
 		`;
 	}
+
+	const c = generateClient({
+		apiUrl,
+		useExternalUrqlClient,
+		rumbleImportPath,
+		availableSubscriptions: new Set(
+			Object.keys(schema.getSubscriptionType()?.getFields() || {}),
+		),
+	});
+
+	imports.push(...c.imports);
+	code += c.code;
 
 	await writeFile(
 		join(outputPath, "client.ts"),

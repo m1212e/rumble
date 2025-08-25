@@ -1,9 +1,13 @@
 export function generateClient({
 	apiUrl,
+	rumbleImportPath,
 	useExternalUrqlClient,
+	availableSubscriptions,
 }: {
+	rumbleImportPath: string;
 	useExternalUrqlClient: string | boolean;
 	apiUrl: string;
+	availableSubscriptions: Set<string>;
 }) {
 	const imports: string[] = [];
 	let code: string = "";
@@ -14,6 +18,8 @@ export function generateClient({
 		imports.push(`import { Client, fetchExchange } from '@urql/core';`);
 		imports.push(`import { cacheExchange } from '@urql/exchange-graphcache';`);
 	}
+
+	imports.push(`import { makeQuery } from '${rumbleImportPath}';`);
 
 	if (!useExternalUrqlClient) {
 		code += `
@@ -28,6 +34,18 @@ const urqlClient = new Client({
 });
 `;
 	}
+
+	code += `
+export const client = {
+  data: makeQuery<Query>({
+	  urqlClient,
+	  availableSubscriptions: new Set([${availableSubscriptions
+			.values()
+			.toArray()
+			.map((value) => `"${value}"`)
+			.join(", ")}]),
+  })
+}`;
 
 	return {
 		imports,
