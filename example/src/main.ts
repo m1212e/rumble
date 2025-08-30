@@ -369,10 +369,10 @@ schemaBuilder.mutationFields((t) => {
 
 // when we are done defining the objects, queries and mutations,
 // we can start the server
-// const server = createServer(createYoga());
-// server.listen(3000, () => {
-// 	console.info("Visit http://localhost:3000/graphql");
-// });
+const server = createServer(createYoga());
+server.listen(3000, () => {
+	console.info("Visit http://localhost:3000/graphql");
+});
 
 // if you also need a REST API built from your GraphQL API, you can use 'createSofa()' instead or in addition
 
@@ -390,7 +390,9 @@ await clientCreator({
 // which then can be used like this:
 import { client } from "./generated-client/client";
 
-const r = await client.data.users;
+const r1 = await client.data.user({});
+
+r1.posts.at(0)?.content;
 
 // console.log("first user:", r[0]);
 // r.subscribe((users) => console.log("live user data:", users));

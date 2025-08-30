@@ -1,6 +1,6 @@
 import type { Client } from "@urql/core";
-import { makeGraphQLRequest } from "./request";
-import type { UnArray } from "./utilTypes";
+import { argsKey, makeGraphQLRequest } from "./request";
+import type { RequireAtLeastOneFieldSet, UnArray } from "./utilTypes";
 
 export function makeQuery<Query extends Record<string, any>>({
 	urqlClient,
@@ -20,10 +20,10 @@ export function makeQuery<Query extends Record<string, any>>({
 					return queryProxy;
 				}
 
-				return (selection: Record<string, any>) => {
+				return (input: Record<string, any>) => {
 					return makeGraphQLRequest({
 						queryName: prop as string,
-						selection,
+						input,
 						client: urqlClient,
 						enableSubscription: availableSubscriptions.has(prop as string),
 					});
@@ -34,9 +34,6 @@ export function makeQuery<Query extends Record<string, any>>({
 
 	return queryProxy;
 }
-
-type ScalarTypeI = Date | string | number | boolean;
-type ScalarType = ScalarTypeI | ScalarTypeI[];
 
 type QueryObject<Q> = {
 	[Key in keyof Q]: QueryField<Q[Key]>;
@@ -58,7 +55,17 @@ type QueryObject<Q> = {
 //   }) => User[]
 // };
 
-type QueryField<T> = T extends (p: infer P) => infer A ? "adwawd" : Response<T>;
+type QueryField<T> = T extends (p: infer QueryArgs) => infer QueryResponse
+	? <
+			Selected extends QueryArgs extends Record<string, any>
+				? Selection<UnArray<NonNullable<QueryResponse>>> & {
+						[argsKey]: QueryArgs;
+					}
+				: Selection<UnArray<NonNullable<QueryResponse>>>,
+		>(
+			s: Selected,
+		) => Response<ApplySelection<QueryResponse, Selected>>
+	: Response<T>;
 
 // type QueryField<T> = T extends ScalarType
 // 	? T
@@ -68,23 +75,34 @@ type QueryField<T> = T extends (p: infer P) => infer A ? "adwawd" : Response<T>;
 // 			? Response<ApplySelection<UnArray<T>, S>[]>
 // 			: Response<ApplySelection<UnArray<T>, S>>;
 
-// type SelectionObjectType<O> = {
-// 	[Key in keyof O]: NonNullable<UnArray<O[Key]>> extends ScalarType
-// 		? boolean
-// 		: SelectionObjectType<Partial<UnArray<O[Key]>>>;
-// };
+type Selection<O> = RequireAtLeastOneFieldSet<{
+	[Key in keyof O]: NonNullable<UnArray<O[Key]>> extends (p: infer P) => infer A
+		? P extends Record<string, any>
+			? Selection<UnArray<NonNullable<A>>> & { [argsKey]: P }
+			: Selection<UnArray<NonNullable<A>>>
+		: boolean;
+}>;
 
 // type ApplySelection<Object, Selection> = {
-// 	[Key in keyof Selection & keyof Object]: Selection[Key] extends
-// 		| true
-// 		| Record<any, any>
-// 		? Object[Key] extends ScalarType
-// 			? Object[Key]
-// 			: Object[Key] extends Array<any>
+// 	[Key in keyof Selection & keyof Object]: Selection[Key] extends true | Record<any, any>
+// 		? Object[Key] extends (p: infer P) => infer A
+// 			? Object[Key] extends Array<any>
 // 				? Array<ApplySelection<UnArray<Object[Key]>, Selection[Key]>>
 // 				: ApplySelection<UnArray<Object[Key]>, Selection[Key]>
+// 			: Object[Key]
 // 		: never;
 // };
+
+type ApplySelection<Object, Selection> = {
+	[Key in keyof Selection & keyof Object]: Object[Key] extends (
+		p: infer P,
+	) => infer A
+		? ReturnType<Object[Key]> extends Array<any>
+			? // ? Array<ApplySelection<UnArray<Object[Key]>, Selection[Key]>>
+				Array<ApplySelection<UnArray<ReturnType<Object[Key]>>, Selection[Key]>>
+			: ApplySelection<UnArray<Object[Key]>, Selection[Key]>
+		: Object[Key];
+};
 
 export type Subscribeable<Data> = {
 	subscribe: (subscription: (value: Data) => void) => () => void;

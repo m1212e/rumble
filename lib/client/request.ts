@@ -1,47 +1,40 @@
-import { type Client, cacheExchange, fetchExchange } from "@urql/core";
+import type { Client } from "@urql/core";
 import { capitalize } from "es-toolkit";
-import {
-	empty,
-	fromArray,
-	map,
-	merge,
-	never,
-	onPush,
-	pipe,
-	share,
-	toObservable,
-	toPromise,
-} from "wonka";
-import type { Response, Subscribeable } from "./query";
+import { empty, map, merge, onPush, pipe, toObservable } from "wonka";
+
+export const argsKey = "__args";
 
 export function makeGraphQLRequest({
 	queryName,
-	selection,
+	input,
 	client,
 	enableSubscription = false,
 }: {
 	queryName: string;
-	selection: Record<string, any>;
+	input: Record<string, any>;
 	client: Client;
 	enableSubscription?: boolean;
 }) {
 	const otwQueryName = `${capitalize(queryName)}Query`;
-	const args = {
-		//  id: "test"
-	};
+	const args = input[argsKey] ?? {};
+	if (args) {
+		input[argsKey] = undefined;
+	}
+
+	console.log(args);
 
 	let currentValue: any;
 
 	const response = pipe(
 		merge([
 			client.query(
-				`query ${otwQueryName} { ${queryName} { ${stringifySelection(selection)} }}`,
-				args,
+				`query ${otwQueryName} { ${queryName} { ${stringifySelection(input)} }}`,
+				{},
 			),
 			enableSubscription
 				? client.subscription(
-						`subscription ${otwQueryName} { ${queryName} { ${stringifySelection(selection)} } }`,
-						args,
+						`subscription ${otwQueryName} { ${queryName} { ${stringifySelection(input)} } }`,
+						{},
 					)
 				: empty,
 		]),
@@ -112,4 +105,36 @@ function stringifySelection(selection: Record<string, any>) {
 		}
 		return acc;
 	}, "");
+}
+
+function stringifyArgumentObjectToGraphqlList(args: Record<any, any>) {
+	const entries = Object.entries(args);
+	if (entries.length === 0) {
+		return "";
+	}
+
+	return `(${entries.map(([key, value]) => `${key}: ${stringifyArgumentValue(value)}`).join(", ")})`;
+}
+
+function stringifyArgumentValue(arg: any): string {
+	switch (typeof arg) {
+		case "string":
+			return `"${arg}"`;
+		case "number":
+			return `${arg}`;
+		case "bigint":
+			return `${arg}`;
+		case "boolean":
+			return `${arg}`;
+		case "symbol":
+			throw new Error("Cannot stringify a symbol to send as gql arg");
+		case "undefined":
+			return "null";
+		case "object":
+			return `{ ${Object.entries(arg)
+				.map(([key, value]) => `${key}: ${stringifyArgumentValue(value)}`)
+				.join(", ")} }`;
+		case "function":
+			throw new Error("Cannot stringify a function to send as gql arg");
+	}
 }
