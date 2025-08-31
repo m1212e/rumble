@@ -16,26 +16,17 @@ export function makeGraphQLRequest({
 	enableSubscription?: boolean;
 }) {
 	const otwQueryName = `${capitalize(queryName)}Query`;
-	const args = input[argsKey] ?? {};
-	if (args) {
-		input[argsKey] = undefined;
-	}
 
-	console.log(args);
+	const argsString = stringifyArgumentObjectToGraphqlList(input[argsKey] ?? {});
+	const operationString = (operationVerb: "query" | "subscription") =>
+		`${operationVerb} ${otwQueryName} { ${queryName}${argsString} { ${stringifySelection(input)} }}`;
 
 	let currentValue: any;
-
 	const response = pipe(
 		merge([
-			client.query(
-				`query ${otwQueryName} { ${queryName} { ${stringifySelection(input)} }}`,
-				{},
-			),
+			client.query(operationString("query"), {}),
 			enableSubscription
-				? client.subscription(
-						`subscription ${otwQueryName} { ${queryName} { ${stringifySelection(input)} } }`,
-						{},
-					)
+				? client.subscription(operationString("subscription"), {})
 				: empty,
 		]),
 		// share,
@@ -95,16 +86,27 @@ export function makeGraphQLRequest({
 }
 
 function stringifySelection(selection: Record<string, any>) {
-	return Object.entries(selection).reduce((acc, [key, value]) => {
-		if (typeof value === "object") {
-			acc += `${key} { ${stringifySelection(value)} }
+	return Object.entries(selection)
+		.filter(([key]) => key !== argsKey)
+		.reduce((acc, [key, value]) => {
+			if (typeof value === "object") {
+				if (value[argsKey]) {
+					const argsString = stringifyArgumentObjectToGraphqlList(
+						value[argsKey],
+					);
+					acc += `${key}${argsString} { ${stringifySelection(value)} }
 `;
-		} else {
-			acc += `${key}
+					return acc;
+				}
+
+				acc += `${key} { ${stringifySelection(value)} }
 `;
-		}
-		return acc;
-	}, "");
+			} else {
+				acc += `${key}
+`;
+			}
+			return acc;
+		}, "");
 }
 
 function stringifyArgumentObjectToGraphqlList(args: Record<any, any>) {
