@@ -26,24 +26,6 @@ export async function generateFromSchema({
 		outputPath += "/";
 	}
 
-	// const schemaString = printSchema(schema).replaceAll("`", "'");
-	// const config: CodegenConfig = {
-	// 	schema: schemaString,
-	// 	// documents: ["src/**/*.tsx"],
-	// 	generates: {
-	// 		[outputPath]: {
-	// 			preset: "client",
-	// 			plugins: [],
-	// 		},
-	// 		[join(outputPath, "schema.graphql")]: {
-	// 			plugins: ["schema-ast"],
-	// 		},
-	// 	},
-	// };
-
-	// console.info("Generating client at", outputPath);
-	// await generate(config);
-
 	const imports: string[] = [];
 	let code = "";
 

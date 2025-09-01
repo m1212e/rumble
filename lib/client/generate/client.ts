@@ -20,7 +20,7 @@ export function generateClient({
 	}
 
 	imports.push(
-		`import { makeQuery, makeMutation } from '${rumbleImportPath}';`,
+		`import { makeLiveQuery, makeMutation, makeSubscription, makeQuery } from '${rumbleImportPath}';`,
 	);
 
 	if (!useExternalUrqlClient) {
@@ -39,7 +39,7 @@ const urqlClient = new Client({
 
 	code += `
 export const client = {
-  data: makeQuery<Query>({
+  liveQuery: makeLiveQuery<Query>({
 	  urqlClient,
 	  availableSubscriptions: new Set([${availableSubscriptions
 			.values()
@@ -49,7 +49,13 @@ export const client = {
   }),
   mutate: makeMutation<Mutation>({
 	  urqlClient,
-  })
+  }),
+//   subscribe: makeSubscription<Subscription>({
+// 	  urqlClient,
+//   }),
+  query: makeQuery<Query>({
+	  urqlClient,
+  }),
 }`;
 
 	return {

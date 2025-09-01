@@ -390,26 +390,7 @@ await clientCreator({
 // which then can be used like this:
 import { client } from "./generated-client/client";
 
-const r1 = client.data.user({
-	__args: {
-		id: "1",
-	},
+const r1 = await client.liveQuery.users({
 	id: true,
 	name: true,
 });
-
-r1.subscribe(console.log);
-
-// const r2 = await client.mutate.updateUsername({
-// 	__args: {
-// 		newName: "sdfgsdfgsdfg",
-// 		userId: 1,
-// 	},
-// 	id: true,
-// 	name: true,
-// })
-
-// setInterval(() => {
-// 	console.log(r1);
-// }, 1000);
-// r2.subscribe(console.log);

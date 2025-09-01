@@ -2,18 +2,18 @@ import type { Client } from "@urql/core";
 import { capitalize } from "es-toolkit";
 import {
 	empty,
+	fromValue,
 	map,
 	merge,
 	onPush,
 	pipe,
-	share,
 	toObservable,
 	toPromise,
 } from "wonka";
 
 export const argsKey = "__args";
 
-export function makeGraphQLRequest({
+export function makeGraphQLQuery({
 	queryName,
 	input,
 	client,
@@ -25,12 +25,12 @@ export function makeGraphQLRequest({
 	enableSubscription?: boolean;
 }) {
 	const otwQueryName = `${capitalize(queryName)}Query`;
-
 	const argsString = stringifyArgumentObjectToGraphqlList(input[argsKey] ?? {});
 	const operationString = (operationVerb: "query" | "subscription") =>
 		`${operationVerb} ${otwQueryName} { ${queryName}${argsString} { ${stringifySelection(input)} }}`;
 
-	const promiseResolvedObjectReference = {};
+	let awaitedReturnValueReference: any;
+
 	const response = pipe(
 		merge([
 			client.query(operationString("query"), {}),
@@ -46,55 +46,27 @@ export function makeGraphQLRequest({
 
 			return data;
 		}),
-		share,
 		onPush((data) => {
-			Object.assign(promiseResolvedObjectReference, data);
+			if (awaitedReturnValueReference) {
+				Object.assign(awaitedReturnValueReference, data);
+			}
 		}),
 	);
 
-	const observable = toObservable(response);
-	const data = toPromise(response).then((res) => {
-		Object.assign(res, observable);
-		Object.assign(promiseResolvedObjectReference, res);
-		return promiseResolvedObjectReference;
+	const promise = new Promise((resolve) => {
+		const unsub = toObservable(response).subscribe((v) => {
+			unsub();
+			const newObservableWithAwaitedValue = pipe(
+				merge([response, fromValue(v)]),
+				toObservable,
+			);
+			awaitedReturnValueReference = { ...v, ...newObservableWithAwaitedValue };
+			resolve(awaitedReturnValueReference);
+		}).unsubscribe;
 	});
-	Object.assign(data, observable);
+	Object.assign(promise, toObservable(response));
 
-	return data;
-
-	// let awaited = false;
-
-	// const ret = new Proxy(
-	// 	{
-	// 		warning:
-	// 			"This is only a JS proxy passing on the current value of the latest received data. It will not work properly if serialized via JSON.stringify. If you want the actual data, use the '__raw' getter field on this exact object or subscribe to it via the subscribe method.",
-	// 		get __raw() {
-	// 			return currentValue;
-	// 		},
-	// 		...toObservable(response),
-	// 	},
-	// 	{
-	// 		get: (target, prop) => {
-	// 			if (prop === "then" && !awaited) {
-	// 				return (onFullfilled: any) => {
-	// 					(async () => {
-	// 						const ret = await toPromise(response);
-	// 						awaited = true;
-	// 						onFullfilled(ret);
-	// 					})();
-	// 				};
-	// 			}
-
-	// 			if ((target as any)[prop] !== undefined) {
-	// 				return (target as any)[prop];
-	// 			}
-
-	// 			return currentValue?.[prop];
-	// 		},
-	// 	},
-	// );
-
-	// return ret;
+	return promise;
 }
 
 export function makeGraphQLMutation({
@@ -115,7 +87,6 @@ export function makeGraphQLMutation({
 			`mutation ${otwMutationName} { ${mutationName}${argsString} { ${stringifySelection(input)} }}`,
 			{},
 		),
-		share,
 		map((v) => {
 			const data = v.data?.[mutationName];
 			if (!data && v.error) {
@@ -127,13 +98,42 @@ export function makeGraphQLMutation({
 	);
 
 	const observable = toObservable(response);
-	const data = toPromise(response).then((res) => {
+	const promise = toPromise(response).then((res) => {
 		Object.assign(res, observable);
 		return res;
 	});
-	Object.assign(data, observable);
+	Object.assign(promise, observable);
 
-	return data;
+	return promise;
+}
+
+export function makeGraphQLSubscription({
+	subscriptionName,
+	input,
+	client,
+}: {
+	subscriptionName: string;
+	input: Record<string, any>;
+	client: Client;
+}) {
+	const otwSubscriptionName = `${capitalize(subscriptionName)}Subscription`;
+	const argsString = stringifyArgumentObjectToGraphqlList(input[argsKey] ?? {});
+
+	return pipe(
+		client.subscription(
+			`subscription ${otwSubscriptionName} { ${subscriptionName}${argsString} { ${stringifySelection(input)} }}`,
+			{},
+		),
+		map((v) => {
+			const data = v.data?.[subscriptionName];
+			if (!data && v.error) {
+				throw v.error;
+			}
+
+			return data;
+		}),
+		toObservable,
+	);
 }
 
 function stringifySelection(selection: Record<string, any>) {
