@@ -19,7 +19,9 @@ export function generateClient({
 		imports.push(`import { cacheExchange } from '@urql/exchange-graphcache';`);
 	}
 
-	imports.push(`import { makeQuery } from '${rumbleImportPath}';`);
+	imports.push(
+		`import { makeQuery, makeMutation } from '${rumbleImportPath}';`,
+	);
 
 	if (!useExternalUrqlClient) {
 		code += `
@@ -44,6 +46,9 @@ export const client = {
 			.toArray()
 			.map((value) => `"${value}"`)
 			.join(", ")}]),
+  }),
+  mutate: makeMutation<Mutation>({
+	  urqlClient,
   })
 }`;
 

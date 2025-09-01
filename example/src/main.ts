@@ -390,23 +390,26 @@ await clientCreator({
 // which then can be used like this:
 import { client } from "./generated-client/client";
 
-const r1 = await client.data.user({
+const r1 = client.data.user({
 	__args: {
 		id: "1",
 	},
 	id: true,
-	posts: {
-		__args: {
-			limit: 3,
-		},
-		id: true,
-		content: true,
-	},
+	name: true,
 });
 
-console.log(r1.__raw);
+r1.subscribe(console.log);
 
-// r1.posts.at(0)?.content;
+// const r2 = await client.mutate.updateUsername({
+// 	__args: {
+// 		newName: "sdfgsdfgsdfg",
+// 		userId: 1,
+// 	},
+// 	id: true,
+// 	name: true,
+// })
 
-// console.log("first user:", r[0]);
-// r.subscribe((users) => console.log("live user data:", users));
+// setInterval(() => {
+// 	console.log(r1);
+// }, 1000);
+// r2.subscribe(console.log);

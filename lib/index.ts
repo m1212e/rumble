@@ -1,4 +1,5 @@
 export { generateFromSchema } from "./client/generate/generate";
+export { makeMutation } from "./client/mutation";
 export { makeQuery } from "./client/query";
 export {
 	assertFindFirstExists,

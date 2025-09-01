@@ -1,6 +1,15 @@
 import type { Client } from "@urql/core";
 import { capitalize } from "es-toolkit";
-import { empty, map, merge, onPush, pipe, toObservable } from "wonka";
+import {
+	empty,
+	map,
+	merge,
+	onPush,
+	pipe,
+	share,
+	toObservable,
+	toPromise,
+} from "wonka";
 
 export const argsKey = "__args";
 
@@ -21,7 +30,7 @@ export function makeGraphQLRequest({
 	const operationString = (operationVerb: "query" | "subscription") =>
 		`${operationVerb} ${otwQueryName} { ${queryName}${argsString} { ${stringifySelection(input)} }}`;
 
-	let currentValue: any;
+	const promiseResolvedObjectReference = {};
 	const response = pipe(
 		merge([
 			client.query(operationString("query"), {}),
@@ -29,7 +38,6 @@ export function makeGraphQLRequest({
 				? client.subscription(operationString("subscription"), {})
 				: empty,
 		]),
-		// share,
 		map((v) => {
 			const data = v.data?.[queryName];
 			if (!data && v.error) {
@@ -38,51 +46,94 @@ export function makeGraphQLRequest({
 
 			return data;
 		}),
+		share,
 		onPush((data) => {
-			currentValue = data;
+			Object.assign(promiseResolvedObjectReference, data);
 		}),
-		toObservable,
 	);
 
-	let awaited = false;
+	const observable = toObservable(response);
+	const data = toPromise(response).then((res) => {
+		Object.assign(res, observable);
+		Object.assign(promiseResolvedObjectReference, res);
+		return promiseResolvedObjectReference;
+	});
+	Object.assign(data, observable);
 
-	const ret = new Proxy(
-		{
-			warning:
-				"This is only a JS proxy passing on the current value of the latest received data. It will not work properly if serialized via JSON.stringify. If you want the actual data, use the '__raw' getter field on this exact object or subscribe to it via the subscribe method.",
-			get __raw() {
-				return currentValue;
-			},
-			...response,
-		},
-		{
-			get: (target, prop) => {
-				if (prop === "then" && !awaited) {
-					return (onFullfilled: any) => {
-						(async () => {
-							let unsub: (() => void) | undefined;
-							await new Promise((resolve) => {
-								unsub = response.subscribe((d) => {
-									resolve(d);
-								}).unsubscribe;
-							});
-							unsub!();
-							awaited = true;
-							onFullfilled(ret);
-						})();
-					};
-				}
+	return data;
 
-				if ((target as any)[prop] !== undefined) {
-					return (target as any)[prop];
-				}
+	// let awaited = false;
 
-				return currentValue?.[prop];
-			},
-		},
+	// const ret = new Proxy(
+	// 	{
+	// 		warning:
+	// 			"This is only a JS proxy passing on the current value of the latest received data. It will not work properly if serialized via JSON.stringify. If you want the actual data, use the '__raw' getter field on this exact object or subscribe to it via the subscribe method.",
+	// 		get __raw() {
+	// 			return currentValue;
+	// 		},
+	// 		...toObservable(response),
+	// 	},
+	// 	{
+	// 		get: (target, prop) => {
+	// 			if (prop === "then" && !awaited) {
+	// 				return (onFullfilled: any) => {
+	// 					(async () => {
+	// 						const ret = await toPromise(response);
+	// 						awaited = true;
+	// 						onFullfilled(ret);
+	// 					})();
+	// 				};
+	// 			}
+
+	// 			if ((target as any)[prop] !== undefined) {
+	// 				return (target as any)[prop];
+	// 			}
+
+	// 			return currentValue?.[prop];
+	// 		},
+	// 	},
+	// );
+
+	// return ret;
+}
+
+export function makeGraphQLMutation({
+	mutationName,
+	input,
+	client,
+}: {
+	mutationName: string;
+	input: Record<string, any>;
+	client: Client;
+}) {
+	const otwMutationName = `${capitalize(mutationName)}Mutation`;
+
+	const argsString = stringifyArgumentObjectToGraphqlList(input[argsKey] ?? {});
+
+	const response = pipe(
+		client.mutation(
+			`mutation ${otwMutationName} { ${mutationName}${argsString} { ${stringifySelection(input)} }}`,
+			{},
+		),
+		share,
+		map((v) => {
+			const data = v.data?.[mutationName];
+			if (!data && v.error) {
+				throw v.error;
+			}
+
+			return data;
+		}),
 	);
 
-	return ret;
+	const observable = toObservable(response);
+	const data = toPromise(response).then((res) => {
+		Object.assign(res, observable);
+		return res;
+	});
+	Object.assign(data, observable);
+
+	return data;
 }
 
 function stringifySelection(selection: Record<string, any>) {
