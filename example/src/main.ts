@@ -395,7 +395,7 @@ const r1 = client.liveQuery.users({
 	name: true,
 });
 
-r1.subscribe((s) => s?.at(0).);
+r1.subscribe((s) => s?.at(0));
 
 const a = client.subscribe.users({
 	id: true,
