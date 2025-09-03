@@ -26,6 +26,8 @@ export function makeLiveQuery<Query extends Record<string, any>>({
 	) as QueryObject<Query>;
 }
 
+//TODO: Find out how to sanely refactor these types
+
 export type QueryObject<Q> = {
 	[Key in keyof Q]: QueryField<Q[Key]>;
 };
@@ -40,8 +42,16 @@ type QueryField<T> = T extends (p: infer QueryArgs) => infer QueryResponse
 		>(
 			s: Selected,
 		) => QueryResponse extends null
-			? Response<ApplySelection<NonNullable<QueryResponse>, Selected>> | null
-			: Response<ApplySelection<QueryResponse, Selected>>
+			? Response<
+					QueryResponse extends Array<any>
+						? ApplySelection<NonNullable<UnArray<QueryResponse>>, Selected>[]
+						: ApplySelection<NonNullable<UnArray<QueryResponse>>, Selected>
+				> | null
+			: Response<
+					QueryResponse extends Array<any>
+						? ApplySelection<UnArray<QueryResponse>, Selected>[]
+						: ApplySelection<UnArray<QueryResponse>, Selected>
+				>
 	: Response<T>;
 
 type Selection<O> = RequireAtLeastOneFieldSet<{

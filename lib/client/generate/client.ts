@@ -50,9 +50,9 @@ export const client = {
   mutate: makeMutation<Mutation>({
 	  urqlClient,
   }),
-//   subscribe: makeSubscription<Subscription>({
-// 	  urqlClient,
-//   }),
+  subscribe: makeSubscription<Subscription>({
+	  urqlClient,
+  }),
   query: makeQuery<Query>({
 	  urqlClient,
   }),
