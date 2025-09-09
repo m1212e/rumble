@@ -1,4 +1,4 @@
-import { exists, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { build } from "tsup";
 import packagejson from "./package.json";
@@ -9,11 +9,13 @@ const rumbleDir = import.meta.dir;
 const outDir = join(rumbleDir, "out");
 const libIndex = join(rumbleDir, "lib", "index.ts");
 
-if (await exists(outDir)) {
+try {
+	await access("outDir");
 	console.info("Cleaning outDir...");
 	await rm(outDir, { recursive: true, force: true });
 	console.info("Cleaned outDir!");
-}
+} catch (_error) {}
+
 console.info("Creating outDir...");
 await mkdir(outDir, { recursive: true });
 console.info("Created outDir!");
