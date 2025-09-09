@@ -58,7 +58,7 @@ export function tableHelper<
 		columns: (tableSchema as any)[columnsSymbol] as Record<string, Column>,
 		get primaryColumns() {
 			return Object.entries((tableSchema as any)[columnsSymbol])
-				.filter(([k, v]) => (v as Column).primary)
+				.filter(([, v]) => (v as Column).primary)
 				.reduce((acc, [k, v]) => {
 					(acc as any)[k] = v;
 					return acc;
@@ -72,7 +72,7 @@ export function tableHelper<
 		dbName: (tableSchema as any)[nameSymbol] as string,
 		get tsName() {
 			return Object.entries(db._.relations.schema)
-				.find(([key, v]) => v === tableSchema)!
+				.find(([, v]) => v === tableSchema)!
 				.at(0) as string;
 		},
 	};

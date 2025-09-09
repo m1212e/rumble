@@ -1,7 +1,3 @@
-import { exists, mkdir, rm } from "node:fs/promises";
-import { join } from "node:path";
-import { type CodegenConfig, generate } from "@graphql-codegen/cli";
-import { printSchema } from "graphql";
 import type { SchemaBuilderType } from "../schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "../types/genericDrizzleDbType";
 import type {

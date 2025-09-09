@@ -113,7 +113,7 @@ Please ensure that you use the enum at least once as a column of a table!`);
 			enumValues = (enumCol as any).enumValues;
 		} else if (enumColumn) {
 			const schemaEnumEntry = Object.entries(db._.relations.schema).find(
-				([key, value]) => value === (enumColumn as any).config.enum,
+				([, value]) => value === (enumColumn as any).config.enum,
 			);
 
 			if (!schemaEnumEntry) {

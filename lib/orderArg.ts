@@ -98,7 +98,7 @@ export const createOrderArgImplementer = <
 			return schemaBuilder.inputType(inputTypeName, {
 				fields: (t) => {
 					const fields = Object.entries(tableSchema.columns).reduce(
-						(acc, [key, value]) => {
+						(acc, [key]) => {
 							acc[key] = t.field({
 								type: sortingParameterEnumRef(),
 								required: false,

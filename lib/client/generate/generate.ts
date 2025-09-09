@@ -1,6 +1,6 @@
 import { exists, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { type GraphQLSchema, printSchema } from "graphql";
+import type { GraphQLSchema } from "graphql";
 import { generateClient } from "./client";
 import { makeTSRepresentation } from "./tsRepresentation";
 

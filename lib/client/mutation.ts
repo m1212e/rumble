@@ -10,7 +10,7 @@ export function makeMutation<Mutation extends Record<string, any>>({
 	return new Proxy(
 		{},
 		{
-			get: (target, prop) => {
+			get: (_target, prop) => {
 				return (input: Record<string, any>) => {
 					return makeGraphQLMutation({
 						mutationName: prop as string,

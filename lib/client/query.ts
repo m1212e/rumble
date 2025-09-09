@@ -1,6 +1,6 @@
 import type { Client } from "@urql/core";
-import type { QueryObject } from "./liveQuery";
-import { makeGraphQLMutation, makeGraphQLQuery } from "./request";
+import { makeGraphQLQuery } from "./request";
+import type { QueryableObjectFromGeneratedTypes } from "./types";
 
 export function makeQuery<Query extends Record<string, any>>({
 	urqlClient,
@@ -10,7 +10,7 @@ export function makeQuery<Query extends Record<string, any>>({
 	return new Proxy(
 		{},
 		{
-			get: (target, prop) => {
+			get: (_target, prop) => {
 				return (input: Record<string, any>) => {
 					return makeGraphQLQuery({
 						queryName: prop as string,
@@ -21,5 +21,5 @@ export function makeQuery<Query extends Record<string, any>>({
 				};
 			},
 		},
-	) as QueryObject<Query>;
+	) as QueryableObjectFromGeneratedTypes<Query>;
 }

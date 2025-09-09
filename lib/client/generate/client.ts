@@ -39,6 +39,12 @@ const urqlClient = new Client({
 
 	code += `
 export const client = {
+  /**
+   * A query and subscription combination. First queries and if exists, also subscribes to a subscription of the same name.
+   * Combines the results of both, so the result is first the query result and then live updates from the subscription.
+   * Assumes that the query and subscription return the same fields as per default when using the rumble query helpers.
+   * If no subscription with the same name exists, this will just be a query.
+   */
   liveQuery: makeLiveQuery<Query>({
 	  urqlClient,
 	  availableSubscriptions: new Set([${availableSubscriptions
@@ -47,12 +53,21 @@ export const client = {
 			.map((value) => `"${value}"`)
 			.join(", ")}]),
   }),
+  /**
+   * A mutation that can be used to e.g. create, update or delete data.
+   */
   mutate: makeMutation<Mutation>({
 	  urqlClient,
   }),
+  /**
+   * A continuous stream of results that updates when the server sends new data.
+   */
   subscribe: makeSubscription<Subscription>({
 	  urqlClient,
   }),
+  /**
+   * A one-time fetch of data.
+   */
   query: makeQuery<Query>({
 	  urqlClient,
   }),

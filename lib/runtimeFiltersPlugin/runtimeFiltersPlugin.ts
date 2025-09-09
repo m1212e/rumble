@@ -1,19 +1,10 @@
 import "./pluginTypes";
 import SchemaBuilder, {
 	BasePlugin,
-	type PothosEnumValueConfig,
-	type PothosInputFieldConfig,
-	type PothosInterfaceTypeConfig,
 	type PothosOutputFieldConfig,
-	type PothosTypeConfig,
-	type PothosUnionTypeConfig,
 	type SchemaTypes,
 } from "@pothos/core";
-import type {
-	GraphQLFieldResolver,
-	GraphQLSchema,
-	GraphQLTypeResolver,
-} from "graphql";
+import type { GraphQLFieldResolver } from "graphql";
 import { applyFilters } from "../helpers/helper";
 import type { ApplyFiltersField } from "./pluginTypes";
 

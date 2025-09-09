@@ -117,7 +117,7 @@ export const createQueryImplementer = <
 					nullable: false,
 					smartSubscription: true,
 					description: `List all ${plural(table.toString())}`,
-					subscribe: (subscriptions, root, args, ctx, info) => {
+					subscribe: (subscriptions, _root, _args, _ctx, _info) => {
 						registerOnInstance({
 							instance: subscriptions,
 							action: "created",
@@ -128,7 +128,7 @@ export const createQueryImplementer = <
 						});
 					},
 					args: manyArgs,
-					resolve: (query, root, args, ctx, info) => {
+					resolve: (query, _root, args, ctx, _info) => {
 						// transform null prototyped object
 						args = JSON.parse(JSON.stringify(args));
 
@@ -177,7 +177,7 @@ export const createQueryImplementer = <
 						// where: t.arg({ type: WhereArg, required: false }),
 						id: t.arg.id({ required: true }),
 					},
-					resolve: (query, root, args, ctx, info) => {
+					resolve: (query, _root, args, ctx, _info) => {
 						// transform null prototyped object
 						args = JSON.parse(JSON.stringify(args));
 

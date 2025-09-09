@@ -21,7 +21,7 @@ describe("test rumble abilities and filters", async () => {
 		rumble.abilityBuilder.users.allow(["read"]);
 		rumble.abilityBuilder.users.filter(["read"]).by(({ entities }) => entities);
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
 			query {
@@ -45,11 +45,11 @@ describe("test rumble abilities and filters", async () => {
 
 	test("filter out one on application level filters", async () => {
 		rumble.abilityBuilder.users.allow(["read"]);
-		rumble.abilityBuilder.users.filter("read").by(({ entities }) => {
+		rumble.abilityBuilder.users.filter("read").by(({ entities: _entities }) => {
 			return [];
 		});
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -66,11 +66,11 @@ describe("test rumble abilities and filters", async () => {
 
 	test("filter out everything on application level filters", async () => {
 		rumble.abilityBuilder.users.allow(["read"]);
-		rumble.abilityBuilder.users.filter("read").by(({ entities }) => {
+		rumble.abilityBuilder.users.filter("read").by(({ entities: _entities }) => {
 			return [];
 		});
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -91,7 +91,7 @@ describe("test rumble abilities and filters", async () => {
 			return entities.slice(3);
 		});
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -109,11 +109,11 @@ describe("test rumble abilities and filters", async () => {
 	test("filter out related on application level filters", async () => {
 		rumble.abilityBuilder.users.allow(["read"]);
 		rumble.abilityBuilder.posts.allow(["read"]);
-		rumble.abilityBuilder.posts.filter("read").by(({ entities }) => {
+		rumble.abilityBuilder.posts.filter("read").by(({ entities: _entities }) => {
 			return [];
 		});
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -147,7 +147,7 @@ describe("test rumble abilities and filters", async () => {
 			return entities.slice(0, 3);
 		});
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -186,7 +186,7 @@ describe("test rumble abilities and filters", async () => {
 			return [];
 		});
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {

@@ -1,11 +1,4 @@
-import {
-	integer,
-	pgEnum,
-	pgTable,
-	primaryKey,
-	serial,
-	text,
-} from "drizzle-orm/pg-core";
+import { integer, pgEnum, pgTable, serial, text } from "drizzle-orm/pg-core";
 
 export const moodEnum = pgEnum("mood_native", ["sad", "ok", "happy"] as const);
 

@@ -2,7 +2,6 @@ import type { MySqlDatabase } from "drizzle-orm/mysql-core";
 import { MySqlTable } from "drizzle-orm/mysql-core";
 import type { PgDatabase } from "drizzle-orm/pg-core";
 import { PgTable } from "drizzle-orm/pg-core";
-import type { SingleStoreDatabase } from "drizzle-orm/singlestore-core";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { GenericDrizzleDbTypeConstraints } from "../types/genericDrizzleDbType";
