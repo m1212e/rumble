@@ -1,4 +1,3 @@
-import type { GetColumnData } from "drizzle-orm";
 import { createPubSub } from "graphql-yoga";
 import type { TableIdentifierTSName } from "./helpers/tableHelpers";
 import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
@@ -38,7 +37,6 @@ export const createPubSubInstance = <
 	PothosConfig extends CustomRumblePothosConfig,
 >({
 	subscriptions,
-	db,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>) => {
 	const pubsub = subscriptions
 		? createPubSub(...subscriptions)
@@ -117,7 +115,8 @@ export const createPubSubInstance = <
 			/**
 			 * Call this when you removed one or more entities of this table
 			 */
-			removed(primaryKeyValue?: PrimaryKeyType | PrimaryKeyType[]) {
+			// removed(primaryKeyValue?: PrimaryKeyType | PrimaryKeyType[]) {
+			removed() {
 				const key = makePubSubKey({
 					tableName: table.toString(),
 					action: "removed",

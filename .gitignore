@@ -175,3 +175,5 @@ dist
 .DS_Store
 
 test/test_database.sqlite
+
+example/src/generated-client

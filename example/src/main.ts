@@ -39,6 +39,7 @@ const {
 	query,
 	pubsub,
 	createYoga,
+	clientCreator,
 } = rumble({
 	// here we pass the db instance from above
 	db,
@@ -46,7 +47,7 @@ const {
 	// it takes a request object as an argument and returns the objects you want in the request context
 	// similar to the context callback in express or similar frameworks
 	// the type of the request parameter may vary based on the HTTP library you are using
-	context(request) {
+	context(_request) {
 		return {
 			// for our usecase we simply mock a user ID to be set in the context
 			// this will allow us to perform permission checks based on who the user is
@@ -107,7 +108,7 @@ abilityBuilder.posts.allow(["update", "delete"]).when(({ userId }) => {
 // in case you need to apply more complex filters or need async checks you can use the application level filters
 // these are function which run after the database query has completed and can be used to do additional filtering
 // on the results. Simply return what the user is allowed to see and rumble will take care of the rest
-abilityBuilder.posts.filter("read").by(({ context, entities }) => {
+abilityBuilder.posts.filter("read").by(({ context: _context, entities }) => {
 	// await someAsyncCheck()
 	// we could apply filters here
 	return entities;
@@ -160,7 +161,7 @@ const UserRef = object({
 				args: {
 					amount: t.arg.int({ required: true }),
 				},
-				resolve: (parent, args, context, info) =>
+				resolve: (parent, args, _context, _info) =>
 					`Hello ${parent.name}, you have provided the number: ${args.amount}`,
 			}),
 		};
@@ -179,7 +180,7 @@ schemaBuilder.queryFields((t) => {
 	return {
 		posts: t.drizzleField({
 			type: [PostRef],
-			resolve: (query, root, args, ctx, info) => {
+			resolve: (query, _root, _args, ctx, _info) => {
 				return db.query.posts.findMany(
 					// here we again apply our filters based on the defined abilities
 					query(ctx.abilities.posts.filter("read").query.many),
@@ -214,7 +215,7 @@ schemaBuilder.queryFields((t) => {
 				// here we set our generated type as type for the where argument
 				where: t.arg({ type: PostWhere }),
 			},
-			resolve: (query, root, args, ctx, info) => {
+			resolve: (query, _root, args, ctx, _info) => {
 				return db.query.posts.findMany(
 					query(
 						ctx.abilities.posts.filter("read", {
@@ -280,7 +281,7 @@ schemaBuilder.mutationFields((t) => {
 				userId: t.arg.int({ required: true }),
 				newName: t.arg.string({ required: true }),
 			},
-			resolve: async (query, root, args, ctx, info) => {
+			resolve: async (query, _root, args, ctx, _info) => {
 				// for update mutations, rumble exports the 'mapNullFieldsToUndefined' helper
 				// which might become handy in some situtations
 
@@ -326,7 +327,7 @@ schemaBuilder.mutationFields((t) => {
 				id: t.arg.int({ required: true }),
 				name: t.arg.string({ required: true }),
 			},
-			resolve: async (query, root, args, ctx, info) => {
+			resolve: async (query, _root, args, ctx, _info) => {
 				// TODO: check if the user is allowed to add a user
 
 				const newUser = await db
@@ -374,3 +375,31 @@ server.listen(3000, () => {
 });
 
 // if you also need a REST API built from your GraphQL API, you can use 'createSofa()' instead or in addition
+
+// Making calls to the API
+
+// this can run on the dev machine to create a client for
+// api consumption. Make sure to call this after registering
+// all objects, queries and mutations and only in dev mode
+await clientCreator({
+	rumbleImportPath: "../../../lib/index",
+	outputPath: "./example/src/generated-client",
+	apiUrl: "http://localhost:3000/graphql",
+});
+
+// which then can be used like this:
+import { client } from "./generated-client/client";
+
+const r1 = client.liveQuery.users({
+	id: true,
+	name: true,
+});
+
+r1.subscribe((s) => s?.at(0));
+
+const a = client.subscribe.users({
+	id: true,
+	name: true,
+});
+
+a.subscribe((s) => s.at(0));

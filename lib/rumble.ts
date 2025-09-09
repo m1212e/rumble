@@ -7,6 +7,7 @@ import {
 } from "graphql-yoga";
 import { useSofa } from "sofa-api";
 import { createAbilityBuilder } from "./abilityBuilder";
+import { clientCreatorImplementer } from "./client/client";
 import { createContextFunction } from "./context";
 import { createEnumImplementer } from "./enum";
 import { lazy } from "./helpers/lazy";
@@ -202,6 +203,18 @@ export const rumble = <
 		});
 	};
 
+	const clientCreator = clientCreatorImplementer<
+		UserContext,
+		DB,
+		RequestEvent,
+		Action,
+		PothosConfig,
+		typeof schemaBuilder
+	>({
+		...rumbleInput,
+		builtSchema,
+	});
+
 	return {
 		/**
        * The ability builder. Use it to declare whats allowed for each entity in your DB.
@@ -280,5 +293,10 @@ export const rumble = <
 		 * call this helper directly, unless you need the reference to an enum type
 		 */
 		enum_,
+		/**
+		 * Create a client to consume a rumble graphql api at the specified location.
+		 * Requires GraphQL, does not work with the SOFA REST API.
+		 */
+		clientCreator,
 	};
 };

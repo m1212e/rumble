@@ -4,7 +4,7 @@ import { makeSeededDBInstanceForTest } from "./db/db";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
 describe("test rumble abilities", async () => {
-	let { db, data, schema } = await makeSeededDBInstanceForTest();
+	let { db, data, schema: _schema } = await makeSeededDBInstanceForTest();
 	let { rumble, build } = makeRumbleSeedInstance(db, data.users.at(0)?.id, 9);
 
 	beforeEach(async () => {
@@ -20,7 +20,7 @@ describe("test rumble abilities", async () => {
 	test("allow simple read with helper implementation", async () => {
 		rumble.abilityBuilder.users.allow(["read"]);
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -43,7 +43,7 @@ describe("test rumble abilities", async () => {
 	});
 
 	test("deny simple read with helper implementation", async () => {
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -61,7 +61,7 @@ describe("test rumble abilities", async () => {
 	test("omit indirect read with helper implementation", async () => {
 		rumble.abilityBuilder.users.allow(["read"]);
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -88,7 +88,7 @@ describe("test rumble abilities", async () => {
 		rumble.abilityBuilder.users.allow(["read"]);
 		rumble.abilityBuilder.posts.allow(["read"]);
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -112,7 +112,7 @@ describe("test rumble abilities", async () => {
 	test("error indirect read with helper implementation on one to one with error on non nullable relationship", async () => {
 		rumble.abilityBuilder.comments.allow(["read"]);
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -133,7 +133,7 @@ describe("test rumble abilities", async () => {
 	test("deny indirect read with helper implementation on one to one with error on nullable relationship", async () => {
 		rumble.abilityBuilder.comments.allow(["read"]);
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -155,7 +155,7 @@ describe("test rumble abilities", async () => {
 		rumble.abilityBuilder.comments.allow(["read"]);
 		rumble.abilityBuilder.users.allow(["read"]);
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -182,7 +182,7 @@ describe("test rumble abilities", async () => {
 			},
 		});
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -208,7 +208,7 @@ describe("test rumble abilities", async () => {
 			return undefined;
 		});
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -228,7 +228,7 @@ describe("test rumble abilities", async () => {
 		});
 		rumble.abilityBuilder.comments.allow("read");
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -247,7 +247,7 @@ describe("test rumble abilities", async () => {
 			return "allow";
 		});
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -266,7 +266,7 @@ describe("test rumble abilities", async () => {
 			.allow("read")
 			.when(({ userId }) => ({ where: { ownerId: userId } }));
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -285,7 +285,7 @@ describe("test rumble abilities", async () => {
 			limit: 3,
 		});
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -308,7 +308,7 @@ describe("test rumble abilities", async () => {
 			limit: 4,
 		});
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -331,7 +331,7 @@ describe("test rumble abilities", async () => {
 			},
 		});
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -358,7 +358,7 @@ describe("test rumble abilities", async () => {
 		// acting differently would allow to override the published condition which might lead to unexpected behavior
 		rumble.abilityBuilder.comments.allow("read");
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {

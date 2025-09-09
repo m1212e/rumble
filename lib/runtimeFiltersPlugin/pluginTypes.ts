@@ -31,6 +31,7 @@ declare global {
 		//   customBuildTimeOptions?: boolean;
 		// }
 
+		// biome-ignore lint/correctness/noUnusedVariables: we dont need shape but also need to declare it to stick to the types
 		export interface ObjectTypeOptions<Types extends SchemaTypes, Shape> {
 			//TOOD use proper type not any
 			[applyFiltersKey]?: ApplyFiltersField<Types["Context"], any>;

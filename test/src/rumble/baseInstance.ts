@@ -1,6 +1,4 @@
 import { buildHTTPExecutor } from "@graphql-tools/executor-http";
-import { and, eq } from "drizzle-orm";
-import type { drizzle } from "drizzle-orm/bun-sqlite";
 import { assertFirstEntryExists, rumble } from "../../../lib";
 import type { DB } from "../db/db";
 import * as schema from "../db/schema";
@@ -12,7 +10,7 @@ export function makeRumbleSeedInstance(
 ) {
 	const r = rumble({
 		db,
-		context(request) {
+		context(_request) {
 			return {
 				userId: userId ?? "123",
 			};
@@ -40,7 +38,7 @@ export function makeRumbleSeedInstance(
 					userId: t.arg.string({ required: true }),
 					firstName: t.arg.string({ required: true }),
 				},
-				resolve: (query, root, args, ctx, info) => {
+				resolve: (_query, _root, args, ctx, _info) => {
 					updatedUser(args.userId);
 					return db
 						.update(schema.users)

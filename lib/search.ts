@@ -54,13 +54,13 @@ export function adjustQueryForSearch({
 			// leak information
 			const columnsToSearch = abilities.query.many.columns
 				? Object.entries(tableSchema.columns).filter(
-						([key, value]) => abilities.query.many.columns[key],
+						([key]) => abilities.query.many.columns[key],
 					)
 				: Object.entries(tableSchema.columns);
 
 			// GREATEST(similarity(name, ${query.search}), similarity(description, ${query.search})) DESC
 			const searchSQL = sql`GREATEST(${sql.join(
-				columnsToSearch.map(([key, value]) => {
+				columnsToSearch.map(([key]) => {
 					return sql`similarity(${table[key]}::TEXT, ${args.search})`;
 				}),
 				sql.raw(", "),
@@ -85,7 +85,7 @@ export function adjustQueryForSearch({
 				{
 					RAW: (table: any) => {
 						return sql`GREATEST(${sql.join(
-							Object.entries(tableSchema.columns).map(([key, value]) => {
+							Object.entries(tableSchema.columns).map(([key]) => {
 								return sql`similarity(${table[key]}::TEXT, ${args.search})`;
 							}),
 							sql.raw(", "),

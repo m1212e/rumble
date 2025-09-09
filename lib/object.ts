@@ -166,7 +166,7 @@ export const createObjectImplementer = <
 
 		return schemaBuilder.drizzleObject(table, {
 			name: refName ?? capitalize(table.toString()),
-			subscribe: (subscriptions, element, context) => {
+			subscribe: (subscriptions, element, _context) => {
 				if (!primaryKey) return;
 				const primaryKeyValue = (element as any)[primaryKey.name];
 				if (!primaryKeyValue) {
@@ -369,7 +369,7 @@ export const createObjectImplementer = <
 							filterSpecifier = "single";
 						}
 
-						const subscribe = (subscriptions: any, element: any) => {
+						const subscribe = (subscriptions: any, _element: any) => {
 							relationTablePubSub.registerOnInstance({
 								instance: subscriptions,
 								action: "created",

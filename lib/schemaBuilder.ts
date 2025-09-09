@@ -98,7 +98,7 @@ export const createSchemaBuilder = <
 			},
 		},
 		smartSubscriptions: {
-			...subscribeOptionsFromIterator((name, context) => {
+			...subscribeOptionsFromIterator((name, _context) => {
 				return pubsub.subscribe(name);
 			}),
 		},
