@@ -1,6 +1,6 @@
 import type { Client } from "@urql/core";
-import type { QueryObject } from "./liveQuery";
 import { makeGraphQLMutation } from "./request";
+import type { QueryableObjectFromGeneratedTypes } from "./types";
 
 export function makeMutation<Mutation extends Record<string, any>>({
 	urqlClient,
@@ -20,5 +20,5 @@ export function makeMutation<Mutation extends Record<string, any>>({
 				};
 			},
 		},
-	) as QueryObject<Mutation>;
+	) as QueryableObjectFromGeneratedTypes<Mutation>;
 }

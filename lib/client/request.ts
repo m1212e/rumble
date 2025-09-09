@@ -133,7 +133,7 @@ export function makeGraphQLSubscription({
 			return data;
 		}),
 		toObservable,
-	);
+	) as any;
 }
 
 function stringifySelection(selection: Record<string, any>) {
