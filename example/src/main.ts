@@ -388,18 +388,18 @@ await clientCreator({
 });
 
 // which then can be used like this:
-import { client } from "./generated-client/client";
+// import { client } from "./generated-client/client";
 
-const r1 = client.liveQuery.users({
-	id: true,
-	name: true,
-});
+// const r1 = client.liveQuery.users({
+// 	id: true,
+// 	name: true,
+// });
 
-r1.subscribe((s) => s?.at(0));
+// r1.subscribe((s) => s?.at(0));
 
-const a = client.subscribe.users({
-	id: true,
-	name: true,
-});
+// const a = client.subscribe.users({
+// 	id: true,
+// 	name: true,
+// });
 
-a.subscribe((s) => s.at(0));
+// a.subscribe((s) => s.at(0));
