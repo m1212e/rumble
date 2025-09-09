@@ -1,4 +1,4 @@
-import { exists, mkdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { GraphQLSchema } from "graphql";
 import { generateClient } from "./client";
@@ -17,9 +17,11 @@ export async function generateFromSchema({
 	apiUrl?: string;
 	useExternalUrqlClient?: boolean | string;
 }) {
-	if (await exists(outputPath)) {
+	try {
+		await access(outputPath);
 		await rm(outputPath, { recursive: true, force: true });
-	}
+	} catch (error) {}
+
 	await mkdir(outputPath, { recursive: true });
 
 	if (!outputPath.endsWith("/")) {
