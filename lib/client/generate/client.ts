@@ -6,7 +6,7 @@ export function generateClient({
 }: {
 	rumbleImportPath: string;
 	useExternalUrqlClient: string | boolean;
-	apiUrl: string;
+	apiUrl?: string;
 	availableSubscriptions: Set<string>;
 }) {
 	const imports: string[] = [];
@@ -26,7 +26,7 @@ export function generateClient({
 	if (!useExternalUrqlClient) {
 		code += `
 const urqlClient = new Client({
-  url: "${apiUrl}",
+  url: "${apiUrl ?? "PLEASE PROVIDE A URL WHEN GENERATING OR IMPORT AN EXTERNAL URQL CLIENT"}",
   fetchSubscriptions: true,
   exchanges: [cacheExchange({}), fetchExchange],
   fetchOptions: {

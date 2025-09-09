@@ -14,7 +14,7 @@ export async function generateFromSchema({
 	schema: GraphQLSchema;
 	outputPath: string;
 	rumbleImportPath?: string;
-	apiUrl: string;
+	apiUrl?: string;
 	useExternalUrqlClient?: boolean | string;
 }) {
 	if (await exists(outputPath)) {

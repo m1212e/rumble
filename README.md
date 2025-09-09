@@ -219,3 +219,55 @@ server.listen(3000, () => {
 });
 
 ```
+
+## Usage & client generation
+You can use the GraphQL api with any client you like. However, rumble provides a generation api which can output a TypeScript client from a rumble instance. To perform a generation, use the exported function from your rumble instance like this:
+```ts
+
+const {	clientCreator } = rumble(...);
+
+await clientCreator({
+  // where should the client files be generated to
+	outputPath: "./example/src/generated-client",
+  // where will the client be able to reach your api
+	apiUrl: "http://localhost:3000/graphql",
+
+  // in case you do not want to specify a url yourself
+  // or you would like to perform some customization
+  // to the underlying urql client, you can set
+
+  // useExternalUrqlClient: "../client"
+
+  // to point to your custom client
+});
+```
+> The client uses [urql](https://nearform.com/open-source/urql/docs/basics/core/) under the hood. If you would like more info on how the internals work, please see the docs.
+
+An example usage might look like this:
+```ts
+import { client } from "./generated-client/client";
+
+const users = client.liveQuery.users({
+	id: true,
+	name: true,
+});
+
+users.subscribe((s) => s?.at(0));
+```
+Notice how the client offers `liveQuery` in addition to the traditional `query`, `mutation` and `subscription` operations. The live query is a hybrid query and subscription which basically performs a regular query and then checks if there is a subscription available with the same name (as it is the case when using the rumble query implementation helpers). In case there is one present, it will also subscribe. If no subscription with the same name can be found, it will perform a regular query.
+
+If you would like to ensure that there is data present before subscribing to updates, you can await the result:
+
+```ts
+// this waits for the first value to arrive
+const users = await client.liveQuery.users({
+	id: true,
+	name: true,
+});
+
+// this will guaranteed to have a value set
+users.subscribe((s) => s?.at(0));
+
+// you can directly access the values of an awaited result
+console.log(users.firstName)
+```

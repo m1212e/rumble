@@ -43,7 +43,7 @@ export const clientCreatorImplementer = <
 		/**
 		 * The base URL of the Rumble API.
 		 */
-		apiUrl: string;
+		apiUrl?: string;
 		/**
 		 * The import path for the rumble library, defaults to "@m1212e/rumble".
 		 */
