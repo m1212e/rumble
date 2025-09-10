@@ -1,4 +1,5 @@
 import { relationsFilterToSQL } from "drizzle-orm";
+import { debounce } from "es-toolkit";
 import { lazy } from "./helpers/lazy";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
 import { tableHelper } from "./helpers/tableHelpers";
@@ -9,6 +10,8 @@ import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
 } from "./types/rumbleInput";
+
+//TODO: optimize this for v8 & refactor
 
 export type AbilityBuilderType<
 	UserContext extends Record<string, any>,
@@ -78,6 +81,19 @@ function isFunctionFilter<
 		typeof filter === "function" && filter.constructor.name !== "AsyncFunction"
 	);
 }
+
+const nothingRegisteredWarningLogger = debounce(
+	(model: string, action: string) => {
+		console.warn(`
+Warning! No abilities have been registered for
+
+    ${model}/${action}
+
+but has been accessed. This will block everything. If this is intended, you can ignore this warning. If not, please ensure that you register the ability in your ability builder.
+`);
+	},
+	1000,
+);
 
 export const createAbilityBuilder = <
 	UserContext extends Record<string, any>,
@@ -471,6 +487,7 @@ export const createAbilityBuilder = <
 
 						// if nothing has been allowed, block everything
 						if (!queryFiltersPerEntityAndAction) {
+							nothingRegisteredWarningLogger(tableName.toString(), action);
 							queryFiltersPerEntityAndAction = [getBlockEverythingFilter()];
 						}
 
