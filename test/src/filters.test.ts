@@ -200,4 +200,52 @@ describe("test rumble abilities and filters", async () => {
 		// all users should be readable
 		expect((r as any).data.users.length).toEqual(0);
 	});
+
+	test("filter out some on multiple application level filters", async () => {
+		rumble.abilityBuilder.users.allow(["read"]);
+		rumble.abilityBuilder.users.filter("read").by(({ entities }) => {
+			return entities.slice(0, 10);
+		});
+		rumble.abilityBuilder.users.filter("read").by(({ entities }) => {
+			return entities.slice(10, 20);
+		});
+
+		const { executor, yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          users {
+            id
+          }
+        }
+      `),
+		});
+
+		// all users should be readable
+		expect((r as any).data.users.length).toEqual(20);
+	});
+
+	test("filter out some on multiple application level filters with duplicates", async () => {
+		rumble.abilityBuilder.users.allow(["read"]);
+		rumble.abilityBuilder.users.filter("read").by(({ entities }) => {
+			return entities.slice(0, 10);
+		});
+		rumble.abilityBuilder.users.filter("read").by(({ entities }) => {
+			return entities.slice(0, 10);
+		});
+
+		const { executor, yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          users {
+            id
+          }
+        }
+      `),
+		});
+
+		// all users should be readable
+		expect((r as any).data.users.length).toEqual(10);
+	});
 });

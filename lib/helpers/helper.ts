@@ -105,19 +105,22 @@ export const applyFilters = async <Context, T, H extends T>({
 	filters: Filter<Context, H>[];
 	context: Context;
 }) => {
-	return (
-		await Promise.all(
-			filters.map((f) =>
-				f({
-					context,
-					entities: entities as H[],
-				}),
-			),
-		)
-	).reduce((acc, val) => {
-		acc.push(...val);
-		return acc;
-	}, []) as T[];
+	return Array.from(
+		(
+			await Promise.all(
+				filters.map((f) =>
+					f({
+						context,
+						entities: entities as H[],
+					}),
+				),
+			)
+		).reduce((acc, val) => {
+			val.forEach((v) => acc.add(v));
+			return acc;
+			// since multiple helpers might return the same entity we use a set to deduplicate
+		}, new Set<T>()),
+	);
 };
 
 /**
