@@ -271,3 +271,15 @@ users.subscribe((s) => s?.at(0));
 // you can directly access the values of an awaited result
 console.log(users.firstName)
 ```
+### Alternative
+As an alternative to use the client generator with a fully instanciated rumble instance, you can also import the `generateFromSchema` function from rumble and pass it a standard `GraphQLSchema` object to generate the client:
+```ts
+import { generateFromSchema } from "@m1212e/rumble";
+
+await generateFromSchema({
+  // a schema object: https://github.com/graphql/graphql-js/blob/60ae6c48b9c78332bf3d6036e7d931a3617d0674/src/type/schema.ts#L130
+	schema: yourGraphQLSchemaObject
+	outputPath: "./generated";
+}) 
+```
+This might become handy in separate code bases for api and client.
