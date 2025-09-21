@@ -444,6 +444,73 @@ describe("test rumble abilities", async () => {
 		expect((r as any).data.comments.length).toEqual(0);
 	});
 
+	test("pagination", async () => {
+		rumble.abilityBuilder.comments.allow("read");
+
+		const { executor, yogaInstance: _yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          comments(offset: 3, limit: 3) {
+            id
+          }
+        }
+      `),
+		});
+
+		expect((r as any).data.comments.length).toEqual(3);
+
+		const r2 = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          comments(offset: 6, limit: 3) {
+            id
+          }
+        }
+      `),
+		});
+
+		expect((r2 as any).data.comments.length).toEqual(3);
+
+		expect((r as any).data.comments[0].id).not.toEqual(
+			(r2 as any).data.comments[0].id,
+		);
+	});
+
+	test("pagination in relation", async () => {
+		rumble.abilityBuilder.users.allow("read");
+		rumble.abilityBuilder.comments.allow("read");
+
+		const { executor, yogaInstance: _yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+			users {
+				comments(offset: 0) {
+					id
+				}
+			}
+        }
+      `),
+		});
+
+		const r2 = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          users {
+				comments(offset: 1) {
+					id
+				}
+			}
+        }
+      `),
+		});
+
+		expect((r as any).data.users[0].comments[0].id).not.toEqual(
+			(r2 as any).data.users[0].comments[0].id,
+		);
+	});
+
 	//TODO
 	// test("perform read with applied condition and injection filters", async () => {
 	// 	rumble.abilityBuilder.comments.allow("read").when({

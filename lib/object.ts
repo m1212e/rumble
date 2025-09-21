@@ -305,6 +305,9 @@ export const createObjectImplementer = <
 
 				const fields = Object.entries(columns).reduce(
 					(acc, [key, value]) => {
+						// in case the user wants to overwrite a field
+						// we want to merge with our stuff in case the user
+						// did not specify it themselves
 						if (userAdjustments[key]) {
 							const { params, creatorFunction, configObject } = configMap.get(
 								userAdjustments[key],
@@ -380,6 +383,9 @@ export const createObjectImplementer = <
 							});
 						};
 
+						// in case the user wants to overwrite a field
+						// we want to merge with our stuff in case the user
+						// did not specify it themselves
 						if (userAdjustments[key]) {
 							const { params, creatorFunction, configObject } = configMap.get(
 								userAdjustments[key],

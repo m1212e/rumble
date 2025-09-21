@@ -18,7 +18,23 @@ export function makeRumbleSeedInstance(
 		defaultLimit,
 	});
 
-	const UserRef = r.object({ refName: "User", table: "users" });
+	const UserRef = r.object({
+		refName: "User",
+		table: "users",
+		adjust(t) {
+			return {
+				fullName: t.field({
+					type: "String",
+					resolve: (parent, args, _context, _info) =>
+						`${parent.firstName} ${parent.lastName}`,
+				}),
+				firstName: t.field({
+					type: "String",
+					resolve: (parent, args, _context, _info) => parent.firstName,
+				}),
+			};
+		},
+	});
 	r.query({ table: "users" });
 	const { updated: updatedUser } = r.pubsub({
 		table: "users",

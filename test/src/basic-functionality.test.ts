@@ -3,7 +3,7 @@ import { parse } from "graphql";
 import { makeSeededDBInstanceForTest } from "./db/db";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
-describe("test rumble abilities", async () => {
+describe("test rumble basics", async () => {
 	let { db, data, schema: _schema } = await makeSeededDBInstanceForTest();
 	let { rumble, build } = makeRumbleSeedInstance(db, data.users.at(0)?.id, 9);
 
@@ -75,5 +75,28 @@ describe("test rumble abilities", async () => {
 		});
 
 		expect((r as any).errors).toBeDefined();
+	});
+
+	test("adjustment field full name", async () => {
+		rumble.abilityBuilder.users.allow(["read"]);
+
+		const { executor, yogaInstance: _yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          users {
+            id
+            firstName
+            lastName
+            fullName
+          }
+        }
+      `),
+		});
+
+		expect((r as any).data.users.length).toBeGreaterThan(0);
+		expect((r as any).data.users[0].fullName).toBe(
+			`${(r as any).data.users[0].firstName} ${(r as any).data.users[0].lastName}`,
+		);
 	});
 });
