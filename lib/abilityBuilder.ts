@@ -238,6 +238,7 @@ export const createAbilityBuilder = <
 		 */
 		z_registeredFilters: registeredRuntimeFilters,
 		/**
+		 * z prefix to make it appear it bottom of intellisense
 		 * @internal
 		 * @ignore
 		 */
@@ -323,13 +324,6 @@ export const createAbilityBuilder = <
 									(!limit || limit > options.inject.limit)
 								) {
 									limit = options.inject.limit;
-								}
-
-								if (
-									queryFilters?.limit &&
-									(!limit || queryFilters.limit > limit)
-								) {
-									limit = queryFilters.limit;
 								}
 
 								// ensure that null is converted to undefined
@@ -419,10 +413,11 @@ export const createAbilityBuilder = <
 									get where() {
 										return transformedWhere();
 									},
-									columns: columns(),
-									get limit() {
-										return limit();
-									},
+									// TODO: check if there are any usecases for applying these
+									// columns: columns(),
+									// get limit() {
+									// 	RETURN LIMIT();
+									// },
 								},
 							};
 
@@ -430,7 +425,8 @@ export const createAbilityBuilder = <
 							// as: don't return any columns
 							// therefore we need to delete it
 							if (!columns()) {
-								delete r.sql.columns;
+								// TODO: check todo above
+								// delete r.sql.columns;
 								delete r.query.many.columns;
 								delete r.query.single.columns;
 							}

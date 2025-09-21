@@ -299,6 +299,44 @@ describe("test rumble abilities", async () => {
 		expect((r as any).data.comments.length).toEqual(3);
 	});
 
+	test("limit read amount with injection lower than ability in query argument", async () => {
+		rumble.abilityBuilder.comments.allow("read").when({
+			limit: 10,
+		});
+
+		const { executor, yogaInstance: _yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          comments(limit: 5) {
+            id
+          }
+        }
+      `),
+		});
+
+		expect((r as any).data.comments.length).toEqual(5);
+	});
+
+	test("limit read amount with injection lower than ability in query argument", async () => {
+		rumble.abilityBuilder.comments.allow("read").when({
+			limit: 5,
+		});
+
+		const { executor, yogaInstance: _yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          comments(limit: 10) {
+            id
+          }
+        }
+      `),
+		});
+
+		expect((r as any).data.comments.length).toEqual(5);
+	});
+
 	test("limit read amount to max value with abilities", async () => {
 		rumble.abilityBuilder.comments.allow("read").when({
 			limit: 3,
@@ -323,6 +361,40 @@ describe("test rumble abilities", async () => {
 	});
 
 	test("error simple read with helper implementation with column restrictions", async () => {
+		rumble.abilityBuilder.users.allow(["read"]).when({
+			columns: {
+				id: false,
+				firstName: true,
+				email: true,
+			},
+		});
+
+		const { executor, yogaInstance: _yogaInstance } = build();
+		const r = await executor({
+			document: parse(/* GraphQL */ `
+        query {
+          user(id: "3e0bb3d0-2074-4a1e-6263-d13dd10cb0cf") {
+            id
+            firstName
+            email
+          }
+        }
+      `),
+		});
+
+		expect((r as any).errors.length).toEqual(1);
+		expect((r as any).errors.at(0).path).toEqual(["user", "id"]);
+	});
+
+	test("error simple read with helper implementation with multiple column restrictions", async () => {
+		rumble.abilityBuilder.users.allow(["read"]).when({
+			columns: {
+				id: false,
+				firstName: false,
+				email: true,
+			},
+		});
+
 		rumble.abilityBuilder.users.allow(["read"]).when({
 			columns: {
 				id: false,

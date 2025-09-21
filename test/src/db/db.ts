@@ -46,6 +46,7 @@ export async function makeSeededDBInstanceForTest() {
 			columns: {
 				id: r.uuid(),
 				text: r.loremIpsum(),
+				someNumber: r.int(),
 				ownerId: r.valuesFromArray({
 					values: users.map((u) => u.id),
 				}),

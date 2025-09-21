@@ -21,6 +21,7 @@ export const comments = table("comments", {
 	id: t.text().primaryKey(),
 	text: t.text({ length: 256 }),
 	published: t.integer({ mode: "boolean" }),
+	someNumber: t.numeric({ mode: "number" }).default(0),
 	postId: t.text("post_id").references(() => posts.id, {
 		onDelete: "cascade",
 	}),

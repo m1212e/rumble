@@ -1,0 +1,1 @@
+ALTER TABLE `comments` ADD `someNumber` numeric DEFAULT 0;

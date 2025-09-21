@@ -1,7 +1,18 @@
 import type { SchemaBuilderType } from "../../schemaBuilder";
 import type { GenericDrizzleDbTypeConstraints } from "../../types/genericDrizzleDbType";
 import type { CustomRumblePothosConfig } from "../../types/rumbleInput";
-import { type PossibleSQLType, UnknownTypeRumbleError } from "./types";
+import {
+	isBooleanSQLTypeString,
+	isDateLikeSQLTypeString,
+	isDateTimeLikeSQLTypeString,
+	isFloatLikeSQLTypeString,
+	isIDLikeSQLTypeString,
+	isIntLikeSQLTypeString,
+	isJSONLikeSQLTypeString,
+	isStringLikeSQLTypeString,
+	type PossibleSQLType,
+	UnknownTypeRumbleError,
+} from "./types";
 
 export function mapSQLTypeToGraphQLType<
 	UserContext extends Record<string, any>,
@@ -23,19 +34,15 @@ export function mapSQLTypeToGraphQLType<
 
 	let ret: ReturnType | undefined;
 
-	if (
-		["serial", "int", "integer", "tinyint", "smallint", "mediumint"].includes(
-			sqlType,
-		)
-	) {
+	if (isIntLikeSQLTypeString(sqlType)) {
 		ret = "Int";
 	}
 
-	if (["real", "decimal", "double", "float"].includes(sqlType)) {
+	if (isFloatLikeSQLTypeString(sqlType)) {
 		ret = "Float";
 	}
 
-	if (["string", "text", "varchar", "char", "text(256)"].includes(sqlType)) {
+	if (isStringLikeSQLTypeString(sqlType)) {
 		if (
 			fieldName &&
 			(fieldName.toLowerCase().endsWith("_id") ||
@@ -47,23 +54,23 @@ export function mapSQLTypeToGraphQLType<
 		}
 	}
 
-	if (["uuid"].includes(sqlType)) {
+	if (isIDLikeSQLTypeString(sqlType)) {
 		ret = "ID";
 	}
 
-	if (["boolean"].includes(sqlType)) {
+	if (isBooleanSQLTypeString(sqlType)) {
 		ret = "Boolean";
 	}
 
-	if (["timestamp", "datetime"].includes(sqlType)) {
+	if (isDateTimeLikeSQLTypeString(sqlType)) {
 		ret = "DateTime";
 	}
 
-	if (["date"].includes(sqlType)) {
+	if (isDateLikeSQLTypeString(sqlType)) {
 		ret = "Date";
 	}
 
-	if (["json"].includes(sqlType)) {
+	if (isJSONLikeSQLTypeString(sqlType)) {
 		ret = "JSON";
 	}
 
