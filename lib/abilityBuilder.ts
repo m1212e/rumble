@@ -427,6 +427,8 @@ export const createAbilityBuilder = <
 							if (!columns()) {
 								// TODO: check todo above
 								// delete r.sql.columns;
+
+								// this should be removed, kills performance
 								delete r.query.many.columns;
 								delete r.query.single.columns;
 							}
