@@ -26,6 +26,8 @@ export function makeTSRepresentation(model: GraphQLType) {
 	} else if (model instanceof GraphQLInputObjectType) {
 		return makeTSTypeFromInputObject(model);
 	}
+
+	throw new Error(`Unknown model type: ${model}`);
 }
 
 function makeTSTypeFromObject(model: GraphQLObjectType) {

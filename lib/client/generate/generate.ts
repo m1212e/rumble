@@ -45,7 +45,7 @@ export async function generateFromSchema({
 		}
 
 		code += `
-export type ${key} = ${makeTSRepresentation(object)};
+export type ${key} = ${rep};
 		`;
 	}
 
