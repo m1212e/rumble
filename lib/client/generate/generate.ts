@@ -20,7 +20,7 @@ export async function generateFromSchema({
 	try {
 		await access(outputPath);
 		await rm(outputPath, { recursive: true, force: true });
-	} catch (error) {}
+	} catch (_error) {}
 
 	await mkdir(outputPath, { recursive: true });
 

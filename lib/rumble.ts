@@ -174,7 +174,7 @@ export const rumble = <
 			| undefined,
 	) => {
 		const enableApiDocs =
-			args?.enableApiDocs ?? process?.env?.NODE_ENV === "development" ?? false;
+			args?.enableApiDocs ?? process?.env?.NODE_ENV === "development";
 
 		return nativeCreateYoga<RequestEvent>({
 			...args,

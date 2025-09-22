@@ -25,12 +25,12 @@ export function makeRumbleSeedInstance(
 			return {
 				fullName: t.field({
 					type: "String",
-					resolve: (parent, args, _context, _info) =>
+					resolve: (parent, _args, _context, _info) =>
 						`${parent.firstName} ${parent.lastName}`,
 				}),
 				firstName: t.field({
 					type: "String",
-					resolve: (parent, args, _context, _info) => parent.firstName,
+					resolve: (parent, _args, _context, _info) => parent.firstName,
 				}),
 			};
 		},

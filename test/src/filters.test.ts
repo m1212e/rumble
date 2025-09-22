@@ -210,7 +210,7 @@ describe("test rumble abilities and filters", async () => {
 			return entities.slice(10, 20);
 		});
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
@@ -234,7 +234,7 @@ describe("test rumble abilities and filters", async () => {
 			return entities.slice(0, 10);
 		});
 
-		const { executor, yogaInstance } = build();
+		const { executor, yogaInstance: _yogaInstance } = build();
 		const r = await executor({
 			document: parse(/* GraphQL */ `
         query {
