@@ -1,4 +1,4 @@
-import { plural, singular } from "pluralize";
+import pluralize from "pluralize";
 import { assertFindFirstExists } from "./helpers/helper";
 import {
 	type TableIdentifierTSName,
@@ -112,11 +112,11 @@ export const createQueryImplementer = <
 			}
 
 			return {
-				[plural(table.toString())]: t.drizzleField({
+				[pluralize.plural(table.toString())]: t.drizzleField({
 					type: [table],
 					nullable: false,
 					smartSubscription: true,
-					description: `List all ${plural(table.toString())}`,
+					description: `List all ${pluralize.plural(table.toString())}`,
 					subscribe: (subscriptions, _root, _args, _ctx, _info) => {
 						registerOnInstance({
 							instance: subscriptions,
@@ -168,11 +168,11 @@ export const createQueryImplementer = <
 						return db.query[table as any].findMany(queryInstance);
 					},
 				}),
-				[singular(table.toString())]: t.drizzleField({
+				[pluralize.singular(table.toString())]: t.drizzleField({
 					type: table,
 					nullable: false,
 					smartSubscription: true,
-					description: `Get a single ${singular(table.toString())} by ID`,
+					description: `Get a single ${pluralize.singular(table.toString())} by ID`,
 					args: {
 						// where: t.arg({ type: WhereArg, required: false }),
 						id: t.arg.id({ required: true }),
