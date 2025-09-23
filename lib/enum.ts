@@ -95,11 +95,11 @@ export const createEnumImplementer = <
 		let enumValues: any[] | undefined;
 
 		if (tsName) {
-			const schemaEnum = db._.relations.schema[tsName as string];
+			const schemaEnum = db._.schema[tsName as string];
 
 			enumSchemaName = tsName.toString();
 
-			const enumCol = Object.values(db._.relations.schema)
+			const enumCol = Object.values(db._.schema)
 				.filter((s) => typeof s === "object")
 				.map((s) => Object.values(s[Symbol.for("drizzle:Columns")]))
 				.flat(2)
@@ -112,7 +112,7 @@ Please ensure that you use the enum at least once as a column of a table!`);
 
 			enumValues = (enumCol as any).enumValues;
 		} else if (enumColumn) {
-			const schemaEnumEntry = Object.entries(db._.relations.schema).find(
+			const schemaEnumEntry = Object.entries(db._.schema).find(
 				([, value]) => value === (enumColumn as any).config.enum,
 			);
 

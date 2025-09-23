@@ -21,8 +21,14 @@ import * as schema from "./db/schema";
 
 export const db = drizzle(
 	"postgres://postgres:postgres@localhost:5432/postgres",
-	{ relations },
+	{ relations, 
+		
+		schema
+	 },
 );
+
+console.log(db.);
+
 
 /*
 

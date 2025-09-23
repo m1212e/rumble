@@ -43,7 +43,7 @@ export function determineDBDialectFromSchema<
 export function isPostgresDB<
 	Narrowed extends PgDatabase<any, any> = PgDatabase<any, any>,
 >(db: GenericDrizzleDbTypeConstraints): db is Narrowed {
-	const dialect = determineDBDialectFromSchema(db._.relations.schema);
+	const dialect = determineDBDialectFromSchema(db._.schema);
 
 	return dialect === "postgres";
 }
@@ -51,7 +51,7 @@ export function isPostgresDB<
 export function isMySQLDB<
 	Narrowed extends MySqlDatabase<any, any> = MySqlDatabase<any, any>,
 >(db: GenericDrizzleDbTypeConstraints): db is Narrowed {
-	const dialect = determineDBDialectFromSchema(db._.relations.schema);
+	const dialect = determineDBDialectFromSchema(db._.schema);
 
 	return dialect === "mysql";
 }
@@ -59,7 +59,7 @@ export function isMySQLDB<
 export function isSQLiteDB<
 	Narrowed extends BaseSQLiteDatabase<any, any> = BaseSQLiteDatabase<any, any>,
 >(db: GenericDrizzleDbTypeConstraints): db is Narrowed {
-	const dialect = determineDBDialectFromSchema(db._.relations.schema);
+	const dialect = determineDBDialectFromSchema(db._.schema);
 
 	return dialect === "sqlite";
 }

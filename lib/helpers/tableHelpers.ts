@@ -38,11 +38,11 @@ export function tableHelper<
 	let tableSchema: Table | undefined = table;
 
 	if (tsName) {
-		tableSchema = db._.relations.schema[tsName as string];
+		tableSchema = db._.schema[tsName as string];
 	}
 
 	if (dbName) {
-		tableSchema = Object.values(db._.relations.schema).find(
+		tableSchema = Object.values(db._.schema).find(
 			(schema: any) => schema[nameSymbol] === dbName,
 		);
 	}
@@ -71,7 +71,7 @@ export function tableHelper<
 			| undefined,
 		dbName: (tableSchema as any)[nameSymbol] as string,
 		get tsName() {
-			return Object.entries(db._.relations.schema)
+			return Object.entries(db._.schema)
 				.find(([, v]) => v === tableSchema)!
 				.at(0) as string;
 		},
