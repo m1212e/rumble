@@ -107,7 +107,7 @@ export const sofaOpenAPIWebhookDocs: NonNullable<
 				properties: {
 					subscription: {
 						description:
-							"The subscription to subscribe to. In many cases, these match the available query IDs without the '_query' suffix. E.g., 'findFirstUser_query' -> 'findFirstUser'. See the graphql schema for more details on what subscriptions are available.",
+							"The subscription to subscribe to. In many cases, these match the available query IDs without the '_query' suffix. E.g., 'users_query' -> 'users'. See the graphql schema for more details on what subscriptions are available.",
 						type: "string",
 					},
 					variables: {
