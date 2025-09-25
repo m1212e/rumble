@@ -6,6 +6,7 @@ import {
 	assertFindFirstExists,
 	assertFirstEntryExists,
 } from "../../lib/helpers/helper";
+import type { DrizzleTable } from "../../lib/types/drizzleInstanceType";
 import { relations } from "./db/relations";
 import * as schema from "./db/schema";
 
@@ -23,10 +24,11 @@ export const db = drizzle(
 	"postgres://postgres:postgres@localhost:5432/postgres",
 	{
 		relations,
-
 		schema,
 	},
 );
+
+const ad: DrizzleTable<typeof db> = {} as any;
 
 // console.log(db.);
 
@@ -134,7 +136,7 @@ abilityBuilder.posts.filter("read").by(({ context: _context, entities }) => {
 const PostRef = schemaBuilder.drizzleObject("posts", {
 	name: "Post",
 	// this is how you can apply application level filter in manual object definitions
-	applyFilters: abilityBuilder.z_registeredFilters.posts.read,
+	applyFilters: abilityBuilder._.registeredFilters.posts.read,
 	fields: (t) => ({
 		id: t.exposeInt("id"),
 		content: t.exposeString("content", { nullable: false }),

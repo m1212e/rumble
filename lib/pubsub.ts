@@ -1,6 +1,6 @@
 import { createPubSub } from "graphql-yoga";
 import type { TableIdentifierTSName } from "./helpers/tableHelpers";
-import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
+import type { CheckedDrizzleInstance } from "./types/drizzleInstanceType";
 import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
@@ -15,7 +15,7 @@ const SUBSCRIPTION_NOTIFIER_CREATED = "CREATED";
 
 export type MakePubSubInstanceType<
 	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
+	DB extends CheckedDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -31,7 +31,7 @@ export type MakePubSubInstanceType<
 
 export const createPubSubInstance = <
 	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
+	DB extends CheckedDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,

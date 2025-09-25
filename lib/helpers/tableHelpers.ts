@@ -1,19 +1,16 @@
-import type { Column, Many, One, Table } from "drizzle-orm";
+import type { Column, Many, One } from "drizzle-orm";
 import type { NonEnumFields } from "../enum";
-import type { GenericDrizzleDbTypeConstraints } from "../types/genericDrizzleDbType";
+import type {
+	CheckedDrizzleInstance,
+	DrizzleTable,
+} from "../types/drizzleInstanceType";
 import { RumbleError } from "../types/rumbleError";
 
-export type TableIdentifierTSName<DB extends GenericDrizzleDbTypeConstraints> =
-	keyof NonEnumFields<NonNullable<DB["_"]["relations"]["schema"]>>;
-
-const nameSymbol = Symbol.for("drizzle:Name");
-const columnsSymbol = Symbol.for("drizzle:Columns");
-
 export function tableHelper<
-	DB extends GenericDrizzleDbTypeConstraints,
-	TSVariable extends TableIdentifierTSName<DB>,
-	DBVariable extends string,
-	T extends Table,
+	DB extends CheckedDrizzleInstance,
+	TSVariable extends keyof DrizzleTable<DB>,
+	DBVariable extends DrizzleTable<DB>,
+	T extends DrizzleTable<DB>,
 >({
 	dbName,
 	tsName,
@@ -35,29 +32,29 @@ export function tableHelper<
 				table: T;
 		  }
 	) & { db: DB }) {
-	let tableSchema: Table | undefined = table;
+	let tableSchema = table;
 
 	if (tsName) {
-		tableSchema = db._.schema[tsName as string];
+		tableSchema = db._.schema[tsName];
 	}
 
 	if (dbName) {
 		tableSchema = Object.values(db._.schema).find(
-			(schema: any) => schema[nameSymbol] === dbName,
+			(schema: any) => schema.dbName === dbName,
 		);
 	}
 
 	if (!tableSchema) {
 		throw new RumbleError(
-			`Could not find schema for ${JSON.stringify({ tsName, dbName, table: (table as any)?.[nameSymbol] }).toString()}`,
+			`Could not find schema for ${JSON.stringify({ tsName, dbName, table: (table as any)?.dbName }).toString()}`,
 		);
 	}
 
 	return {
 		tableSchema,
-		columns: (tableSchema as any)[columnsSymbol] as Record<string, Column>,
+		columns: tableSchema.columns as Record<string, Column>,
 		get primaryColumns() {
-			return Object.entries((tableSchema as any)[columnsSymbol])
+			return Object.entries((tableSchema as any).columns)
 				.filter(([, v]) => (v as Column).primary)
 				.reduce((acc, [k, v]) => {
 					(acc as any)[k] = v;
@@ -69,7 +66,7 @@ export function tableHelper<
 					[key: string]: One<any, any> | Many<any, any>;
 			  }
 			| undefined,
-		dbName: (tableSchema as any)[nameSymbol] as string,
+		dbName: (tableSchema as any).dbName as string,
 		get tsName() {
 			return Object.entries(db._.schema)
 				.find(([, v]) => v === tableSchema)!

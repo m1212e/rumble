@@ -2,7 +2,7 @@ import type {
 	AbilityBuilderType,
 	createAbilityBuilder,
 } from "./abilityBuilder";
-import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
+import type { CheckedDrizzleInstance } from "./types/drizzleInstanceType";
 import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
@@ -10,7 +10,7 @@ import type {
 
 export type ContextFunctionType<
 	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
+	DB extends CheckedDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -27,7 +27,7 @@ export type ContextFunctionType<
 
 export type ContextType<
 	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
+	DB extends CheckedDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -39,7 +39,7 @@ export type ContextType<
 
 export const createContextFunction = <
 	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
+	DB extends CheckedDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -64,7 +64,7 @@ export const createContextFunction = <
 			: ({} as UserContext);
 		return {
 			...userContext,
-			abilities: abilityBuilder.z_buildWithUserContext(userContext),
+			abilities: abilityBuilder._.buildWithUserContext(userContext),
 		};
 	};
 };

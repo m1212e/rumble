@@ -18,7 +18,7 @@ import { createPubSubInstance } from "./pubsub";
 import { createQueryImplementer } from "./query";
 import { createSchemaBuilder } from "./schemaBuilder";
 import { initSearchIfApplicable } from "./search";
-import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
+import type { CheckedDrizzleInstance } from "./types/drizzleInstanceType";
 import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
@@ -27,7 +27,7 @@ import { createWhereArgImplementer } from "./whereArg";
 
 export const rumble = <
 	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
+	DB extends CheckedDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	PothosConfig extends CustomRumblePothosConfig,
 	Action extends string = "read" | "update" | "delete",

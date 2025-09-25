@@ -7,7 +7,7 @@ import {
 	tableHelper,
 } from "./helpers/tableHelpers";
 import type { SchemaBuilderType } from "./schemaBuilder";
-import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
+import type { CheckedDrizzleInstance } from "./types/drizzleInstanceType";
 import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
@@ -15,7 +15,7 @@ import type {
 
 export type OrderArgImplementerType<
 	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
+	DB extends CheckedDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -35,7 +35,7 @@ const makeDefaultName = (dbName: string) =>
 
 export const createOrderArgImplementer = <
 	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
+	DB extends CheckedDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,

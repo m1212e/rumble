@@ -9,7 +9,7 @@ import {
 	tableHelper,
 } from "./helpers/tableHelpers";
 import type { SchemaBuilderType } from "./schemaBuilder";
-import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
+import type { CheckedDrizzleInstance } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
 	CustomRumblePothosConfig,
@@ -26,7 +26,7 @@ import type {
 
 export type WhereArgImplementerType<
 	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
+	DB extends CheckedDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -47,7 +47,7 @@ const makeDefaultName = (dbName: string) =>
 
 export const createWhereArgImplementer = <
 	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
+	DB extends CheckedDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -288,7 +288,7 @@ export type DateWhereInputArgument = {
 
 export function implementDefaultWhereInputArgs<
 	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
+	DB extends CheckedDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,

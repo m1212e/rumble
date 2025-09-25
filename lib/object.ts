@@ -15,7 +15,7 @@ import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import { adjustQueryForSearch } from "./search";
-import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
+import type { CheckedDrizzleInstance } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
 	CustomRumblePothosConfig,
@@ -49,7 +49,7 @@ const isProbablyAConfigObject = (t: any) => {
 
 export const createObjectImplementer = <
 	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
+	DB extends CheckedDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -186,7 +186,7 @@ export const createObjectImplementer = <
 				});
 			},
 			applyFilters:
-				abilityBuilder?.z_registeredFilters?.[table as any]?.[readAction],
+				abilityBuilder?._.registeredFilters?.[table as any]?.[readAction],
 			fields: (t) => {
 				const columns = tableSchema.columns;
 				const mapSQLTypeStringToExposedPothosType = <
