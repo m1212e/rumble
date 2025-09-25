@@ -6,7 +6,7 @@ import {
 	assertFindFirstExists,
 	assertFirstEntryExists,
 } from "../../lib/helpers/helper";
-import type { DrizzleTable } from "../../lib/types/drizzleInstanceType";
+import type { DrizzleQueryFunction, InternalDrizzleInstance } from "../../lib/types/drizzleInstanceType";
 import { relations } from "./db/relations";
 import * as schema from "./db/schema";
 
@@ -28,7 +28,30 @@ export const db = drizzle(
 	},
 );
 
-const ad: DrizzleTable<typeof db> = {} as any;
+
+
+const d = rumble({
+	// here we pass the db instance from above
+	db,
+	// this is how we can define a context callback
+	// it takes a request object as an argument and returns the objects you want in the request context
+	// similar to the context callback in express or similar frameworks
+	// the type of the request parameter may vary based on the HTTP library you are using
+	context(_request) {
+		return {
+			// for our usecase we simply mock a user ID to be set in the context
+			// this will allow us to perform permission checks based on who the user is
+			userId: 2,
+		};
+	},
+	// in case you want to allow searching via string in the helper implementations
+	// search: {
+	// 	enabled: true,
+	// },
+});
+
+d.query.
+
 
 // console.log(db.);
 
@@ -55,13 +78,12 @@ const {
 	// it takes a request object as an argument and returns the objects you want in the request context
 	// similar to the context callback in express or similar frameworks
 	// the type of the request parameter may vary based on the HTTP library you are using
-	context(_request) {
+	context(_request) 
 		return {
 			// for our usecase we simply mock a user ID to be set in the context
 			// this will allow us to perform permission checks based on who the user is
 			userId: 2,
-		};
-	},
+		};,
 	// in case you want to allow searching via string in the helper implementations
 	// search: {
 	// 	enabled: true,

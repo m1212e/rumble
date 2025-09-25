@@ -8,7 +8,7 @@ import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import { adjustQueryForSearch } from "./search";
-import type { CheckedDrizzleInstance } from "./types/drizzleInstanceType";
+import type { InternalDrizzleInstance } from "./types/drizzleInstanceType";
 import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
@@ -19,7 +19,7 @@ import type { WhereArgImplementerType } from "./whereArg";
 
 export const createQueryImplementer = <
 	UserContext extends Record<string, any>,
-	DB extends CheckedDrizzleInstance,
+	DB extends InternalDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -92,7 +92,7 @@ export const createQueryImplementer = <
 		});
 		const tableSchema = tableHelper({
 			db,
-			tsName: table!,
+			table,
 		});
 		const primaryKeyField = Object.values(tableSchema.primaryColumns)[0];
 

@@ -4,7 +4,11 @@ import { lazy } from "./helpers/lazy";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
 import { tableHelper } from "./helpers/tableHelpers";
 import type { Filter } from "./runtimeFiltersPlugin/pluginTypes";
-import type { CheckedDrizzleInstance } from "./types/drizzleInstanceType";
+import type {
+	DrizzleInstance,
+	DrizzleQueryableTableName,
+	DrizzleQueryFunction,
+} from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
 	CustomRumblePothosConfig,
@@ -15,7 +19,7 @@ import type {
 
 export type AbilityBuilderType<
 	UserContext extends Record<string, any>,
-	DB extends CheckedDrizzleInstance,
+	DB extends DrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -29,28 +33,27 @@ export type AbilityBuilderType<
 	>
 >;
 
-type TableName<DB extends CheckedDrizzleInstance> = keyof DB["query"];
-
 type QueryFilterInput<
-	DB extends CheckedDrizzleInstance,
-	TableKey extends TableName<DB>,
-> = Parameters<DB["query"][TableKey]["findMany"]>[0];
+	DB extends DrizzleInstance,
+	QueryFunction extends DrizzleQueryFunction<DB>,
+	TableKey extends keyof QueryFunction,
+> = Parameters<QueryFunction[TableKey]["findMany"]>[0];
 
 type SimpleQueryFilter<
-	DB extends CheckedDrizzleInstance,
+	DB extends DrizzleInstance,
 	TableKey extends keyof DB["query"],
 	Filter extends QueryFilterInput<DB, TableKey>,
 > = Filter;
 
 type FunctionQueryFilter<
-	DB extends CheckedDrizzleInstance,
+	DB extends DrizzleInstance,
 	TableKey extends keyof DB["query"],
 	Filter extends QueryFilterInput<DB, TableKey>,
 	Context,
 > = (context: Context) => Filter | undefined | "allow";
 
 function isSimpleQueryFilter<
-	DB extends CheckedDrizzleInstance,
+	DB extends DrizzleInstance,
 	TableKey extends keyof DB["query"],
 	Filter extends QueryFilterInput<DB, TableKey>,
 	Context,
@@ -61,7 +64,7 @@ function isSimpleQueryFilter<
 }
 
 type QueryFilter<
-	DB extends CheckedDrizzleInstance,
+	DB extends DrizzleInstance,
 	TableName extends keyof DB["query"],
 	Filter extends QueryFilterInput<DB, TableName>,
 	Context,
@@ -70,7 +73,7 @@ type QueryFilter<
 	| FunctionQueryFilter<DB, TableName, Filter, Context>;
 
 function isFunctionFilter<
-	DB extends CheckedDrizzleInstance,
+	DB extends DrizzleInstance,
 	TableKey extends keyof DB["query"],
 	Filter extends QueryFilterInput<DB, TableKey>,
 	Context,
@@ -97,7 +100,7 @@ but has been accessed. This will block everything. If this is intended, you can 
 
 export const createAbilityBuilder = <
 	UserContext extends Record<string, any>,
-	DB extends CheckedDrizzleInstance,
+	DB extends DrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -298,7 +301,7 @@ export const createAbilityBuilder = <
 									}
 
 									const table = tableHelper({
-										tsName: tableName,
+										table: tableName,
 										db,
 									});
 
@@ -434,7 +437,7 @@ export const createAbilityBuilder = <
 							const getBlockEverythingFilter = () => {
 								const tableSchema = tableHelper({
 									db,
-									tsName: tableName,
+									table: tableName,
 								});
 
 								if (Object.keys(tableSchema.primaryColumns).length === 0) {

@@ -1,6 +1,6 @@
 import type SchemaBuilder from "@pothos/core";
 import type { createPubSub } from "graphql-yoga";
-import type { CheckedDrizzleInstance } from "./drizzleInstanceType";
+import type { DrizzleInstance } from "./drizzleInstanceType";
 
 export type CustomRumblePothosConfig = Omit<
 	ConstructorParameters<typeof SchemaBuilder>[0],
@@ -9,7 +9,7 @@ export type CustomRumblePothosConfig = Omit<
 
 export type RumbleInput<
 	UserContext extends Record<string, any>,
-	DB extends CheckedDrizzleInstance,
+	DB extends DrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,

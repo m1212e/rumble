@@ -2,7 +2,7 @@ import { toCamelCase } from "drizzle-orm/casing";
 import { type PgEnum, PgEnumColumn } from "drizzle-orm/pg-core";
 import { capitalize } from "es-toolkit";
 import type { SchemaBuilderType } from "./schemaBuilder";
-import type { CheckedDrizzleInstance } from "./types/drizzleInstanceType";
+import type { InternalDrizzleInstance } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
 	CustomRumblePothosConfig,
@@ -30,7 +30,7 @@ export type NonEnumFields<T> = {
 
 export type EnumImplementerType<
 	UserContext extends Record<string, any>,
-	DB extends CheckedDrizzleInstance,
+	DB extends InternalDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -47,7 +47,7 @@ export type EnumImplementerType<
 
 export const createEnumImplementer = <
 	UserContext extends Record<string, any>,
-	DB extends CheckedDrizzleInstance,
+	DB extends InternalDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,

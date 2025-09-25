@@ -4,13 +4,13 @@ import type { PgDatabase } from "drizzle-orm/pg-core";
 import { PgTable } from "drizzle-orm/pg-core";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { SQLiteTable } from "drizzle-orm/sqlite-core";
-import type { CheckedDrizzleInstance } from "../types/drizzleInstanceType";
+import type { InternalDrizzleInstance } from "../types/drizzleInstanceType";
 
 export type DBDialect = "mysql" | "postgres" | "sqlite";
 
-export function determineDBDialectFromSchema<DB extends CheckedDrizzleInstance>(
-	schema: DB["_"]["relations"]["schema"],
-) {
+export function determineDBDialectFromSchema<
+	DB extends InternalDrizzleInstance,
+>(schema: DB["_"]["relations"]["schema"]) {
 	const found = new Set<DBDialect>();
 
 	for (const table of Object.values(schema)) {
@@ -42,7 +42,7 @@ export function determineDBDialectFromSchema<DB extends CheckedDrizzleInstance>(
 
 export function isPostgresDB<
 	Narrowed extends PgDatabase<any, any> = PgDatabase<any, any>,
->(db: CheckedDrizzleInstance): db is Narrowed {
+>(db: InternalDrizzleInstance): db is Narrowed {
 	const dialect = determineDBDialectFromSchema(db._.schema);
 
 	return dialect === "postgres";
@@ -50,7 +50,7 @@ export function isPostgresDB<
 
 export function isMySQLDB<
 	Narrowed extends MySqlDatabase<any, any> = MySqlDatabase<any, any>,
->(db: CheckedDrizzleInstance): db is Narrowed {
+>(db: InternalDrizzleInstance): db is Narrowed {
 	const dialect = determineDBDialectFromSchema(db._.schema);
 
 	return dialect === "mysql";
@@ -58,7 +58,7 @@ export function isMySQLDB<
 
 export function isSQLiteDB<
 	Narrowed extends BaseSQLiteDatabase<any, any> = BaseSQLiteDatabase<any, any>,
->(db: CheckedDrizzleInstance): db is Narrowed {
+>(db: InternalDrizzleInstance): db is Narrowed {
 	const dialect = determineDBDialectFromSchema(db._.schema);
 
 	return dialect === "sqlite";

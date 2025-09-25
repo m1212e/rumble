@@ -15,7 +15,7 @@ import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import { adjustQueryForSearch } from "./search";
-import type { CheckedDrizzleInstance } from "./types/drizzleInstanceType";
+import type { InternalDrizzleInstance } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
 	CustomRumblePothosConfig,
@@ -49,7 +49,7 @@ const isProbablyAConfigObject = (t: any) => {
 
 export const createObjectImplementer = <
 	UserContext extends Record<string, any>,
-	DB extends CheckedDrizzleInstance,
+	DB extends InternalDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -154,7 +154,9 @@ export const createObjectImplementer = <
 			  ) => FieldMap)
 			| undefined;
 	}) => {
-		const tableSchema = tableHelper({ db, tsName: table });
+		const tableSchema = tableHelper({ db, table });
+		console.log(tableSchema);
+
 		if (Object.keys(tableSchema.primaryColumns).length === 0) {
 			console.warn(
 				`Could not find primary key for ${table.toString()}. Cannot register subscriptions!`,

@@ -2,12 +2,12 @@ import { sql } from "drizzle-orm";
 import { cloneDeep } from "es-toolkit";
 import { isPostgresDB } from "./helpers/determineDialectFromSchema";
 import type { tableHelper } from "./helpers/tableHelpers";
-import type { CheckedDrizzleInstance } from "./types/drizzleInstanceType";
+import type { InternalDrizzleInstance } from "./types/drizzleInstanceType";
 import type { RumbleInput } from "./types/rumbleInput";
 
-export async function initSearchIfApplicable<DB extends CheckedDrizzleInstance>(
-	db: DB,
-) {
+export async function initSearchIfApplicable<
+	DB extends InternalDrizzleInstance,
+>(db: DB) {
 	//TODO: make other dialects compatible
 	if (!isPostgresDB(db)) {
 		console.info(

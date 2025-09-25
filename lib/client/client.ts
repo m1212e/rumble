@@ -1,5 +1,5 @@
 import type { SchemaBuilderType } from "../schemaBuilder";
-import type { CheckedDrizzleInstance } from "../types/drizzleInstanceType";
+import type { InternalDrizzleInstance } from "../types/drizzleInstanceType";
 import type {
 	CustomRumblePothosConfig,
 	RumbleInput,
@@ -8,7 +8,7 @@ import { generateFromSchema } from "./generate/generate";
 
 export const clientCreatorImplementer = <
 	UserContext extends Record<string, any>,
-	DB extends CheckedDrizzleInstance,
+	DB extends InternalDrizzleInstance,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
