@@ -1,4 +1,3 @@
-import { relationsFilterToSQL } from "drizzle-orm";
 import { debounce } from "es-toolkit";
 import { lazy } from "./helpers/lazy";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
@@ -6,8 +5,10 @@ import { tableHelper } from "./helpers/tableHelpers";
 import type { Filter } from "./runtimeFiltersPlugin/pluginTypes";
 import type {
 	DrizzleInstance,
-	DrizzleQueryableTableName,
 	DrizzleQueryFunction,
+	DrizzleQueryFunctionInput,
+	DrizzleQueryFunctionReturnType,
+	InternalDrizzleInstance,
 } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
@@ -19,7 +20,7 @@ import type {
 
 export type AbilityBuilderType<
 	UserContext extends Record<string, any>,
-	DB extends DrizzleInstance,
+	DB extends InternalDrizzleInstance<DrizzleInstance>,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -33,56 +34,61 @@ export type AbilityBuilderType<
 	>
 >;
 
-type QueryFilterInput<
+/**
+ * Static, non changing query filter input type for a specific table
+ */
+type StaticQueryFilter<
 	DB extends DrizzleInstance,
-	QueryFunction extends DrizzleQueryFunction<DB>,
-	TableKey extends keyof QueryFunction,
-> = Parameters<QueryFunction[TableKey]["findMany"]>[0];
-
-type SimpleQueryFilter<
-	DB extends DrizzleInstance,
-	TableKey extends keyof DB["query"],
-	Filter extends QueryFilterInput<DB, TableKey>,
+	Table extends keyof DrizzleQueryFunction<DB>,
+	Filter extends DrizzleQueryFunctionInput<DB, Table>,
 > = Filter;
 
-type FunctionQueryFilter<
+/**
+ * Dynamic, context based query filter input type for a specific table
+ */
+type DynamicQueryFilter<
 	DB extends DrizzleInstance,
-	TableKey extends keyof DB["query"],
-	Filter extends QueryFilterInput<DB, TableKey>,
+	Table extends keyof DrizzleQueryFunction<DB>,
+	Filter extends DrizzleQueryFunctionInput<DB, Table>,
 	Context,
-> = (context: Context) => Filter | undefined | "allow";
+> = (
+	context: Context,
+) => StaticQueryFilter<DB, Table, Filter> | undefined | "allow";
 
-function isSimpleQueryFilter<
-	DB extends DrizzleInstance,
-	TableKey extends keyof DB["query"],
-	Filter extends QueryFilterInput<DB, TableKey>,
-	Context,
->(
-	filter: QueryFilter<DB, TableKey, Filter, Context>,
-): filter is SimpleQueryFilter<DB, TableKey, Filter> {
-	return typeof filter !== "function";
-}
-
+/**
+ * Combined query filter type for a specific table. May be static or dynamic.
+ */
 type QueryFilter<
 	DB extends DrizzleInstance,
-	TableName extends keyof DB["query"],
-	Filter extends QueryFilterInput<DB, TableName>,
+	Table extends keyof DrizzleQueryFunction<DB>,
+	Filter extends DrizzleQueryFunctionInput<DB, Table>,
 	Context,
 > =
-	| SimpleQueryFilter<DB, TableName, Filter>
-	| FunctionQueryFilter<DB, TableName, Filter, Context>;
+	| StaticQueryFilter<DB, Table, Filter>
+	| DynamicQueryFilter<DB, Table, Filter, Context>;
 
-function isFunctionFilter<
+function isDynamicQueryFilter<
 	DB extends DrizzleInstance,
-	TableKey extends keyof DB["query"],
-	Filter extends QueryFilterInput<DB, TableKey>,
+	Table extends keyof DrizzleQueryFunction<DB>,
+	Filter extends DrizzleQueryFunctionInput<DB, Table>,
 	Context,
 >(
-	filter: QueryFilter<DB, TableKey, Filter, Context>,
-): filter is FunctionQueryFilter<DB, TableKey, Filter, Context> {
+	filter: QueryFilter<DB, Table, Filter, Context>,
+): filter is DynamicQueryFilter<DB, Table, Filter, Context> {
 	return (
 		typeof filter === "function" && filter.constructor.name !== "AsyncFunction"
 	);
+}
+
+function isStaticQueryFilter<
+	DB extends DrizzleInstance,
+	Table extends keyof DrizzleQueryFunction<DB>,
+	Filter extends DrizzleQueryFunctionInput<DB, Table>,
+	Context,
+>(
+	filter: QueryFilter<DB, Table, Filter, Context>,
+): filter is StaticQueryFilter<DB, Table, Filter> {
+	return typeof filter !== "function";
 }
 
 const nothingRegisteredWarningLogger = debounce(
@@ -100,7 +106,7 @@ but has been accessed. This will block everything. If this is intended, you can 
 
 export const createAbilityBuilder = <
 	UserContext extends Record<string, any>,
-	DB extends DrizzleInstance,
+	DB extends InternalDrizzleInstance<DrizzleInstance>,
 	RequestEvent extends Record<string, any>,
 	Action extends string,
 	PothosConfig extends CustomRumblePothosConfig,
@@ -109,35 +115,32 @@ export const createAbilityBuilder = <
 	actions,
 	defaultLimit,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>) => {
-	const registrators: {
-		[key in TableName<DB>]: ReturnType<typeof createRegistrator<key>>;
-	} = {} as any;
+	type TableNames = keyof DrizzleQueryFunction<DB>;
 
-	const registeredQueryFilters: {
-		[key in TableName<DB>]: {
-			[key in Action]: QueryFilter<DB, key, any, UserContext>[] | "unspecified";
-		};
-	} = {} as any;
+	const createBuilderForTable = <TableName extends TableNames>() => {
+		const queryFilters = new Map<
+			Action,
+			| QueryFilter<
+					DB,
+					TableName,
+					DrizzleQueryFunctionInput<DB, TableName>,
+					UserContext
+			  >[]
+			| "unset"
+		>();
 
-	const registeredRuntimeFilters: {
-		[key in TableName<DB>]: {
+		const runtimeFilters = new Map<
+			Action,
 			//TODO add a run all helper
-			[key in Action]: Filter<UserContext, any>[];
-		};
-	} = {} as any;
+			Filter<UserContext, any>[]
+		>();
 
-	const createRegistrator = <TableNameT extends TableName<DB>>(
-		tableName: TableNameT,
-	) => {
-		// we want to init all possible application level filters since we want to ensure
+		// we want to init all possible runtime filters since we want to ensure
 		// that the implementaiton helpers pass an object by reference when creating
 		// the implementation, instead of a copy like it would be the case with undefined
 		for (const action of actions!) {
-			if (!registeredRuntimeFilters[tableName]) {
-				registeredRuntimeFilters[tableName] = {} as any;
-			}
-			if (!registeredRuntimeFilters[tableName][action]) {
-				registeredRuntimeFilters[tableName][action] = [];
+			if (!runtimeFilters.has(action)) {
+				runtimeFilters.set(action, []);
 			}
 		}
 
@@ -146,18 +149,12 @@ export const createAbilityBuilder = <
 			 * Allows to perform a specific action on a specific entity
 			 */
 			allow: (action: Action | Action[]) => {
-				let queryFiltersPerEntity = registeredQueryFilters[tableName];
-				if (!queryFiltersPerEntity) {
-					queryFiltersPerEntity = {} as any;
-					registeredQueryFilters[tableName] = queryFiltersPerEntity;
-				}
-
 				const actions = Array.isArray(action) ? action : [action];
 				for (const action of actions) {
-					let queryFiltersPerEntityAndAction = queryFiltersPerEntity[action];
-					if (!queryFiltersPerEntityAndAction) {
-						queryFiltersPerEntityAndAction = "unspecified";
-						queryFiltersPerEntity[action] = queryFiltersPerEntityAndAction;
+					let filters = queryFilters.get(action);
+					if (!filters) {
+						filters = "unset";
+						queryFilters.set(action, filters);
 					}
 				}
 
@@ -176,23 +173,17 @@ export const createAbilityBuilder = <
 					when: (
 						queryFilter: QueryFilter<
 							DB,
-							TableNameT,
-							QueryFilterInput<DB, TableNameT>,
+							TableName,
+							DrizzleQueryFunctionInput<DB, TableName>,
 							UserContext
 						>,
 					) => {
 						for (const action of actions) {
-							if (queryFiltersPerEntity[action] === "unspecified") {
-								queryFiltersPerEntity[action] = [];
+							if (queryFilters.get(action) === "unset") {
+								queryFilters.set(action, []);
 							}
-							const queryFiltersPerEntityAndAction =
-								queryFiltersPerEntity[action];
-							(
-								queryFiltersPerEntityAndAction as Exclude<
-									typeof queryFiltersPerEntityAndAction,
-									"unspecified"
-								>
-							).push(queryFilter);
+							const filters = queryFilters.get(action)!;
+							(filters as Exclude<typeof filters, "unset">).push(queryFilter);
 						}
 					},
 				};
@@ -211,296 +202,316 @@ export const createAbilityBuilder = <
 						explicitFilter: Filter<
 							UserContext,
 							NonNullable<
-								Awaited<ReturnType<DB["query"][TableNameT]["findFirst"]>>
+								Awaited<
+									ReturnType<
+										DrizzleQueryFunctionReturnType<DB, TableName>["findFirst"]
+									>
+								>
 							>
 						>,
 					) => {
 						for (const action of actions) {
-							registeredRuntimeFilters[tableName][action].push(explicitFilter);
+							// we initialized all possible actions when creating the builder
+							runtimeFilters.get(action)!.push(explicitFilter);
 						}
 					},
 				};
 			},
+			_: {
+				runtimeFilters,
+				queryFilters,
+			},
 		};
 	};
 
-	for (const entityKey of Object.keys(db.query) as TableName<DB>[]) {
-		registrators[entityKey] = createRegistrator(entityKey);
-	}
+	const buildersPerTable = Object.fromEntries(
+		(Object.keys(db.query) as TableNames[]).map((tableName) => [
+			tableName,
+			createBuilderForTable<typeof tableName>(),
+		]),
+	) as {
+		[key in TableNames]: ReturnType<typeof createBuilderForTable<key>>;
+	};
+
+	const blockEverythingFilterCache = new Map<TableNames, any>();
 
 	return {
-		...registrators,
+		...buildersPerTable,
 		/**
 		 * @internal
 		 * @ignore
 		 */
 		_: {
-			registeredQueryFilters: registeredQueryFilters,
-			registeredFilters: registeredRuntimeFilters,
+			registeredFilters({
+				action,
+				table,
+			}: {
+				table: TableNames;
+				action: Action;
+			}) {
+				return (buildersPerTable[table] as any)._.runtimeFilters.get(
+					action,
+				)! as Filter<
+					UserContext,
+					NonNullable<
+						Awaited<
+							ReturnType<
+								DrizzleQueryFunctionReturnType<DB, TableNames>["findFirst"]
+							>
+						>
+					>
+				>[];
+			},
 			buildWithUserContext: (userContext: UserContext) => {
-				const builder: {
-					[key in TableName<DB>]: ReturnType<typeof createEntityObject<key>>;
-				} = {} as any;
-
-				const createEntityObject = <TableNameT extends TableName<DB>>(
-					tableName: TableNameT,
+				const createFilterForTable = <TableName extends TableNames>(
+					tableName: TableName,
 				) => {
-					return {
-						filter: <
-							Injection extends SimpleQueryFilter<
-								DB,
-								TableNameT,
-								QueryFilterInput<DB, TableNameT>
-							>,
-						>(
-							action: Action,
-							options?: {
-								/**
-								 * Additional query filters applied only for this call. Useful for injecting one time additional filters
-								 * for e.g. user args in a handler.
-								 */
-								inject?: Injection;
+					const queryFilters = buildersPerTable[tableName]._.queryFilters;
+
+					/**
+					 * Creates a filter that will never return any result
+					 */
+					const getBlockEverythingFilter = () => {
+						if (blockEverythingFilterCache.has(tableName)) {
+							return blockEverythingFilterCache.get(tableName);
+						}
+						const tableSchema = tableHelper({
+							db,
+							table: tableName,
+						});
+
+						if (Object.keys(tableSchema.primaryKey).length === 0) {
+							throw new RumbleError(
+								`No primary key found for entity ${tableName.toString()}`,
+							);
+						}
+
+						const primaryKeyField = Object.values(tableSchema.primaryKey)[0];
+						// we want a filter that excludes everything
+						const distinctValues = createDistinctValuesFromSQLType(
+							primaryKeyField.getSQLType() as any,
+						);
+
+						// when the user has no permission for anything, ensure returns nothing
+						const r = {
+							where: {
+								AND: [
+									{
+										[primaryKeyField.name]: distinctValues.value1,
+									},
+									{
+										[primaryKeyField.name]: distinctValues.value2,
+									},
+								],
 							},
-						) => {
+						};
+
+						blockEverythingFilterCache.set(tableName, r);
+						return r;
+					};
+
+					return {
+						filter: (action: Action) => {
 							/**
 							 * Packs the filters into a response object that can be applied for queries by the user
 							 */
-							const transformToResponse = <
-								F extends QueryFilterInput<DB, TableNameT>,
-							>(
-								queryFilters?: F,
-							) => {
-								const where = lazy(() => {
-									if (!queryFilters?.where && !options?.inject?.where) {
-										return;
-									}
+							// const transformToResponse = <
+							// 	F extends QueryFilterInput<DB, TableName>,
+							// >(
+							// 	queryFilters?: F,
+							// ) => {
+							// 	const where = lazy(() => {
+							// 		if (!queryFilters?.where && !options?.inject?.where) {
+							// 			return;
+							// 		}
 
-									if (options?.inject?.where && queryFilters?.where) {
-										return {
-											AND: [queryFilters?.where, options?.inject?.where],
-										};
-									}
+							// 		if (options?.inject?.where && queryFilters?.where) {
+							// 			return {
+							// 				AND: [queryFilters?.where, options?.inject?.where],
+							// 			};
+							// 		}
 
-									if (options?.inject?.where && !queryFilters?.where) {
-										return options?.inject?.where;
-									}
+							// 		if (options?.inject?.where && !queryFilters?.where) {
+							// 			return options?.inject?.where;
+							// 		}
 
-									if (!options?.inject?.where && queryFilters?.where) {
-										return queryFilters?.where;
-									}
+							// 		if (!options?.inject?.where && queryFilters?.where) {
+							// 			return queryFilters?.where;
+							// 		}
 
-									if (!options?.inject?.where && !queryFilters?.where) {
-										return undefined;
-									}
-								});
+							// 		if (!options?.inject?.where && !queryFilters?.where) {
+							// 			return undefined;
+							// 		}
+							// 	});
 
-								const transformedWhere = lazy(() => {
-									const w = where();
-									if (!w) {
-										return;
-									}
+							// 	const transformedWhere = lazy(() => {
+							// 		const w = where();
+							// 		if (!w) {
+							// 			return;
+							// 		}
 
-									const table = tableHelper({
-										table: tableName,
-										db,
-									});
+							// 		const table = tableHelper({
+							// 			table: tableName,
+							// 			db,
+							// 		});
 
-									return relationsFilterToSQL(table.tableSchema, w);
-								});
+							// 		return relationsFilterToSQL(table.tableSchema, w);
+							// 	});
 
-								const limit = lazy(() => {
-									let limit =
-										queryFilters?.limit ?? (defaultLimit as undefined | number);
+							// 	const limit = lazy(() => {
+							// 		let limit =
+							// 			queryFilters?.limit ?? (defaultLimit as undefined | number);
 
-									// only apply limit if neither default limit or ability limit are set
-									// or lower amount is set
-									if (
-										options?.inject?.limit &&
-										(!limit || limit > options.inject.limit)
-									) {
-										limit = options.inject.limit;
-									}
+							// 		// only apply limit if neither default limit or ability limit are set
+							// 		// or lower amount is set
+							// 		if (
+							// 			options?.inject?.limit &&
+							// 			(!limit || limit > options.inject.limit)
+							// 		) {
+							// 			limit = options.inject.limit;
+							// 		}
 
-									// ensure that null is converted to undefined
-									return limit ?? undefined;
-								});
+							// 		// ensure that null is converted to undefined
+							// 		return limit ?? undefined;
+							// 	});
 
-								const columns = lazy(() => {
-									if (!queryFilters?.columns && !options?.inject?.columns) {
-										return;
-									}
+							// 	const columns = lazy(() => {
+							// 		if (!queryFilters?.columns && !options?.inject?.columns) {
+							// 			return;
+							// 		}
 
-									return {
-										...queryFilters?.columns,
-										...options?.inject?.columns,
-									} as undefined;
-									// we need to type this as undefined because TS would
-									// do some funky stuff with query resolve typing otherwise
-								});
+							// 		return {
+							// 			...queryFilters?.columns,
+							// 			...options?.inject?.columns,
+							// 		} as undefined;
+							// 		// we need to type this as undefined because TS would
+							// 		// do some funky stuff with query resolve typing otherwise
+							// 	});
 
-								const r = {
-									/**
-									 * Query filters for the drizzle query API.
-									 * @example
-									 * ```ts
-									 * author: t.relation("author", {
-									 *  query: (_args, ctx) => ctx.abilities.users.filter("read").query.single,
-									 * }),
-									 * ´´´
-									 */
-									query: {
-										/**
-										 * For find first calls
-										 */
-										single: {
-											get where() {
-												return where();
-											},
-											columns: columns(),
-										} as Pick<
-											NonNullable<
-												NonNullable<
-													Parameters<DB["query"][TableNameT]["findFirst"]>[0]
-												>
-											>,
-											"columns" | "where"
-										>,
-										/**
-										 * For find many calls
-										 */
-										many: {
-											get where() {
-												return where();
-											},
-											columns: columns(),
-											get limit() {
-												return limit();
-											},
-										} as Pick<
-											NonNullable<
-												NonNullable<
-													Parameters<DB["query"][TableNameT]["findMany"]>[0]
-												>
-											>,
-											"columns" | "where" | "limit"
-										>,
-									},
-									/**
-									 * Query filters for the drizzle SQL API as used in e.g. updates.
-									 * @example
-									 *
-									 * ```ts
-									 * await db
-									 *	.update(schema.users)
-									 *	.set({
-									 *	  name: args.newName,
-									 * 	})
-									 *	.where(
-									 *	  and(
-									 *	    eq(schema.users.id, args.userId),
-									 *	    ctx.abilities.users.filter("update").sql.where,
-									 *	  ),
-									 *	);
-									 * ```
-									 *
-									 */
-									sql: {
-										get where() {
-											return transformedWhere();
-										},
-										// TODO: check if there are any usecases for applying these
-										// columns: columns(),
-										// get limit() {
-										// 	RETURN LIMIT();
-										// },
-									},
-								};
+							// 	const r = {
+							// 		/**
+							// 		 * Query filters for the drizzle query API.
+							// 		 * @example
+							// 		 * ```ts
+							// 		 * author: t.relation("author", {
+							// 		 *  query: (_args, ctx) => ctx.abilities.users.filter("read").query.single,
+							// 		 * }),
+							// 		 * ´´´
+							// 		 */
+							// 		query: {
+							// 			/**
+							// 			 * For find first calls
+							// 			 */
+							// 			single: {
+							// 				get where() {
+							// 					return where();
+							// 				},
+							// 				columns: columns(),
+							// 			} as Pick<
+							// 				NonNullable<
+							// 					NonNullable<
+							// 						Parameters<DB["query"][TableName]["findFirst"]>[0]
+							// 					>
+							// 				>,
+							// 				"columns" | "where"
+							// 			>,
+							// 			/**
+							// 			 * For find many calls
+							// 			 */
+							// 			many: {
+							// 				get where() {
+							// 					return where();
+							// 				},
+							// 				columns: columns(),
+							// 				get limit() {
+							// 					return limit();
+							// 				},
+							// 			} as Pick<
+							// 				NonNullable<
+							// 					NonNullable<
+							// 						Parameters<DB["query"][TableName]["findMany"]>[0]
+							// 					>
+							// 				>,
+							// 				"columns" | "where" | "limit"
+							// 			>,
+							// 		},
+							// 		/**
+							// 		 * Query filters for the drizzle SQL API as used in e.g. updates.
+							// 		 * @example
+							// 		 *
+							// 		 * ```ts
+							// 		 * await db
+							// 		 *	.update(schema.users)
+							// 		 *	.set({
+							// 		 *	  name: args.newName,
+							// 		 * 	})
+							// 		 *	.where(
+							// 		 *	  and(
+							// 		 *	    eq(schema.users.id, args.userId),
+							// 		 *	    ctx.abilities.users.filter("update").sql.where,
+							// 		 *	  ),
+							// 		 *	);
+							// 		 * ```
+							// 		 *
+							// 		 */
+							// 		sql: {
+							// 			get where() {
+							// 				return transformedWhere();
+							// 			},
+							// 			// TODO: check if there are any usecases for applying these
+							// 			// columns: columns(),
+							// 			// get limit() {
+							// 			// 	RETURN LIMIT();
+							// 			// },
+							// 		},
+							// 	};
 
-								// columns can't be set to undefined, drizzle will interpret this
-								// as: don't return any columns
-								// therefore we need to delete it
-								if (!columns()) {
-									// TODO: check todo above
-									// delete r.sql.columns;
+							// 	// columns can't be set to undefined, drizzle will interpret this
+							// 	// as: don't return any columns
+							// 	// therefore we need to delete it
+							// 	if (!columns()) {
+							// 		// TODO: check todo above
+							// 		// delete r.sql.columns;
 
-									// this should be removed, kills performance
-									delete r.query.many.columns;
-									delete r.query.single.columns;
-								}
+							// 		// this should be removed, kills performance
+							// 		delete r.query.many.columns;
+							// 		delete r.query.single.columns;
+							// 	}
 
-								return r;
-							};
+							// 	return r;
+							// };
 
-							/**
-							 * Creates a filter that will never return any result
-							 */
-							const getBlockEverythingFilter = () => {
-								const tableSchema = tableHelper({
-									db,
-									table: tableName,
-								});
-
-								if (Object.keys(tableSchema.primaryColumns).length === 0) {
-									throw new RumbleError(
-										`No primary key found for entity ${tableName.toString()}`,
-									);
-								}
-
-								const primaryKeyField = Object.values(
-									tableSchema.primaryColumns,
-								)[0];
-								// we want a filter that excludes everything
-								const distinctValues = createDistinctValuesFromSQLType(
-									primaryKeyField.getSQLType() as any,
-								);
-
-								// when the user has no permission for anything, ensure returns nothing
-								return {
-									where: {
-										AND: [
-											{
-												[primaryKeyField.name]: distinctValues.value1,
-											},
-											{
-												[primaryKeyField.name]: distinctValues.value2,
-											},
-										],
-									},
-								};
-							};
-
-							let queryFiltersPerEntityAndAction =
-								registeredQueryFilters?.[tableName]?.[action];
+							let filters = queryFilters.get(action);
 
 							// in case we have a wildcard ability, skip the rest and only apply the injected
 							// filters, if any
-							if (queryFiltersPerEntityAndAction === "unspecified") {
+							if (filters === "unset") {
 								return transformToResponse();
 							}
 
 							// if nothing has been allowed, block everything
-							if (!queryFiltersPerEntityAndAction) {
+							if (!filters) {
 								nothingRegisteredWarningLogger(tableName.toString(), action);
-								queryFiltersPerEntityAndAction = [getBlockEverythingFilter()];
+								filters = [getBlockEverythingFilter()];
 							}
 
 							//TODO: we could maybe improve performance by not filtering at each creation
 							// but instead while the user sets the abilities
-							const simpleQueryFilters: SimpleQueryFilter<
+							const simpleQueryFilters: StaticQueryFilter<
 								DB,
-								TableNameT,
-								QueryFilterInput<DB, TableNameT>
-							>[] = queryFiltersPerEntityAndAction.filter(isSimpleQueryFilter);
+								TableName,
+								QueryFilterInput<DB, TableName>
+							>[] = filters.filter(isStaticQueryFilter);
 
 							const functionQueryFilters: ReturnType<
-								FunctionQueryFilter<
+								DynamicQueryFilter<
 									DB,
-									TableNameT,
-									QueryFilterInput<DB, TableNameT>,
+									TableName,
+									QueryFilterInput<DB, TableName>,
 									UserContext
 								>
-							>[] = queryFiltersPerEntityAndAction
-								.filter(isFunctionFilter)
+							>[] = filters
+								.filter(isDynamicQueryFilter)
 								.map((queryFilter) => queryFilter(userContext));
 
 							//TODO: we could save some work by not running all the filters at each request
@@ -568,17 +579,17 @@ export const createAbilityBuilder = <
 								limit: highestLimit,
 							});
 						},
-						runtimeFilters: (action: Action) => {
-							return registeredRuntimeFilters[tableName][action];
-						},
 					};
 				};
 
-				for (const entityKey of Object.keys(db.query) as TableName<DB>[]) {
-					builder[entityKey] = createEntityObject(entityKey);
-				}
-
-				return builder;
+				return Object.fromEntries(
+					(Object.keys(db.query) as TableNames[]).map((tableName) => [
+						tableName,
+						createFilterForTable(tableName),
+					]),
+				) as {
+					[key in TableNames]: ReturnType<typeof createFilterForTable<key>>;
+				};
 			},
 		},
 	};
