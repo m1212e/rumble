@@ -7,8 +7,7 @@ import type {
   DrizzleInstance,
   DrizzleQueryFunction,
   DrizzleQueryFunctionInput,
-  DrizzleQueryFunctionReturnType,
-  InternalDrizzleInstance,
+  DrizzleTableType,
 } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
@@ -20,7 +19,7 @@ import type {
 
 export type AbilityBuilderType<
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance<DrizzleInstance>,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
@@ -106,7 +105,7 @@ but has been accessed. This will block everything. If this is intended, you can 
 
 export const createAbilityBuilder = <
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance<DrizzleInstance>,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
@@ -203,13 +202,7 @@ export const createAbilityBuilder = <
           by: (
             explicitFilter: Filter<
               UserContext,
-              NonNullable<
-                Awaited<
-                  ReturnType<
-                    DrizzleQueryFunctionReturnType<DB, TableName>["findFirst"]
-                  >
-                >
-              >
+              DrizzleTableType<DB, TableName>
             >,
           ) => {
             for (const action of actions) {
@@ -251,16 +244,7 @@ export const createAbilityBuilder = <
       }) {
         return (buildersPerTable[table] as any)._.runtimeFilters.get(
           action,
-        )! as Filter<
-          UserContext,
-          NonNullable<
-            Awaited<
-              ReturnType<
-                DrizzleQueryFunctionReturnType<DB, TableNames>["findFirst"]
-              >
-            >
-          >
-        >[];
+        )! as Filter<UserContext, DrizzleTableType<DB, TableNames>>[];
       },
       build() {
         const createFilterForTable = <TableName extends TableNames>(
@@ -557,41 +541,44 @@ export const createAbilityBuilder = <
                 if (conditionObject?.limit) {
                   if (
                     highestLimit === undefined ||
-                    conditionObject.limit > highestLimit
+                    (conditionObject.limit as number) > highestLimit
                   ) {
-                    highestLimit = conditionObject.limit;
+                    highestLimit = conditionObject.limit as number;
                   }
                 }
               }
 
-              let combinedAllowedColumns: Record<string, any> | undefined;
+              let allowedColumns: Set<string> | undefined;
               for (let i = 0; i < allQueryFilters.length; i++) {
                 const conditionObject = allQueryFilters[i];
                 if (conditionObject?.columns) {
-                  if (combinedAllowedColumns === undefined) {
-                    combinedAllowedColumns = conditionObject.columns;
+                  if (allowedColumns === undefined) {
+                    allowedColumns = new Set(
+                      Object.keys(conditionObject.columns),
+                    );
                   } else {
-                    combinedAllowedColumns = {
-                      ...combinedAllowedColumns,
-                      ...conditionObject.columns,
-                    };
+                    const fields = Object.keys(conditionObject.columns);
+                    for (let i = 0; i < fields.length; i++) {
+                      allowedColumns.add(fields[i]);
+                    }
                   }
                 }
               }
 
-              // in case we have a wildcard, we don't want to apply any where conditions
-              const accumulatedWhereConditions = someWildcardFound
-                ? []
-                : allQueryFilters.filter((o) => o?.where).map((o) => o.where);
-
-              const combinedWhere =
-                accumulatedWhereConditions.length > 0
-                  ? { OR: accumulatedWhereConditions }
-                  : undefined;
+              const accumulatedWhereConditions = allQueryFilters
+                .filter((o) => o?.where)
+                .map((o) => o!.where);
 
               return transformToResponse({
-                where: combinedWhere,
-                columns: combinedAllowedColumns,
+                where:
+                  accumulatedWhereConditions.length > 0
+                    ? { OR: accumulatedWhereConditions }
+                    : undefined,
+                columns: allowedColumns
+                  ? Object.fromEntries(
+                      Array.from(allowedColumns).map((key) => [key, true]),
+                    )
+                  : undefined,
                 limit: highestLimit,
               });
             },

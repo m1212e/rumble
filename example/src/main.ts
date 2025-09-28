@@ -88,12 +88,6 @@ const {
   // },
 });
 
-db.query.users.findMany({
-  where: {
-    id: 1,
-  },
-});
-
 /*
 
   Next we will define some abilities. Abilities are things which users are allowed to do.
@@ -104,6 +98,8 @@ db.query.users.findMany({
   your permissions model which we can later apply to things which happen in our app.
 
 */
+
+abilityBuilder.users.allow(["read", "update", "delete"]).when();
 
 // users can edit themselves
 abilityBuilder.users.allow(["read", "update", "delete"]).when(({ userId }) => ({
