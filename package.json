@@ -1,48 +1,48 @@
 {
-	"name": "@m1212e/rumble",
-	"module": "index.ts",
-	"type": "module",
-	"repository": "https://github.com/m1212e/rumble",
-	"scripts": {
-		"format": "bun run lint",
-		"lint": "bunx biome check --write .",
-		"dev:docker": "docker compose -f ./dev.docker-compose.yml up",
-		"dev:example": "bun ./example/src/main.ts",
-		"dev:example:seed": "bun example/src/db/seed.ts",
-		"build": "bun run typecheck && bun build.ts",
-		"typecheck": "tsc --noEmit"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "2.2.4",
-		"@graphql-tools/executor-http": "^3.0.4",
-		"@types/bun": "latest",
-		"@types/pg": "^8.15.5",
-		"@types/pluralize": "^0.0.33",
-		"drizzle-kit": "^1.0.0-beta.1-f92627f",
-		"drizzle-orm": "^1.0.0-beta.1-f92627f",
-		"drizzle-seed": "^0.3.1-f92627f",
-		"lefthook": "^1.13.3",
-		"pg": "^8.16.3",
-		"tsup": "^8.5.0"
-	},
-	"peerDependencies": {
-		"typescript": "^5",
-		"drizzle-orm": "^1"
-	},
-	"dependencies": {
-		"@escape.tech/graphql-armor": "^3.1.7",
-		"@graphql-yoga/plugin-disable-introspection": "^2.17.0",
-		"@pothos/core": "^4.9.1",
-		"@pothos/plugin-drizzle": "^0.13.0",
-		"@pothos/plugin-smart-subscriptions": "^4.1.4",
-		"@urql/core": "^6.0.1",
-		"@urql/exchange-graphcache": "^8.1.0",
-		"es-toolkit": "^1.39.10",
-		"graphql": "^16.11.0",
-		"graphql-scalars": "^1.24.2",
-		"graphql-yoga": "^5.16.0",
-		"pluralize": "^8.0.0",
-		"sofa-api": "^0.18.8",
-		"wonka": "^6.3.5"
-	}
+  "name": "@m1212e/rumble",
+  "module": "index.ts",
+  "type": "module",
+  "repository": "https://github.com/m1212e/rumble",
+  "scripts": {
+    "format": "bun run lint",
+    "lint": "bunx biome check --write .",
+    "dev:docker": "docker compose -f ./dev.docker-compose.yml up",
+    "dev:example": "bun ./example/src/main.ts",
+    "dev:example:seed": "bun example/src/db/seed.ts",
+    "build": "bun run typecheck && bun build.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.4",
+    "@graphql-tools/executor-http": "^3.0.4",
+    "@types/bun": "latest",
+    "@types/pg": "^8.15.5",
+    "@types/pluralize": "^0.0.33",
+    "drizzle-kit": "^1.0.0-beta.1-f92627f",
+    "drizzle-orm": "^1.0.0-beta.1-f92627f",
+    "drizzle-seed": "^0.3.1-f92627f",
+    "lefthook": "^1.13.3",
+    "pg": "^8.16.3",
+    "tsup": "^8.5.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5",
+    "drizzle-orm": "^1"
+  },
+  "dependencies": {
+    "@escape.tech/graphql-armor": "^3.1.7",
+    "@graphql-yoga/plugin-disable-introspection": "^2.17.0",
+    "@pothos/core": "^4.9.1",
+    "@pothos/plugin-drizzle": "^0.13.0",
+    "@pothos/plugin-smart-subscriptions": "^4.1.4",
+    "@urql/core": "^6.0.1",
+    "@urql/exchange-graphcache": "^8.1.0",
+    "es-toolkit": "^1.39.10",
+    "graphql": "^16.11.0",
+    "graphql-scalars": "^1.24.2",
+    "graphql-yoga": "^5.16.0",
+    "pluralize": "^8.0.0",
+    "sofa-api": "^0.18.8",
+    "wonka": "^6.3.5"
+  }
 }

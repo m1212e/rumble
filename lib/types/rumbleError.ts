@@ -4,10 +4,10 @@ import { GraphQLError } from "graphql";
  * Mostly internals, configuration errors or other unexpected things.
  */
 export class RumbleError extends Error {
-	constructor(message: string) {
-		super(message);
-		this.name = "RumbleError";
-	}
+  constructor(message: string) {
+    super(message);
+    this.name = "RumbleError";
+  }
 }
 
 /**

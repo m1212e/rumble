@@ -32,9 +32,9 @@ import { RumbleErrorSafe } from "../types/rumbleError";
  * ```
  */
 export const assertFindFirstExists = <T>(value: T | undefined): T => {
-	if (!value)
-		throw new RumbleErrorSafe("Value not found but required (findFirst)");
-	return value;
+  if (!value)
+    throw new RumbleErrorSafe("Value not found but required (findFirst)");
+  return value;
 };
 
 /**
@@ -77,10 +77,10 @@ export const assertFindFirstExists = <T>(value: T | undefined): T => {
  * ```
  */
 export const assertFirstEntryExists = <T>(value: T[]): T => {
-	const v = value.at(0);
-	if (!v)
-		throw new RumbleErrorSafe("Value not found but required (firstEntry)");
-	return v;
+  const v = value.at(0);
+  if (!v)
+    throw new RumbleErrorSafe("Value not found but required (firstEntry)");
+  return v;
 };
 
 /**
@@ -97,30 +97,30 @@ export const assertFirstEntryExists = <T>(value: T[]): T => {
  * ```
  */
 export const applyFilters = async <Context, T, H extends T>({
-	filters,
-	entities,
-	context,
+  filters,
+  entities,
+  context,
 }: {
-	entities: T[];
-	filters: Filter<Context, H>[];
-	context: Context;
+  entities: T[];
+  filters: Filter<Context, H>[];
+  context: Context;
 }) => {
-	return Array.from(
-		(
-			await Promise.all(
-				filters.map((f) =>
-					f({
-						context,
-						entities: entities as H[],
-					}),
-				),
-			)
-		).reduce((acc, val) => {
-			val.forEach((v) => acc.add(v));
-			return acc;
-			// since multiple helpers might return the same entity we use a set to deduplicate
-		}, new Set<T>()),
-	);
+  return Array.from(
+    (
+      await Promise.all(
+        filters.map((f) =>
+          f({
+            context,
+            entities: entities as H[],
+          }),
+        ),
+      )
+    ).reduce((acc, val) => {
+      val.forEach((v) => acc.add(v));
+      return acc;
+      // since multiple helpers might return the same entity we use a set to deduplicate
+    }, new Set<T>()),
+  );
 };
 
 /**
@@ -182,12 +182,12 @@ export const applyFilters = async <Context, T, H extends T>({
  * ```
  */
 export function mapNullFieldsToUndefined<T extends object>(obj: T) {
-	return Object.fromEntries(
-		Object.entries(obj).map(([key, value]) => [
-			key,
-			value === null ? undefined : value,
-		]),
-	) as {
-		[K in keyof T]: T[K] extends null ? undefined : Exclude<T[K], null>;
-	};
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [
+      key,
+      value === null ? undefined : value,
+    ]),
+  ) as {
+    [K in keyof T]: T[K] extends null ? undefined : Exclude<T[K], null>;
+  };
 }

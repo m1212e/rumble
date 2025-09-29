@@ -8,8 +8,8 @@ import { type EnumImplementerType, isEnumSchema } from "./enum";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
 import {
-	type TableIdentifierTSName,
-	tableHelper,
+  type TableIdentifierTSName,
+  tableHelper,
 } from "./helpers/tableHelpers";
 import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
@@ -18,460 +18,460 @@ import { adjustQueryForSearch } from "./search";
 import type { InternalDrizzleInstance } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
-	CustomRumblePothosConfig,
-	RumbleInput,
+  CustomRumblePothosConfig,
+  RumbleInput,
 } from "./types/rumbleInput";
 import type { WhereArgImplementerType } from "./whereArg";
 
 //TODO this is a bit flaky, we should check if we can determine the config object more reliably
 //TODO maybe a plugin can place some marker field on these objects?
 const isProbablyAConfigObject = (t: any) => {
-	if (typeof t !== "object") {
-		return false;
-	}
+  if (typeof t !== "object") {
+    return false;
+  }
 
-	if (
-		Object.keys(t).some((k) =>
-			[
-				"args",
-				"nullable",
-				"query",
-				"subscribe",
-				"description",
-				"type",
-				"resolve",
-			].find((e) => e === k),
-		)
-	)
-		return true;
-	return false;
+  if (
+    Object.keys(t).some((k) =>
+      [
+        "args",
+        "nullable",
+        "query",
+        "subscribe",
+        "description",
+        "type",
+        "resolve",
+      ].find((e) => e === k),
+    )
+  )
+    return true;
+  return false;
 };
 
 export const createObjectImplementer = <
-	UserContext extends Record<string, any>,
-	DB extends InternalDrizzleInstance,
-	RequestEvent extends Record<string, any>,
-	Action extends string,
-	PothosConfig extends CustomRumblePothosConfig,
-	SchemaBuilder extends SchemaBuilderType<
-		UserContext,
-		DB,
-		RequestEvent,
-		Action,
-		PothosConfig
-	>,
-	WhereArgImplementer extends WhereArgImplementerType<
-		UserContext,
-		DB,
-		RequestEvent,
-		Action,
-		PothosConfig
-	>,
-	OrderArgImplementer extends OrderArgImplementerType<
-		UserContext,
-		DB,
-		RequestEvent,
-		Action,
-		PothosConfig
-	>,
-	EnumImplementer extends EnumImplementerType<
-		UserContext,
-		DB,
-		RequestEvent,
-		Action,
-		PothosConfig
-	>,
-	MakePubSubInstance extends MakePubSubInstanceType<
-		UserContext,
-		DB,
-		RequestEvent,
-		Action,
-		PothosConfig
-	>,
-	AbilityBuilderInstance extends AbilityBuilderType<
-		UserContext,
-		DB,
-		RequestEvent,
-		Action,
-		PothosConfig
-	>,
+  UserContext extends Record<string, any>,
+  DB extends InternalDrizzleInstance,
+  RequestEvent extends Record<string, any>,
+  Action extends string,
+  PothosConfig extends CustomRumblePothosConfig,
+  SchemaBuilder extends SchemaBuilderType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig
+  >,
+  WhereArgImplementer extends WhereArgImplementerType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig
+  >,
+  OrderArgImplementer extends OrderArgImplementerType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig
+  >,
+  EnumImplementer extends EnumImplementerType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig
+  >,
+  MakePubSubInstance extends MakePubSubInstanceType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig
+  >,
+  AbilityBuilderInstance extends AbilityBuilderType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig
+  >,
 >({
-	db,
-	search,
-	schemaBuilder,
-	makePubSubInstance,
-	whereArgImplementer,
-	orderArgImplementer,
-	enumImplementer,
-	abilityBuilder,
+  db,
+  search,
+  schemaBuilder,
+  makePubSubInstance,
+  whereArgImplementer,
+  orderArgImplementer,
+  enumImplementer,
+  abilityBuilder,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
-	schemaBuilder: SchemaBuilder;
-	whereArgImplementer: WhereArgImplementer;
-	orderArgImplementer: OrderArgImplementer;
-	enumImplementer: EnumImplementer;
-	makePubSubInstance: MakePubSubInstance;
-	abilityBuilder: AbilityBuilderInstance;
+  schemaBuilder: SchemaBuilder;
+  whereArgImplementer: WhereArgImplementer;
+  orderArgImplementer: OrderArgImplementer;
+  enumImplementer: EnumImplementer;
+  makePubSubInstance: MakePubSubInstance;
+  abilityBuilder: AbilityBuilderInstance;
 }) => {
-	return <
-		ExplicitTableName extends TableIdentifierTSName<DB>,
-		RefName extends string,
-	>({
-		table,
-		refName,
-		readAction = "read" as Action,
-		adjust,
-	}: {
-		/**
-		 * The table you want to be used as reference for the object creation.
-		 */
-		table: ExplicitTableName;
-		/**
-		 * The name you want this object to have in your graphql schema.
-		 * Rumble will create a reasonable default if not specified.
-		 */
-		refName?: RefName;
-		/**
-		 * The action used for read access to the table.
-		 * Defaults to "read".
-		 */
-		readAction?: Action;
-		/**
-		 * A function which can be used to adjust the fields of the object.
-		 * You can extend the object by specifying fields that do not exist as
-		 * per your db schema, or overwrite existing fields with the same name.
-		 * In case you do overwrite, rumble will set proper nullability and
-		 * subscription properties if you do not specify them explicitly.
-		 */
-		adjust?:
-			| ((
-					t: DrizzleObjectFieldBuilder<
-						SchemaBuilder["$inferSchemaTypes"],
-						SchemaBuilder["$inferSchemaTypes"]["DrizzleRelationsConfig"][ExplicitTableName],
-						NonNullable<
-							Awaited<ReturnType<DB["query"][ExplicitTableName]["findFirst"]>>
-						>
-					>,
-			  ) => FieldMap)
-			| undefined;
-	}) => {
-		const tableSchema = tableHelper({ db, table });
-		console.log(tableSchema);
+  return <
+    ExplicitTableName extends TableIdentifierTSName<DB>,
+    RefName extends string,
+  >({
+    table,
+    refName,
+    readAction = "read" as Action,
+    adjust,
+  }: {
+    /**
+     * The table you want to be used as reference for the object creation.
+     */
+    table: ExplicitTableName;
+    /**
+     * The name you want this object to have in your graphql schema.
+     * Rumble will create a reasonable default if not specified.
+     */
+    refName?: RefName;
+    /**
+     * The action used for read access to the table.
+     * Defaults to "read".
+     */
+    readAction?: Action;
+    /**
+     * A function which can be used to adjust the fields of the object.
+     * You can extend the object by specifying fields that do not exist as
+     * per your db schema, or overwrite existing fields with the same name.
+     * In case you do overwrite, rumble will set proper nullability and
+     * subscription properties if you do not specify them explicitly.
+     */
+    adjust?:
+      | ((
+          t: DrizzleObjectFieldBuilder<
+            SchemaBuilder["$inferSchemaTypes"],
+            SchemaBuilder["$inferSchemaTypes"]["DrizzleRelationsConfig"][ExplicitTableName],
+            NonNullable<
+              Awaited<ReturnType<DB["query"][ExplicitTableName]["findFirst"]>>
+            >
+          >,
+        ) => FieldMap)
+      | undefined;
+  }) => {
+    const tableSchema = tableHelper({ db, table });
+    console.log(tableSchema);
 
-		if (Object.keys(tableSchema.primaryColumns).length === 0) {
-			console.warn(
-				`Could not find primary key for ${table.toString()}. Cannot register subscriptions!`,
-			);
-		}
-		const primaryKey = Object.values(tableSchema.primaryColumns)[0];
+    if (Object.keys(tableSchema.primaryColumns).length === 0) {
+      console.warn(
+        `Could not find primary key for ${table.toString()}. Cannot register subscriptions!`,
+      );
+    }
+    const primaryKey = Object.values(tableSchema.primaryColumns)[0];
 
-		const { registerOnInstance } = makePubSubInstance({ table: table });
+    const { registerOnInstance } = makePubSubInstance({ table: table });
 
-		return schemaBuilder.drizzleObject(table, {
-			name: refName ?? capitalize(table.toString()),
-			subscribe: (subscriptions, element, _context) => {
-				if (!primaryKey) return;
-				const primaryKeyValue = (element as any)[primaryKey.name];
-				if (!primaryKeyValue) {
-					console.warn(
-						`Could not find primary key value for ${JSON.stringify(
-							element,
-						)}. Cannot register subscription!`,
-					);
-					return;
-				}
+    return schemaBuilder.drizzleObject(table, {
+      name: refName ?? capitalize(table.toString()),
+      subscribe: (subscriptions, element, _context) => {
+        if (!primaryKey) return;
+        const primaryKeyValue = (element as any)[primaryKey.name];
+        if (!primaryKeyValue) {
+          console.warn(
+            `Could not find primary key value for ${JSON.stringify(
+              element,
+            )}. Cannot register subscription!`,
+          );
+          return;
+        }
 
-				//TODO maybe register non specific update calls aswell?
-				registerOnInstance({
-					instance: subscriptions,
-					action: "updated",
-					primaryKeyValue: primaryKeyValue,
-				});
-			},
-			applyFilters:
-				abilityBuilder?._.registeredFilters?.[table as any]?.[readAction],
-			fields: (t) => {
-				const columns = tableSchema.columns;
-				const mapSQLTypeStringToExposedPothosType = <
-					Column extends keyof typeof columns,
-				>(
-					sqlType: PossibleSQLType,
-					columnName: Column,
-					nullable: boolean,
-				) => {
-					const gqlType = mapSQLTypeToGraphQLType({
-						sqlType,
-						fieldName: columnName,
-					});
-					switch (gqlType) {
-						case "Int":
-							// @ts-expect-error
-							return t.exposeInt(columnName, { nullable });
-						case "String":
-							// @ts-expect-error
-							return t.exposeString(columnName, { nullable });
-						case "Boolean":
-							// @ts-expect-error
-							return t.exposeBoolean(columnName, { nullable });
-						case "Date":
-							return t.field({
-								type: "Date",
-								resolve: (element) => (element as any)[columnName] as Date,
-								nullable,
-							});
-						case "DateTime":
-							return t.field({
-								type: "DateTime",
-								resolve: (element) => (element as any)[columnName] as Date,
-								nullable,
-							});
-						case "Float":
-							// @ts-expect-error
-							return t.exposeFloat(columnName, { nullable });
-						case "ID":
-							// @ts-expect-error
-							return t.exposeID(columnName, { nullable });
-						case "JSON":
-							return t.field({
-								type: "JSON",
-								resolve: (element) => (element as any)[columnName] as unknown,
-								nullable,
-							});
-						default:
-							throw new RumbleError(
-								`Unsupported object type ${gqlType} for column ${columnName}`,
-							);
-					}
-				};
+        //TODO maybe register non specific update calls aswell?
+        registerOnInstance({
+          instance: subscriptions,
+          action: "updated",
+          primaryKeyValue: primaryKeyValue,
+        });
+      },
+      applyFilters:
+        abilityBuilder?._.registeredFilters?.[table as any]?.[readAction],
+      fields: (t) => {
+        const columns = tableSchema.columns;
+        const mapSQLTypeStringToExposedPothosType = <
+          Column extends keyof typeof columns,
+        >(
+          sqlType: PossibleSQLType,
+          columnName: Column,
+          nullable: boolean,
+        ) => {
+          const gqlType = mapSQLTypeToGraphQLType({
+            sqlType,
+            fieldName: columnName,
+          });
+          switch (gqlType) {
+            case "Int":
+              // @ts-expect-error
+              return t.exposeInt(columnName, { nullable });
+            case "String":
+              // @ts-expect-error
+              return t.exposeString(columnName, { nullable });
+            case "Boolean":
+              // @ts-expect-error
+              return t.exposeBoolean(columnName, { nullable });
+            case "Date":
+              return t.field({
+                type: "Date",
+                resolve: (element) => (element as any)[columnName] as Date,
+                nullable,
+              });
+            case "DateTime":
+              return t.field({
+                type: "DateTime",
+                resolve: (element) => (element as any)[columnName] as Date,
+                nullable,
+              });
+            case "Float":
+              // @ts-expect-error
+              return t.exposeFloat(columnName, { nullable });
+            case "ID":
+              // @ts-expect-error
+              return t.exposeID(columnName, { nullable });
+            case "JSON":
+              return t.field({
+                type: "JSON",
+                resolve: (element) => (element as any)[columnName] as unknown,
+                nullable,
+              });
+            default:
+              throw new RumbleError(
+                `Unsupported object type ${gqlType} for column ${columnName}`,
+              );
+          }
+        };
 
-				// in case the user makes adjustments we want to store away which
-				// pothos function was called with what config
-				// this is mapped to the ref which later can be used to
-				// reference these parameters while iterating over the fields
-				// and checking against the userAdjustments object
-				// this is necessary to e.g. merge nullability info from the database schema
-				// or register subscriptions on relations
-				const configMap = new Map<
-					any,
-					{
-						creatorFunction: (...p: any[]) => any;
-						params: any[];
-						configObject: any;
-					}
-				>();
-				// stores the results of the user adjustments
-				// also stores all the used pothos functions and the configs
-				// provided by the user so we can extend that if necessary
-				const userAdjustments =
-					adjust?.(
-						new Proxy(t, {
-							get: (target, prop) => {
-								if (
-									// we only care for field/relation functions
-									typeof (target as any)[prop] !== "function" ||
-									prop === "arg" ||
-									prop === "builder" ||
-									prop === "graphqlKind" ||
-									prop === "kind" ||
-									prop === "listRef" ||
-									prop === "table" ||
-									prop === "typename" ||
-									prop === "variant" ||
-									prop.toString().startsWith("boolean") ||
-									prop.toString().startsWith("float") ||
-									prop.toString().startsWith("id") ||
-									prop.toString().startsWith("int") ||
-									prop.toString().startsWith("string") ||
-									prop.toString().startsWith("expose")
-								) {
-									return (target as any)[prop];
-								}
+        // in case the user makes adjustments we want to store away which
+        // pothos function was called with what config
+        // this is mapped to the ref which later can be used to
+        // reference these parameters while iterating over the fields
+        // and checking against the userAdjustments object
+        // this is necessary to e.g. merge nullability info from the database schema
+        // or register subscriptions on relations
+        const configMap = new Map<
+          any,
+          {
+            creatorFunction: (...p: any[]) => any;
+            params: any[];
+            configObject: any;
+          }
+        >();
+        // stores the results of the user adjustments
+        // also stores all the used pothos functions and the configs
+        // provided by the user so we can extend that if necessary
+        const userAdjustments =
+          adjust?.(
+            new Proxy(t, {
+              get: (target, prop) => {
+                if (
+                  // we only care for field/relation functions
+                  typeof (target as any)[prop] !== "function" ||
+                  prop === "arg" ||
+                  prop === "builder" ||
+                  prop === "graphqlKind" ||
+                  prop === "kind" ||
+                  prop === "listRef" ||
+                  prop === "table" ||
+                  prop === "typename" ||
+                  prop === "variant" ||
+                  prop.toString().startsWith("boolean") ||
+                  prop.toString().startsWith("float") ||
+                  prop.toString().startsWith("id") ||
+                  prop.toString().startsWith("int") ||
+                  prop.toString().startsWith("string") ||
+                  prop.toString().startsWith("expose")
+                ) {
+                  return (target as any)[prop];
+                }
 
-								return (...params: any[]) => {
-									const ref = (target as any)[prop](...params);
-									const configObject = params.find(isProbablyAConfigObject);
-									if (!configObject)
-										throw new RumbleError(
-											"Expected config object to be passed to adjust field",
-										);
+                return (...params: any[]) => {
+                  const ref = (target as any)[prop](...params);
+                  const configObject = params.find(isProbablyAConfigObject);
+                  if (!configObject)
+                    throw new RumbleError(
+                      "Expected config object to be passed to adjust field",
+                    );
 
-									configMap.set(ref, {
-										params,
-										creatorFunction: (target as any)[prop],
-										configObject,
-									});
-									return ref;
-								};
-							},
-						}) as any,
-					) ?? {};
+                  configMap.set(ref, {
+                    params,
+                    creatorFunction: (target as any)[prop],
+                    configObject,
+                  });
+                  return ref;
+                };
+              },
+            }) as any,
+          ) ?? {};
 
-				const fields = Object.entries(columns).reduce(
-					(acc, [key, value]) => {
-						// in case the user wants to overwrite a field
-						// we want to merge with our stuff in case the user
-						// did not specify it themselves
-						if (userAdjustments[key]) {
-							const { params, creatorFunction, configObject } = configMap.get(
-								userAdjustments[key],
-							)!;
+        const fields = Object.entries(columns).reduce(
+          (acc, [key, value]) => {
+            // in case the user wants to overwrite a field
+            // we want to merge with our stuff in case the user
+            // did not specify it themselves
+            if (userAdjustments[key]) {
+              const { params, creatorFunction, configObject } = configMap.get(
+                userAdjustments[key],
+              )!;
 
-							if (typeof configObject.nullable !== "boolean") {
-								configObject.nullable = !value.notNull;
-							}
+              if (typeof configObject.nullable !== "boolean") {
+                configObject.nullable = !value.notNull;
+              }
 
-							userAdjustments[key] = creatorFunction.bind(t)(...params);
-							return acc;
-						}
+              userAdjustments[key] = creatorFunction.bind(t)(...params);
+              return acc;
+            }
 
-						if (isEnumSchema(value)) {
-							const enumImpl = enumImplementer({
-								enumColumn: value,
-							});
+            if (isEnumSchema(value)) {
+              const enumImpl = enumImplementer({
+                enumColumn: value,
+              });
 
-							acc[key] = t.field({
-								type: enumImpl,
-								resolve: (element) => (element as any)[key],
-								nullable: !value.notNull,
-							});
-						} else {
-							acc[key] = mapSQLTypeStringToExposedPothosType(
-								value.getSQLType() as PossibleSQLType,
-								key,
-								!value.notNull,
-							);
-						}
-						return acc;
-					},
-					{} as Record<
-						keyof typeof columns,
-						ReturnType<typeof mapSQLTypeStringToExposedPothosType>
-					>,
-				);
+              acc[key] = t.field({
+                type: enumImpl,
+                resolve: (element) => (element as any)[key],
+                nullable: !value.notNull,
+              });
+            } else {
+              acc[key] = mapSQLTypeStringToExposedPothosType(
+                value.getSQLType() as PossibleSQLType,
+                key,
+                !value.notNull,
+              );
+            }
+            return acc;
+          },
+          {} as Record<
+            keyof typeof columns,
+            ReturnType<typeof mapSQLTypeStringToExposedPothosType>
+          >,
+        );
 
-				const relations = Object.entries(tableSchema.relations ?? {}).reduce(
-					(acc, [key, value]) => {
-						const relationSchema = tableHelper({
-							db,
-							table: value.targetTable as Table,
-						});
-						const WhereArg = whereArgImplementer({
-							dbName: relationSchema.dbName,
-						});
-						const OrderArg = orderArgImplementer({
-							dbName: relationSchema.dbName,
-						});
-						const relationTablePubSub = makePubSubInstance({
-							table: relationSchema.tsName as any,
-						});
+        const relations = Object.entries(tableSchema.relations ?? {}).reduce(
+          (acc, [key, value]) => {
+            const relationSchema = tableHelper({
+              db,
+              table: value.targetTable as Table,
+            });
+            const WhereArg = whereArgImplementer({
+              dbName: relationSchema.dbName,
+            });
+            const OrderArg = orderArgImplementer({
+              dbName: relationSchema.dbName,
+            });
+            const relationTablePubSub = makePubSubInstance({
+              table: relationSchema.tsName as any,
+            });
 
-						// many relations will return an empty array so we just don't set them nullable
-						let nullable = false;
-						let isMany = true;
-						let filterSpecifier = "many";
-						if (value instanceof One) {
-							isMany = false;
-							nullable = value.optional;
-							filterSpecifier = "single";
-						}
+            // many relations will return an empty array so we just don't set them nullable
+            let nullable = false;
+            let isMany = true;
+            let filterSpecifier = "many";
+            if (value instanceof One) {
+              isMany = false;
+              nullable = value.optional;
+              filterSpecifier = "single";
+            }
 
-						const subscribe = (subscriptions: any, _element: any) => {
-							relationTablePubSub.registerOnInstance({
-								instance: subscriptions,
-								action: "created",
-							});
-							relationTablePubSub.registerOnInstance({
-								instance: subscriptions,
-								action: "removed",
-							});
-						};
+            const subscribe = (subscriptions: any, _element: any) => {
+              relationTablePubSub.registerOnInstance({
+                instance: subscriptions,
+                action: "created",
+              });
+              relationTablePubSub.registerOnInstance({
+                instance: subscriptions,
+                action: "removed",
+              });
+            };
 
-						// in case the user wants to overwrite a field
-						// we want to merge with our stuff in case the user
-						// did not specify it themselves
-						if (userAdjustments[key]) {
-							const { params, creatorFunction, configObject } = configMap.get(
-								userAdjustments[key],
-							)!;
+            // in case the user wants to overwrite a field
+            // we want to merge with our stuff in case the user
+            // did not specify it themselves
+            if (userAdjustments[key]) {
+              const { params, creatorFunction, configObject } = configMap.get(
+                userAdjustments[key],
+              )!;
 
-							if (typeof configObject.nullable !== "boolean") {
-								configObject.nullable = nullable;
-							}
+              if (typeof configObject.nullable !== "boolean") {
+                configObject.nullable = nullable;
+              }
 
-							if (typeof configObject.subscribe !== "function") {
-								configObject.subscribe = subscribe;
-							}
+              if (typeof configObject.subscribe !== "function") {
+                configObject.subscribe = subscribe;
+              }
 
-							userAdjustments[key] = creatorFunction.bind(t)(...params);
-							return acc;
-						}
+              userAdjustments[key] = creatorFunction.bind(t)(...params);
+              return acc;
+            }
 
-						const args = {
-							where: t.arg({ type: WhereArg, required: false }),
-							orderBy: t.arg({ type: OrderArg, required: false }),
-							...(isMany
-								? {
-										offset: t.arg.int({ required: false }),
-										limit: t.arg.int({ required: false }),
-									}
-								: {}),
-							search: t.arg.string({ required: false }),
-						};
+            const args = {
+              where: t.arg({ type: WhereArg, required: false }),
+              orderBy: t.arg({ type: OrderArg, required: false }),
+              ...(isMany
+                ? {
+                    offset: t.arg.int({ required: false }),
+                    limit: t.arg.int({ required: false }),
+                  }
+                : {}),
+              search: t.arg.string({ required: false }),
+            };
 
-						if (!search?.enabled || !isMany) {
-							delete (args as any).search;
-						}
+            if (!search?.enabled || !isMany) {
+              delete (args as any).search;
+            }
 
-						(acc as any)[key] = t.relation(key, {
-							args,
-							subscribe,
-							nullable,
-							description: `Get the ${pluralize.plural(relationSchema.tsName)} related to this ${pluralize.singular(tableSchema.tsName)}`,
-							query: (args: any, ctx: any) => {
-								// transform null prototyped object
-								args = JSON.parse(JSON.stringify(args));
+            (acc as any)[key] = t.relation(key, {
+              args,
+              subscribe,
+              nullable,
+              description: `Get the ${pluralize.plural(relationSchema.tsName)} related to this ${pluralize.singular(tableSchema.tsName)}`,
+              query: (args: any, ctx: any) => {
+                // transform null prototyped object
+                args = JSON.parse(JSON.stringify(args));
 
-								if (isMany) {
-									adjustQueryForSearch({
-										search,
-										args,
-										tableSchema: relationSchema,
-										abilities:
-											ctx.abilities[relationSchema.tsName].filter(readAction),
-									});
-								}
+                if (isMany) {
+                  adjustQueryForSearch({
+                    search,
+                    args,
+                    tableSchema: relationSchema,
+                    abilities:
+                      ctx.abilities[relationSchema.tsName].filter(readAction),
+                  });
+                }
 
-								const filter = ctx.abilities[relationSchema.tsName].filter(
-									readAction,
-									{
-										inject: { where: args.where, limit: args.limit },
-									},
-								).query[filterSpecifier];
+                const filter = ctx.abilities[relationSchema.tsName].filter(
+                  readAction,
+                  {
+                    inject: { where: args.where, limit: args.limit },
+                  },
+                ).query[filterSpecifier];
 
-								if (args.offset) {
-									(filter as any).offset = args.offset;
-								}
+                if (args.offset) {
+                  (filter as any).offset = args.offset;
+                }
 
-								if (args.orderBy) {
-									(filter as any).orderBy = args.orderBy;
-								}
+                if (args.orderBy) {
+                  (filter as any).orderBy = args.orderBy;
+                }
 
-								return filter;
-							},
-						} as any) as any;
-						return acc;
-					},
-					{} as Record<
-						keyof typeof tableSchema.relations,
-						ReturnType<typeof mapSQLTypeStringToExposedPothosType>
-					>,
-				);
+                return filter;
+              },
+            } as any) as any;
+            return acc;
+          },
+          {} as Record<
+            keyof typeof tableSchema.relations,
+            ReturnType<typeof mapSQLTypeStringToExposedPothosType>
+          >,
+        );
 
-				return {
-					...fields,
-					...relations,
-					...userAdjustments,
-				};
-			},
-		});
-	};
+        return {
+          ...fields,
+          ...relations,
+          ...userAdjustments,
+        };
+      },
+    });
+  };
 };

@@ -1,3 +1,4 @@
+import { relationsFilterToSQL } from "drizzle-orm";
 import { debounce } from "es-toolkit";
 import { lazy } from "./helpers/lazy";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
@@ -116,6 +117,8 @@ export const createAbilityBuilder = <
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>) => {
   type TableNames = keyof DrizzleQueryFunction<DB>;
 
+  let hasBeenBuilt = false;
+
   const createBuilderForTable = <TableName extends TableNames>() => {
     const queryFilters = new Map<
       Action,
@@ -148,6 +151,12 @@ export const createAbilityBuilder = <
        * Allows to perform a specific action on a specific entity
        */
       allow: (action: Action | Action[]) => {
+        if (hasBeenBuilt) {
+          throw new RumbleError(
+            "You can't call allow() after the ability builder has been built. Please ensure that you register all abilities before accessing them.",
+          );
+        }
+
         const actions = Array.isArray(action) ? action : [action];
         for (const action of actions) {
           let filters = queryFilters.get(action);
@@ -315,6 +324,175 @@ export const createAbilityBuilder = <
             },
           };
 
+          /**
+           * Packs the filters into a response object that can be applied for queries by the user
+           */
+          const transformToResponse = (
+            queryFilters?: DrizzleQueryFunctionInput<DB, TableName> | undefined,
+          ) => {
+            const limit = lazy(() => {
+              let limit = queryFilters?.limit as number | undefined;
+
+              if (
+                defaultLimit &&
+                (limit === undefined || limit > defaultLimit)
+              ) {
+                limit = defaultLimit;
+              }
+
+              // ensure that null is converted to undefined
+              return limit ?? undefined;
+            });
+
+            if (queryFilters?.columns) {
+              return {
+                /**
+                 * Query filters for the drizzle query API.
+                 * @example
+                 * ```ts
+                 * author: t.relation("author", {
+                 *  query: (_args, ctx) => ctx.abilities.users.filter("read").query.single,
+                 * }),
+                 * ´´´
+                 */
+                query: {
+                  /**
+                   * For find first calls
+                   */
+                  single: {
+                    where: queryFilters?.where,
+                    columns: queryFilters?.columns,
+                  } as Pick<
+                    NonNullable<
+                      NonNullable<
+                        Parameters<DB["query"][TableName]["findFirst"]>[0]
+                      >
+                    >,
+                    "columns" | "where"
+                  >,
+                  /**
+                   * For find many calls
+                   */
+                  many: {
+                    where: queryFilters?.where,
+                    columns: queryFilters?.columns,
+                    get limit() {
+                      return limit();
+                    },
+                  } as Pick<
+                    NonNullable<
+                      NonNullable<
+                        Parameters<DB["query"][TableName]["findMany"]>[0]
+                      >
+                    >,
+                    "columns" | "where" | "limit"
+                  >,
+                },
+                /**
+                 * Query filters for the drizzle SQL API as used in e.g. updates.
+                 * @example
+                 *
+                 * ```ts
+                 * await db
+                 *	.update(schema.users)
+                 *	.set({
+                 *	  name: args.newName,
+                 * 	})
+                 *	.where(
+                 *	  and(
+                 *	    eq(schema.users.id, args.userId),
+                 *	    ctx.abilities.users.filter("update").sql.where,
+                 *	  ),
+                 *	);
+                 * ```
+                 *
+                 */
+                sql: {
+                  get where() {
+                    return queryFilters?.where
+                      ? relationsFilterToSQL(
+                          tableSchema as any,
+                          queryFilters.where,
+                        )
+                      : undefined;
+                  },
+                },
+              };
+            } else {
+              return {
+                /**
+                 * Query filters for the drizzle query API.
+                 * @example
+                 * ```ts
+                 * author: t.relation("author", {
+                 *  query: (_args, ctx) => ctx.abilities.users.filter("read").query.single,
+                 * }),
+                 * ´´´
+                 */
+                query: {
+                  /**
+                   * For find first calls
+                   */
+                  single: {
+                    where: queryFilters?.where,
+                  } as Pick<
+                    NonNullable<
+                      NonNullable<
+                        Parameters<DB["query"][TableName]["findFirst"]>[0]
+                      >
+                    >,
+                    "where"
+                  >,
+                  /**
+                   * For find many calls
+                   */
+                  many: {
+                    where: queryFilters?.where,
+                    get limit() {
+                      return limit();
+                    },
+                  } as Pick<
+                    NonNullable<
+                      NonNullable<
+                        Parameters<DB["query"][TableName]["findMany"]>[0]
+                      >
+                    >,
+                    "where" | "limit"
+                  >,
+                },
+                /**
+                 * Query filters for the drizzle SQL API as used in e.g. updates.
+                 * @example
+                 *
+                 * ```ts
+                 * await db
+                 *	.update(schema.users)
+                 *	.set({
+                 *	  name: args.newName,
+                 * 	})
+                 *	.where(
+                 *	  and(
+                 *	    eq(schema.users.id, args.userId),
+                 *	    ctx.abilities.users.filter("update").sql.where,
+                 *	  ),
+                 *	);
+                 * ```
+                 *
+                 */
+                sql: {
+                  get where() {
+                    return queryFilters?.where
+                      ? relationsFilterToSQL(
+                          tableSchema as any,
+                          queryFilters.where,
+                        )
+                      : undefined;
+                  },
+                },
+              };
+            }
+          };
+
           return {
             filter: ({
               action,
@@ -323,175 +501,6 @@ export const createAbilityBuilder = <
               action: Action;
               userContext: UserContext;
             }) => {
-              /**
-               * Packs the filters into a response object that can be applied for queries by the user
-               */
-              // const transformToResponse = <
-              // 	F extends QueryFilterInput<DB, TableName>,
-              // >(
-              // 	queryFilters?: F,
-              // ) => {
-              // 	const where = lazy(() => {
-              // 		if (!queryFilters?.where && !options?.inject?.where) {
-              // 			return;
-              // 		}
-
-              // 		if (options?.inject?.where && queryFilters?.where) {
-              // 			return {
-              // 				AND: [queryFilters?.where, options?.inject?.where],
-              // 			};
-              // 		}
-
-              // 		if (options?.inject?.where && !queryFilters?.where) {
-              // 			return options?.inject?.where;
-              // 		}
-
-              // 		if (!options?.inject?.where && queryFilters?.where) {
-              // 			return queryFilters?.where;
-              // 		}
-
-              // 		if (!options?.inject?.where && !queryFilters?.where) {
-              // 			return undefined;
-              // 		}
-              // 	});
-
-              // 	const transformedWhere = lazy(() => {
-              // 		const w = where();
-              // 		if (!w) {
-              // 			return;
-              // 		}
-
-              // 		const table = tableHelper({
-              // 			table: tableName,
-              // 			db,
-              // 		});
-
-              // 		return relationsFilterToSQL(table.tableSchema, w);
-              // 	});
-
-              // 	const limit = lazy(() => {
-              // 		let limit =
-              // 			queryFilters?.limit ?? (defaultLimit as undefined | number);
-
-              // 		// only apply limit if neither default limit or ability limit are set
-              // 		// or lower amount is set
-              // 		if (
-              // 			options?.inject?.limit &&
-              // 			(!limit || limit > options.inject.limit)
-              // 		) {
-              // 			limit = options.inject.limit;
-              // 		}
-
-              // 		// ensure that null is converted to undefined
-              // 		return limit ?? undefined;
-              // 	});
-
-              // 	const columns = lazy(() => {
-              // 		if (!queryFilters?.columns && !options?.inject?.columns) {
-              // 			return;
-              // 		}
-
-              // 		return {
-              // 			...queryFilters?.columns,
-              // 			...options?.inject?.columns,
-              // 		} as undefined;
-              // 		// we need to type this as undefined because TS would
-              // 		// do some funky stuff with query resolve typing otherwise
-              // 	});
-
-              // 	const r = {
-              // 		/**
-              // 		 * Query filters for the drizzle query API.
-              // 		 * @example
-              // 		 * ```ts
-              // 		 * author: t.relation("author", {
-              // 		 *  query: (_args, ctx) => ctx.abilities.users.filter("read").query.single,
-              // 		 * }),
-              // 		 * ´´´
-              // 		 */
-              // 		query: {
-              // 			/**
-              // 			 * For find first calls
-              // 			 */
-              // 			single: {
-              // 				get where() {
-              // 					return where();
-              // 				},
-              // 				columns: columns(),
-              // 			} as Pick<
-              // 				NonNullable<
-              // 					NonNullable<
-              // 						Parameters<DB["query"][TableName]["findFirst"]>[0]
-              // 					>
-              // 				>,
-              // 				"columns" | "where"
-              // 			>,
-              // 			/**
-              // 			 * For find many calls
-              // 			 */
-              // 			many: {
-              // 				get where() {
-              // 					return where();
-              // 				},
-              // 				columns: columns(),
-              // 				get limit() {
-              // 					return limit();
-              // 				},
-              // 			} as Pick<
-              // 				NonNullable<
-              // 					NonNullable<
-              // 						Parameters<DB["query"][TableName]["findMany"]>[0]
-              // 					>
-              // 				>,
-              // 				"columns" | "where" | "limit"
-              // 			>,
-              // 		},
-              // 		/**
-              // 		 * Query filters for the drizzle SQL API as used in e.g. updates.
-              // 		 * @example
-              // 		 *
-              // 		 * ```ts
-              // 		 * await db
-              // 		 *	.update(schema.users)
-              // 		 *	.set({
-              // 		 *	  name: args.newName,
-              // 		 * 	})
-              // 		 *	.where(
-              // 		 *	  and(
-              // 		 *	    eq(schema.users.id, args.userId),
-              // 		 *	    ctx.abilities.users.filter("update").sql.where,
-              // 		 *	  ),
-              // 		 *	);
-              // 		 * ```
-              // 		 *
-              // 		 */
-              // 		sql: {
-              // 			get where() {
-              // 				return transformedWhere();
-              // 			},
-              // 			// TODO: check if there are any usecases for applying these
-              // 			// columns: columns(),
-              // 			// get limit() {
-              // 			// 	RETURN LIMIT();
-              // 			// },
-              // 		},
-              // 	};
-
-              // 	// columns can't be set to undefined, drizzle will interpret this
-              // 	// as: don't return any columns
-              // 	// therefore we need to delete it
-              // 	if (!columns()) {
-              // 		// TODO: check todo above
-              // 		// delete r.sql.columns;
-
-              // 		// this should be removed, kills performance
-              // 		delete r.query.many.columns;
-              // 		delete r.query.single.columns;
-              // 	}
-
-              // 	return r;
-              // };
-
               const filters = queryFilters.get(action);
 
               // in case we have a wildcard ability, skip the rest and return no filters at all
@@ -502,7 +511,7 @@ export const createAbilityBuilder = <
               // if nothing has been allowed, block everything
               if (!filters) {
                 nothingRegisteredWarningLogger(tableName.toString(), action);
-                return transformToResponse([blockEverythingFilter]);
+                return transformToResponse(blockEverythingFilter as any);
               }
 
               // run all dynamic filters
@@ -532,7 +541,7 @@ export const createAbilityBuilder = <
 
               // if we don't have any permitted filters then block everything
               if (allQueryFilters.length === 0) {
-                return transformToResponse([blockEverythingFilter]);
+                return transformToResponse(blockEverythingFilter as any);
               }
 
               let highestLimit: number | undefined;
@@ -580,12 +589,12 @@ export const createAbilityBuilder = <
                     )
                   : undefined,
                 limit: highestLimit,
-              });
+              } as any);
             },
           };
         };
 
-        return Object.fromEntries(
+        const ret = Object.fromEntries(
           (Object.keys(db.query) as TableNames[]).map((tableName) => [
             tableName,
             createFilterForTable(tableName),
@@ -593,6 +602,10 @@ export const createAbilityBuilder = <
         ) as {
           [key in TableNames]: ReturnType<typeof createFilterForTable<key>>;
         };
+
+        hasBeenBuilt = true;
+
+        return ret;
       },
     },
   };

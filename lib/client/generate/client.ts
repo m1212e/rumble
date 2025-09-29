@@ -1,30 +1,30 @@
 export function generateClient({
-	apiUrl,
-	rumbleImportPath,
-	useExternalUrqlClient,
-	availableSubscriptions,
+  apiUrl,
+  rumbleImportPath,
+  useExternalUrqlClient,
+  availableSubscriptions,
 }: {
-	rumbleImportPath: string;
-	useExternalUrqlClient: string | boolean;
-	apiUrl?: string;
-	availableSubscriptions: Set<string>;
+  rumbleImportPath: string;
+  useExternalUrqlClient: string | boolean;
+  apiUrl?: string;
+  availableSubscriptions: Set<string>;
 }) {
-	const imports: string[] = [];
-	let code: string = "";
+  const imports: string[] = [];
+  let code: string = "";
 
-	if (typeof useExternalUrqlClient === "string") {
-		imports.push(`import { urqlClient } from "${useExternalUrqlClient}";`);
-	} else {
-		imports.push(`import { Client, fetchExchange } from '@urql/core';`);
-		imports.push(`import { cacheExchange } from '@urql/exchange-graphcache';`);
-	}
+  if (typeof useExternalUrqlClient === "string") {
+    imports.push(`import { urqlClient } from "${useExternalUrqlClient}";`);
+  } else {
+    imports.push(`import { Client, fetchExchange } from '@urql/core';`);
+    imports.push(`import { cacheExchange } from '@urql/exchange-graphcache';`);
+  }
 
-	imports.push(
-		`import { makeLiveQuery, makeMutation, makeSubscription, makeQuery } from '${rumbleImportPath}';`,
-	);
+  imports.push(
+    `import { makeLiveQuery, makeMutation, makeSubscription, makeQuery } from '${rumbleImportPath}';`,
+  );
 
-	if (!useExternalUrqlClient) {
-		code += `
+  if (!useExternalUrqlClient) {
+    code += `
 const urqlClient = new Client({
   url: "${apiUrl ?? "PLEASE PROVIDE A URL WHEN GENERATING OR IMPORT AN EXTERNAL URQL CLIENT"}",
   fetchSubscriptions: true,
@@ -35,9 +35,9 @@ const urqlClient = new Client({
   requestPolicy: "cache-and-network",
 });
 `;
-	}
+  }
 
-	code += `
+  code += `
 export const client = {
   /**
    * A query and subscription combination. First queries and if exists, also subscribes to a subscription of the same name.
@@ -48,10 +48,10 @@ export const client = {
   liveQuery: makeLiveQuery<Query>({
 	  urqlClient,
 	  availableSubscriptions: new Set([${availableSubscriptions
-			.values()
-			.toArray()
-			.map((value) => `"${value}"`)
-			.join(", ")}]),
+      .values()
+      .toArray()
+      .map((value) => `"${value}"`)
+      .join(", ")}]),
   }),
   /**
    * A mutation that can be used to e.g. create, update or delete data.
@@ -73,8 +73,8 @@ export const client = {
   }),
 }`;
 
-	return {
-		imports,
-		code,
-	};
+  return {
+    imports,
+    code,
+  };
 }

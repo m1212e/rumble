@@ -9,14 +9,14 @@
  *          returns the stored result on subsequent calls.
  */
 export function lazy<T>(initializer: () => T): () => T {
-	let value: T | undefined;
-	let initialized = false;
+  let value: T | undefined;
+  let initialized = false;
 
-	return () => {
-		if (!initialized) {
-			value = initializer();
-			initialized = true;
-		}
-		return value!;
-	};
+  return () => {
+    if (!initialized) {
+      value = initializer();
+      initialized = true;
+    }
+    return value!;
+  };
 }

@@ -5,64 +5,64 @@ import { generateClient } from "./client";
 import { makeTSRepresentation } from "./tsRepresentation";
 
 export async function generateFromSchema({
-	outputPath,
-	schema,
-	rumbleImportPath = "@m1212e/rumble",
-	apiUrl,
-	useExternalUrqlClient = false,
+  outputPath,
+  schema,
+  rumbleImportPath = "@m1212e/rumble",
+  apiUrl,
+  useExternalUrqlClient = false,
 }: {
-	schema: GraphQLSchema;
-	outputPath: string;
-	rumbleImportPath?: string;
-	apiUrl?: string;
-	useExternalUrqlClient?: boolean | string;
+  schema: GraphQLSchema;
+  outputPath: string;
+  rumbleImportPath?: string;
+  apiUrl?: string;
+  useExternalUrqlClient?: boolean | string;
 }) {
-	try {
-		await access(outputPath);
-		await rm(outputPath, { recursive: true, force: true });
-	} catch (_error) {}
+  try {
+    await access(outputPath);
+    await rm(outputPath, { recursive: true, force: true });
+  } catch (_error) {}
 
-	await mkdir(outputPath, { recursive: true });
+  await mkdir(outputPath, { recursive: true });
 
-	if (!outputPath.endsWith("/")) {
-		outputPath += "/";
-	}
+  if (!outputPath.endsWith("/")) {
+    outputPath += "/";
+  }
 
-	const imports: string[] = [];
-	let code = "";
+  const imports: string[] = [];
+  let code = "";
 
-	const typeMap = new Map<string, any>();
-	for (const [key, object] of Object.entries(schema.getTypeMap())) {
-		if (key.startsWith("__")) continue;
-		typeMap.set(key, object);
-	}
+  const typeMap = new Map<string, any>();
+  for (const [key, object] of Object.entries(schema.getTypeMap())) {
+    if (key.startsWith("__")) continue;
+    typeMap.set(key, object);
+  }
 
-	for (const [key, object] of typeMap.entries()) {
-		const rep = makeTSRepresentation(object);
+  for (const [key, object] of typeMap.entries()) {
+    const rep = makeTSRepresentation(object);
 
-		if (rep === key) {
-			continue;
-		}
+    if (rep === key) {
+      continue;
+    }
 
-		code += `
+    code += `
 export type ${key} = ${rep};
 		`;
-	}
+  }
 
-	const c = generateClient({
-		apiUrl,
-		useExternalUrqlClient,
-		rumbleImportPath,
-		availableSubscriptions: new Set(
-			Object.keys(schema.getSubscriptionType()?.getFields() || {}),
-		),
-	});
+  const c = generateClient({
+    apiUrl,
+    useExternalUrqlClient,
+    rumbleImportPath,
+    availableSubscriptions: new Set(
+      Object.keys(schema.getSubscriptionType()?.getFields() || {}),
+    ),
+  });
 
-	imports.push(...c.imports);
-	code += c.code;
+  imports.push(...c.imports);
+  code += c.code;
 
-	await writeFile(
-		join(outputPath, "client.ts"),
-		`${imports.join("\n")}\n${code}`,
-	);
+  await writeFile(
+    join(outputPath, "client.ts"),
+    `${imports.join("\n")}\n${code}`,
+  );
 }
