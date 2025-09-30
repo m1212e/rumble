@@ -8,7 +8,7 @@ import type {
   DrizzleInstance,
   DrizzleQueryFunction,
   DrizzleQueryFunctionInput,
-  DrizzleTableType,
+  DrizzleTableValueType,
 } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
@@ -211,7 +211,7 @@ export const createAbilityBuilder = <
           by: (
             explicitFilter: Filter<
               UserContext,
-              DrizzleTableType<DB, TableName>
+              DrizzleTableValueType<DB, TableName>
             >,
           ) => {
             for (const action of actions) {
@@ -253,7 +253,7 @@ export const createAbilityBuilder = <
       }) {
         return (buildersPerTable[table] as any)._.runtimeFilters.get(
           action,
-        )! as Filter<UserContext, DrizzleTableType<DB, TableNames>>[];
+        )! as Filter<UserContext, DrizzleTableValueType<DB, TableNames>>[];
       },
       build() {
         const createFilterForTable = <TableName extends TableNames>(
@@ -494,107 +494,108 @@ export const createAbilityBuilder = <
           };
 
           return {
-            filter: ({
-              action,
-              userContext,
-            }: {
-              action: Action;
-              userContext: UserContext;
-            }) => {
-              const filters = queryFilters.get(action);
+            withContext: (userContext: UserContext) => {
+              return {
+                filter: (action: Action) => {
+                  const filters = queryFilters.get(action);
 
-              // in case we have a wildcard ability, skip the rest and return no filters at all
-              if (filters === "unrestricted") {
-                return transformToResponse();
-              }
-
-              // if nothing has been allowed, block everything
-              if (!filters) {
-                nothingRegisteredWarningLogger(tableName.toString(), action);
-                return transformToResponse(blockEverythingFilter as any);
-              }
-
-              // run all dynamic filters
-              const dynamicResults = new Array<
-                DrizzleQueryFunctionInput<DB, TableName>
-              >(dynamicQueryFilters[action].length);
-              let filtersReturned = 0;
-              for (let i = 0; i < dynamicQueryFilters[action].length; i++) {
-                const func = dynamicQueryFilters[action][i];
-                const result = func(userContext);
-                // if one of the dynamic filters returns "allow", we want to allow everything
-                if (result === "allow") {
-                  return transformToResponse();
-                }
-                // if nothing is returned, nothing is allowed by this filter
-                if (result === undefined) continue;
-
-                dynamicResults.push(result);
-                filtersReturned++;
-              }
-              dynamicResults.length = filtersReturned;
-
-              const allQueryFilters = [
-                ...simpleQueryFilters[action],
-                ...dynamicResults,
-              ];
-
-              // if we don't have any permitted filters then block everything
-              if (allQueryFilters.length === 0) {
-                return transformToResponse(blockEverythingFilter as any);
-              }
-
-              let highestLimit: number | undefined;
-              for (let i = 0; i < allQueryFilters.length; i++) {
-                const conditionObject = allQueryFilters[i];
-                if (conditionObject?.limit) {
-                  if (
-                    highestLimit === undefined ||
-                    (conditionObject.limit as number) > highestLimit
-                  ) {
-                    highestLimit = conditionObject.limit as number;
+                  // in case we have a wildcard ability, skip the rest and return no filters at all
+                  if (filters === "unrestricted") {
+                    return transformToResponse();
                   }
-                }
-              }
 
-              let allowedColumns: Set<string> | undefined;
-              for (let i = 0; i < allQueryFilters.length; i++) {
-                const conditionObject = allQueryFilters[i];
-                if (conditionObject?.columns) {
-                  if (allowedColumns === undefined) {
-                    allowedColumns = new Set(
-                      Object.keys(conditionObject.columns),
+                  // if nothing has been allowed, block everything
+                  if (!filters) {
+                    nothingRegisteredWarningLogger(
+                      tableName.toString(),
+                      action,
                     );
-                  } else {
-                    const fields = Object.keys(conditionObject.columns);
-                    for (let i = 0; i < fields.length; i++) {
-                      allowedColumns.add(fields[i]);
+                    return transformToResponse(blockEverythingFilter as any);
+                  }
+
+                  // run all dynamic filters
+                  const dynamicResults = new Array<
+                    DrizzleQueryFunctionInput<DB, TableName>
+                  >(dynamicQueryFilters[action].length);
+                  let filtersReturned = 0;
+                  for (let i = 0; i < dynamicQueryFilters[action].length; i++) {
+                    const func = dynamicQueryFilters[action][i];
+                    const result = func(userContext);
+                    // if one of the dynamic filters returns "allow", we want to allow everything
+                    if (result === "allow") {
+                      return transformToResponse();
+                    }
+                    // if nothing is returned, nothing is allowed by this filter
+                    if (result === undefined) continue;
+
+                    dynamicResults.push(result);
+                    filtersReturned++;
+                  }
+                  dynamicResults.length = filtersReturned;
+
+                  const allQueryFilters = [
+                    ...simpleQueryFilters[action],
+                    ...dynamicResults,
+                  ];
+
+                  // if we don't have any permitted filters then block everything
+                  if (allQueryFilters.length === 0) {
+                    return transformToResponse(blockEverythingFilter as any);
+                  }
+
+                  let highestLimit: number | undefined;
+                  for (let i = 0; i < allQueryFilters.length; i++) {
+                    const conditionObject = allQueryFilters[i];
+                    if (conditionObject?.limit) {
+                      if (
+                        highestLimit === undefined ||
+                        (conditionObject.limit as number) > highestLimit
+                      ) {
+                        highestLimit = conditionObject.limit as number;
+                      }
                     }
                   }
-                }
-              }
 
-              const accumulatedWhereConditions = allQueryFilters
-                .filter((o) => o?.where)
-                .map((o) => o!.where);
+                  let allowedColumns: Set<string> | undefined;
+                  for (let i = 0; i < allQueryFilters.length; i++) {
+                    const conditionObject = allQueryFilters[i];
+                    if (conditionObject?.columns) {
+                      if (allowedColumns === undefined) {
+                        allowedColumns = new Set(
+                          Object.keys(conditionObject.columns),
+                        );
+                      } else {
+                        const fields = Object.keys(conditionObject.columns);
+                        for (let i = 0; i < fields.length; i++) {
+                          allowedColumns.add(fields[i]);
+                        }
+                      }
+                    }
+                  }
 
-              return transformToResponse({
-                where:
-                  accumulatedWhereConditions.length > 0
-                    ? { OR: accumulatedWhereConditions }
-                    : undefined,
-                columns: allowedColumns
-                  ? Object.fromEntries(
-                      Array.from(allowedColumns).map((key) => [key, true]),
-                    )
-                  : undefined,
-                limit: highestLimit,
-              } as any);
+                  const accumulatedWhereConditions = allQueryFilters
+                    .filter((o) => o?.where)
+                    .map((o) => o!.where);
+
+                  return transformToResponse({
+                    where:
+                      accumulatedWhereConditions.length > 0
+                        ? { OR: accumulatedWhereConditions }
+                        : undefined,
+                    columns: allowedColumns
+                      ? Object.fromEntries(
+                          Array.from(allowedColumns).map((key) => [key, true]),
+                        )
+                      : undefined,
+                    limit: highestLimit,
+                  } as any);
+                },
+              };
             },
           };
         };
 
-        const ret = Object.fromEntries(
+        const abilitiesPerTable = Object.fromEntries(
           (Object.keys(db.query) as TableNames[]).map((tableName) => [
             tableName,
             createFilterForTable(tableName),
@@ -605,7 +606,20 @@ export const createAbilityBuilder = <
 
         hasBeenBuilt = true;
 
-        return ret;
+        return (ctx: UserContext) => {
+          return Object.fromEntries(
+            (Object.keys(abilitiesPerTable) as TableNames[]).map(
+              (tableName) => [
+                tableName,
+                abilitiesPerTable[tableName].withContext(ctx),
+              ],
+            ),
+          ) as {
+            [key in TableNames]: ReturnType<
+              ReturnType<typeof createFilterForTable<key>>["withContext"]
+            >;
+          };
+        };
       },
     },
   };

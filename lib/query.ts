@@ -1,14 +1,14 @@
 import pluralize from "pluralize";
 import { assertFindFirstExists } from "./helpers/helper";
-import {
-  type TableIdentifierTSName,
-  tableHelper,
-} from "./helpers/tableHelpers";
+import { tableHelper } from "./helpers/tableHelpers";
 import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import { adjustQueryForSearch } from "./search";
-import type { InternalDrizzleInstance } from "./types/drizzleInstanceType";
+import type {
+  DrizzleInstance,
+  DrizzleQueryFunction,
+} from "./types/drizzleInstanceType";
 import type {
   CustomRumblePothosConfig,
   RumbleInput,
@@ -19,7 +19,7 @@ import type { WhereArgImplementerType } from "./whereArg";
 
 export const createQueryImplementer = <
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
@@ -64,7 +64,7 @@ export const createQueryImplementer = <
   orderArgImplementer: OrderArgImplementer;
   makePubSubInstance: MakePubSubInstance;
 }) => {
-  return <ExplicitTableName extends TableIdentifierTSName<DB>>({
+  return <TableName extends keyof DrizzleQueryFunction<DB>>({
     table,
     readAction = "read" as Action,
     listAction = "read" as Action,
@@ -72,7 +72,7 @@ export const createQueryImplementer = <
     /**
      * The table for which to implement the query
      */
-    table: ExplicitTableName;
+    table: TableName;
     /**
      * Which action should be used for reading single entities
      * @default "read"
@@ -94,7 +94,7 @@ export const createQueryImplementer = <
       db,
       table,
     });
-    const primaryKeyField = Object.values(tableSchema.primaryColumns)[0];
+    const primaryKeyField = Object.values(tableSchema.primaryKey)[0];
 
     const { registerOnInstance } = makePubSubInstance({ table: table });
 
@@ -129,17 +129,17 @@ export const createQueryImplementer = <
           },
           args: manyArgs,
           resolve: (query, _root, args, ctx, _info) => {
-            // transform null prototyped object
+            // TODO: optimize this, transform null prototyped object
             args = JSON.parse(JSON.stringify(args));
 
             adjustQueryForSearch({
               search,
               args,
               tableSchema,
-              abilities: ctx.abilities[table as any].filter(listAction),
+              abilities: ctx.abilities[table].filter(listAction),
             });
 
-            const filter = ctx.abilities[table as any].filter(
+            const filter = ctx.abilities[table].filter(
               listAction,
               args.where || args.limit || args.offset
                 ? {

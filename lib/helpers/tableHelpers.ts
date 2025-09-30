@@ -22,27 +22,7 @@ export function tableHelper<
     throw new RumbleError(`Could not find schema for ${JSON.stringify(table)}`);
   }
 
-  return {
-    ...tableSchema,
-    columns: tableSchema.columns as Record<string, Column>,
-    // get primaryColumns() {
-    // 	return Object.entries((tableSchema as any).columns)
-    // 		.filter(([, v]) => (v as Column).primary)
-    // 		.reduce((acc, [k, v]) => {
-    // 			(acc as any)[k] = v;
-    // 			return acc;
-    // 		}, {}) as Record<string, Column>;
-    // },
-    // relations: db._.relations[tsName as string] as
-    // 	| {
-    // 			[key: string]: One<any, any> | Many<any, any>;
-    // 	  }
-    // 	| undefined,
-    // dbName: (tableSchema as any).dbName as string,
-    // get tsName() {
-    // 	return Object.entries(db._.schema)
-    // 		.find(([, v]) => v === tableSchema)!
-    // 		.at(0) as string;
-    // },
+  return tableSchema as Omit<typeof tableSchema, "columns"> & {
+    columns: Record<string, Column>;
   };
 }

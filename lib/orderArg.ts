@@ -2,12 +2,12 @@ import type { Table } from "drizzle-orm";
 import { toCamelCase } from "drizzle-orm/casing";
 import { capitalize } from "es-toolkit";
 import { lazy } from "./helpers/lazy";
-import {
-  type TableIdentifierTSName,
-  tableHelper,
-} from "./helpers/tableHelpers";
+import { tableHelper } from "./helpers/tableHelpers";
 import type { SchemaBuilderType } from "./schemaBuilder";
-import type { InternalDrizzleInstance } from "./types/drizzleInstanceType";
+import type {
+  DrizzleInstance,
+  DrizzleQueryFunction,
+} from "./types/drizzleInstanceType";
 import type {
   CustomRumblePothosConfig,
   RumbleInput,
@@ -15,7 +15,7 @@ import type {
 
 export type OrderArgImplementerType<
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
@@ -35,7 +35,7 @@ const makeDefaultName = (dbName: string) =>
 
 export const createOrderArgImplementer = <
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
@@ -61,20 +61,20 @@ export const createOrderArgImplementer = <
   );
 
   const orderArgImplementer = <
-    ExplicitTableName extends TableIdentifierTSName<DB>,
     RefName extends string,
+    TableName extends keyof DrizzleQueryFunction<DB>,
   >({
     table,
     refName,
     dbName,
   }: Partial<{
-    table: ExplicitTableName;
+    table: TableName;
     refName: RefName | undefined;
     dbName: string;
   }> &
     (
       | {
-          table: ExplicitTableName;
+          table: TableName;
         }
       | {
           dbName: string;
@@ -115,7 +115,7 @@ export const createOrderArgImplementer = <
             (acc, [key, value]) => {
               const relationSchema = tableHelper({
                 db,
-                table: value.targetTable as Table,
+                table: value.referencedTable,
               });
               const referenceModel = orderArgImplementer({
                 dbName: relationSchema.dbName,

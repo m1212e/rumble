@@ -5,7 +5,7 @@ import { capitalize } from "es-toolkit";
 import pluralize from "pluralize";
 import type { AbilityBuilderType } from "./abilityBuilder";
 import { type EnumImplementerType, isEnumSchema } from "./enum";
-import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
+import { buildPothosResponseTypeFromGraphQLType } from "./helpers/sqlTypes/mapDrizzleTypeToGraphQlType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
 import { tableHelper } from "./helpers/tableHelpers";
 import type { OrderArgImplementerType } from "./orderArg";
@@ -15,6 +15,7 @@ import { adjustQueryForSearch } from "./search";
 import type {
   DrizzleInstance,
   DrizzleQueryFunction,
+  DrizzleTableValueType,
 } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
@@ -23,8 +24,15 @@ import type {
 } from "./types/rumbleInput";
 import type { WhereArgImplementerType } from "./whereArg";
 
+// TODO remove as many as any types as possible here
+
 //TODO this is a bit flaky, we should check if we can determine the config object more reliably
 //TODO maybe a plugin can place some marker field on these objects?
+// like this?
+// if (t instanceof DrizzleObjectOptions) {
+//   return true;
+// }
+
 const isProbablyAConfigObject = (t: any) => {
   if (typeof t !== "object") {
     return false;
@@ -113,7 +121,7 @@ export const createObjectImplementer = <
   abilityBuilder: AbilityBuilderInstance;
 }) => {
   return <
-    ExplicitTableName extends keyof DrizzleQueryFunction<DB>,
+    TableName extends keyof DrizzleQueryFunction<DB>,
     RefName extends string,
   >({
     table,
@@ -124,7 +132,7 @@ export const createObjectImplementer = <
     /**
      * The table you want to be used as reference for the object creation.
      */
-    table: ExplicitTableName;
+    table: TableName;
     /**
      * The name you want this object to have in your graphql schema.
      * Rumble will create a reasonable default if not specified.
@@ -146,23 +154,20 @@ export const createObjectImplementer = <
       | ((
           t: DrizzleObjectFieldBuilder<
             SchemaBuilder["$inferSchemaTypes"],
-            SchemaBuilder["$inferSchemaTypes"]["DrizzleRelationsConfig"][ExplicitTableName],
-            NonNullable<
-              Awaited<ReturnType<DB["query"][ExplicitTableName]["findFirst"]>>
-            >
+            SchemaBuilder["$inferSchemaTypes"]["DrizzleRelations"][TableName],
+            DrizzleTableValueType<DB, TableName>
           >,
         ) => FieldMap)
       | undefined;
   }) => {
     const tableSchema = tableHelper({ db, table });
-    console.log(tableSchema);
 
-    if (Object.keys(tableSchema.primaryColumns).length === 0) {
+    if (Object.keys(tableSchema.primaryKey).length === 0) {
       console.warn(
         `Could not find primary key for ${table.toString()}. Cannot register subscriptions!`,
       );
     }
-    const primaryKey = Object.values(tableSchema.primaryColumns)[0];
+    const primaryKey = Object.values(tableSchema.primaryKey)[0];
 
     const { registerOnInstance } = makePubSubInstance({ table: table });
 
@@ -193,57 +198,6 @@ export const createObjectImplementer = <
       }),
       fields: (t) => {
         const columns = tableSchema.columns;
-        const mapSQLTypeStringToExposedPothosType = <
-          Column extends keyof typeof columns,
-        >(
-          sqlType: PossibleSQLType,
-          columnName: Column,
-          nullable: boolean,
-        ) => {
-          const gqlType = mapSQLTypeToGraphQLType({
-            sqlType,
-            fieldName: columnName,
-          });
-          switch (gqlType) {
-            case "Int":
-              // @ts-expect-error
-              return t.exposeInt(columnName, { nullable });
-            case "String":
-              // @ts-expect-error
-              return t.exposeString(columnName, { nullable });
-            case "Boolean":
-              // @ts-expect-error
-              return t.exposeBoolean(columnName, { nullable });
-            case "Date":
-              return t.field({
-                type: "Date",
-                resolve: (element) => (element as any)[columnName] as Date,
-                nullable,
-              });
-            case "DateTime":
-              return t.field({
-                type: "DateTime",
-                resolve: (element) => (element as any)[columnName] as Date,
-                nullable,
-              });
-            case "Float":
-              // @ts-expect-error
-              return t.exposeFloat(columnName, { nullable });
-            case "ID":
-              // @ts-expect-error
-              return t.exposeID(columnName, { nullable });
-            case "JSON":
-              return t.field({
-                type: "JSON",
-                resolve: (element) => (element as any)[columnName] as unknown,
-                nullable,
-              });
-            default:
-              throw new RumbleError(
-                `Unsupported object type ${gqlType} for column ${columnName}`,
-              );
-          }
-        };
 
         // in case the user makes adjustments we want to store away which
         // pothos function was called with what config
@@ -336,17 +290,18 @@ export const createObjectImplementer = <
                 nullable: !value.notNull,
               });
             } else {
-              acc[key] = mapSQLTypeStringToExposedPothosType(
-                value.getSQLType() as PossibleSQLType,
-                key,
-                !value.notNull,
-              );
+              acc[key] = buildPothosResponseTypeFromGraphQLType({
+                builder: t,
+                sqlType: value.getSQLType() as PossibleSQLType,
+                fieldName: key,
+                nullable: !value.notNull,
+              });
             }
             return acc;
           },
           {} as Record<
             keyof typeof columns,
-            ReturnType<typeof mapSQLTypeStringToExposedPothosType>
+            ReturnType<typeof buildPothosResponseTypeFromGraphQLType>
           >,
         );
 
@@ -354,7 +309,7 @@ export const createObjectImplementer = <
           (acc, [key, value]) => {
             const relationSchema = tableHelper({
               db,
-              table: value.targetTable as Table,
+              table: value.referencedTable,
             });
             const WhereArg = whereArgImplementer({
               dbName: relationSchema.dbName,
@@ -372,7 +327,7 @@ export const createObjectImplementer = <
             let filterSpecifier = "many";
             if (value instanceof One) {
               isMany = false;
-              nullable = value.optional;
+              nullable = (value as any).optional;
               filterSpecifier = "single";
             }
 
@@ -423,48 +378,51 @@ export const createObjectImplementer = <
               delete (args as any).search;
             }
 
-            (acc as any)[key] = t.relation(key, {
-              args,
-              subscribe,
-              nullable,
-              description: `Get the ${pluralize.plural(relationSchema.tsName)} related to this ${pluralize.singular(tableSchema.tsName)}`,
-              query: (args: any, ctx: any) => {
-                // transform null prototyped object
-                args = JSON.parse(JSON.stringify(args));
+            (acc as any)[key] = t.relation(
+              key as any,
+              {
+                args,
+                subscribe,
+                nullable,
+                description: `Get the ${pluralize.plural(relationSchema.tsName)} related to this ${pluralize.singular(tableSchema.tsName)}`,
+                query: (args: any, ctx: any) => {
+                  // transform null prototyped object
+                  args = JSON.parse(JSON.stringify(args));
 
-                if (isMany) {
-                  adjustQueryForSearch({
-                    search,
-                    args,
-                    tableSchema: relationSchema,
-                    abilities:
-                      ctx.abilities[relationSchema.tsName].filter(readAction),
-                  });
-                }
+                  if (isMany) {
+                    adjustQueryForSearch({
+                      search,
+                      args,
+                      tableSchema: relationSchema,
+                      abilities:
+                        ctx.abilities[relationSchema.tsName].filter(readAction),
+                    });
+                  }
 
-                const filter = ctx.abilities[relationSchema.tsName].filter(
-                  readAction,
-                  {
-                    inject: { where: args.where, limit: args.limit },
-                  },
-                ).query[filterSpecifier];
+                  const filter = ctx.abilities[relationSchema.tsName].filter(
+                    readAction,
+                    {
+                      inject: { where: args.where, limit: args.limit },
+                    },
+                  ).query[filterSpecifier];
 
-                if (args.offset) {
-                  (filter as any).offset = args.offset;
-                }
+                  if (args.offset) {
+                    (filter as any).offset = args.offset;
+                  }
 
-                if (args.orderBy) {
-                  (filter as any).orderBy = args.orderBy;
-                }
+                  if (args.orderBy) {
+                    (filter as any).orderBy = args.orderBy;
+                  }
 
-                return filter;
-              },
-            } as any) as any;
+                  return filter;
+                },
+              } as any,
+            ) as any;
             return acc;
           },
           {} as Record<
             keyof typeof tableSchema.relations,
-            ReturnType<typeof mapSQLTypeStringToExposedPothosType>
+            ReturnType<typeof buildPothosResponseTypeFromGraphQLType>
           >,
         );
 

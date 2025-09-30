@@ -68,7 +68,7 @@ export const createContextFunction = <
 
     return {
       ...userContext,
-      abilities: builtAbilityBuilder(),
+      abilities: builtAbilityBuilder()(userContext),
     };
   };
 };

@@ -1,5 +1,5 @@
 import type { drizzle } from "drizzle-orm/node-postgres";
-import type { ObjectValues } from "../helpers/objectFieldType";
+import type { ObjectValues } from "./objectFieldType";
 
 export type DrizzleInstance = ReturnType<typeof drizzle<Record<string, any>>>;
 
@@ -36,7 +36,9 @@ export type DrizzleQueryFunctionInput<
 /**
  * Type representing the type of a record in a specific table of the Drizzle instance.
  */
-export type DrizzleTableType<
+export type DrizzleTableValueType<
   DB extends DrizzleInstance,
   QueryField extends keyof DrizzleQueryFunction<DB>,
-> = NonNullable<ReturnType<DrizzleQueryFunction<DB>[QueryField]["findFirst"]>>;
+> = NonNullable<
+  Awaited<ReturnType<DrizzleQueryFunction<DB>[QueryField]["findFirst"]>>
+>;
