@@ -7,15 +7,15 @@ import type { AbilityBuilderType } from "./abilityBuilder";
 import { type EnumImplementerType, isEnumSchema } from "./enum";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
-import {
-  type TableIdentifierTSName,
-  tableHelper,
-} from "./helpers/tableHelpers";
+import { tableHelper } from "./helpers/tableHelpers";
 import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
 import { adjustQueryForSearch } from "./search";
-import type { InternalDrizzleInstance } from "./types/drizzleInstanceType";
+import type {
+  DrizzleInstance,
+  DrizzleQueryFunction,
+} from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
   CustomRumblePothosConfig,
@@ -49,7 +49,7 @@ const isProbablyAConfigObject = (t: any) => {
 
 export const createObjectImplementer = <
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
@@ -113,7 +113,7 @@ export const createObjectImplementer = <
   abilityBuilder: AbilityBuilderInstance;
 }) => {
   return <
-    ExplicitTableName extends TableIdentifierTSName<DB>,
+    ExplicitTableName extends keyof DrizzleQueryFunction<DB>,
     RefName extends string,
   >({
     table,
@@ -187,8 +187,10 @@ export const createObjectImplementer = <
           primaryKeyValue: primaryKeyValue,
         });
       },
-      applyFilters:
-        abilityBuilder?._.registeredFilters?.[table as any]?.[readAction],
+      applyFilters: abilityBuilder?._.registeredFilters({
+        table,
+        action: readAction,
+      }),
       fields: (t) => {
         const columns = tableSchema.columns;
         const mapSQLTypeStringToExposedPothosType = <

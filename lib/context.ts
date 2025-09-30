@@ -2,7 +2,8 @@ import type {
   AbilityBuilderType,
   createAbilityBuilder,
 } from "./abilityBuilder";
-import type { InternalDrizzleInstance } from "./types/drizzleInstanceType";
+import { lazy } from "./helpers/lazy";
+import type { DrizzleInstance } from "./types/drizzleInstanceType";
 import type {
   CustomRumblePothosConfig,
   RumbleInput,
@@ -10,7 +11,7 @@ import type {
 
 export type ContextFunctionType<
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
@@ -27,7 +28,7 @@ export type ContextFunctionType<
 
 export type ContextType<
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
@@ -39,7 +40,7 @@ export type ContextType<
 
 export const createContextFunction = <
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
@@ -58,13 +59,16 @@ export const createContextFunction = <
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
   abilityBuilder: AbilityBuilder;
 }) => {
+  const builtAbilityBuilder = lazy(() => abilityBuilder._.build());
+
   return async (req: RequestEvent) => {
     const userContext = makeUserContext
       ? await makeUserContext(req)
       : ({} as UserContext);
+
     return {
       ...userContext,
-      abilities: abilityBuilder._.buildWithUserContext(userContext),
+      abilities: builtAbilityBuilder(),
     };
   };
 };

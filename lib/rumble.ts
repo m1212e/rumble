@@ -6,6 +6,7 @@ import {
   type YogaServerOptions,
 } from "graphql-yoga";
 import { useSofa } from "sofa-api";
+import { RumbleError } from "../out";
 import { createAbilityBuilder } from "./abilityBuilder";
 import { clientCreatorImplementer } from "./client/client";
 import { createContextFunction } from "./context";
@@ -34,6 +35,38 @@ export const rumble = <
 >(
   rumbleInput: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>,
 ) => {
+  if (!rumbleInput.db._.schema) {
+    throw new RumbleError(`
+rumble could not find any schema in the provided drizzle instance.
+Make sure you import the schema and pass it to the drizzle instance:
+
+export const db = drizzle(
+  "postgres://postgres:postgres@localhost:5432/postgres",
+  {
+    relations,
+    schema,    // <--- add this line
+  },
+);
+
+`);
+  }
+
+  if (!rumbleInput.db._.relations) {
+    throw new RumbleError(`
+rumble could not find any relations in the provided drizzle instance.
+Make sure you import the relations and pass them to the drizzle instance:
+
+export const db = drizzle(
+  "postgres://postgres:postgres@localhost:5432/postgres",
+  {
+    relations, // <--- add this line
+    schema,   
+  },
+);
+
+`);
+  }
+
   // to be able to iterate over the actions, we populate the actions array in case the user does not
   if (!rumbleInput.actions) {
     rumbleInput.actions = ["read", "update", "delete"] as Action[];
@@ -84,6 +117,7 @@ export const rumble = <
     Action,
     PothosConfig
   >({ ...rumbleInput, pubsub });
+
   const enum_ = createEnumImplementer<
     UserContext,
     DB,
@@ -95,6 +129,7 @@ export const rumble = <
     ...rumbleInput,
     schemaBuilder,
   });
+
   const whereArg = createWhereArgImplementer<
     UserContext,
     DB,
@@ -108,6 +143,7 @@ export const rumble = <
     schemaBuilder,
     enumImplementer: enum_,
   });
+
   const orderArg = createOrderArgImplementer<
     UserContext,
     DB,
@@ -119,6 +155,7 @@ export const rumble = <
     ...rumbleInput,
     schemaBuilder,
   });
+
   const object = createObjectImplementer<
     UserContext,
     DB,
@@ -140,6 +177,7 @@ export const rumble = <
     enumImplementer: enum_,
     abilityBuilder,
   });
+
   const query = createQueryImplementer<
     UserContext,
     DB,

@@ -2,7 +2,7 @@ import { toCamelCase } from "drizzle-orm/casing";
 import { type PgEnum, PgEnumColumn } from "drizzle-orm/pg-core";
 import { capitalize } from "es-toolkit";
 import type { SchemaBuilderType } from "./schemaBuilder";
-import type { InternalDrizzleInstance } from "./types/drizzleInstanceType";
+import type { DrizzleInstance } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
   CustomRumblePothosConfig,
@@ -30,7 +30,7 @@ export type NonEnumFields<T> = {
 
 export type EnumImplementerType<
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
@@ -47,7 +47,7 @@ export type EnumImplementerType<
 
 export const createEnumImplementer = <
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
@@ -95,13 +95,13 @@ export const createEnumImplementer = <
     let enumValues: any[] | undefined;
 
     if (tsName) {
-      const schemaEnum = db._.schema[tsName as string];
+      const schemaEnum = db._.schema![tsName as string];
 
       enumSchemaName = tsName.toString();
 
-      const enumCol = Object.values(db._.schema)
+      const enumCol = Object.values(db._.schema!)
         .filter((s) => typeof s === "object")
-        .map((s) => Object.values(s[Symbol.for("drizzle:Columns")]))
+        .map((s) => Object.values(s.columns))
         .flat(2)
         .find((s: any) => s.config?.enum === schemaEnum);
 
@@ -112,7 +112,7 @@ Please ensure that you use the enum at least once as a column of a table!`);
 
       enumValues = (enumCol as any).enumValues;
     } else if (enumColumn) {
-      const schemaEnumEntry = Object.entries(db._.schema).find(
+      const schemaEnumEntry = Object.entries(db._.schema!).find(
         ([, value]) => value === (enumColumn as any).config.enum,
       );
 
