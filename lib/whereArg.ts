@@ -1,15 +1,14 @@
-import type { Table } from "drizzle-orm";
 import { toCamelCase } from "drizzle-orm/casing";
 import { capitalize } from "es-toolkit";
 import { type EnumImplementerType, isEnumSchema } from "./enum";
 import { mapSQLTypeToGraphQLType } from "./helpers/sqlTypes/mapSQLTypeToTSType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
-import {
-  type TableIdentifierTSName,
-  tableHelper,
-} from "./helpers/tableHelpers";
+import { tableHelper } from "./helpers/tableHelpers";
 import type { SchemaBuilderType } from "./schemaBuilder";
-import type { InternalDrizzleInstance } from "./types/drizzleInstanceType";
+import type {
+  DrizzleInstance,
+  DrizzleQueryFunction,
+} from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
   CustomRumblePothosConfig,
@@ -26,7 +25,7 @@ import type {
 
 export type WhereArgImplementerType<
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
@@ -47,7 +46,7 @@ const makeDefaultName = (dbName: string) =>
 
 export const createWhereArgImplementer = <
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
@@ -76,20 +75,20 @@ export const createWhereArgImplementer = <
   const referenceStorage = new Map<string, any>();
 
   const whereArgImplementer = <
-    ExplicitTableName extends TableIdentifierTSName<DB>,
+    TableName extends keyof DrizzleQueryFunction<DB>,
     RefName extends string,
   >({
     table,
     refName,
     dbName,
   }: Partial<{
-    table: ExplicitTableName;
+    table: TableName;
     refName: RefName | undefined;
     dbName: string;
   }> &
     (
       | {
-          table: ExplicitTableName;
+          table: TableName;
         }
       | {
           dbName: string;
@@ -181,7 +180,7 @@ export const createWhereArgImplementer = <
             (acc, [key, value]) => {
               const relationSchema = tableHelper({
                 db,
-                table: value.targetTable as Table,
+                table: value.referencedTable,
               });
               const referenceModel = whereArgImplementer({
                 dbName: relationSchema.dbName,
@@ -287,7 +286,7 @@ export type DateWhereInputArgument = {
 
 export function implementDefaultWhereInputArgs<
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,

@@ -2,12 +2,12 @@ import { sql } from "drizzle-orm";
 import { cloneDeep } from "es-toolkit";
 import { isPostgresDB } from "./helpers/determineDialectFromSchema";
 import type { tableHelper } from "./helpers/tableHelpers";
-import type { InternalDrizzleInstance } from "./types/drizzleInstanceType";
+import type { DrizzleInstance } from "./types/drizzleInstanceType";
 import type { RumbleInput } from "./types/rumbleInput";
 
-export async function initSearchIfApplicable<
-  DB extends InternalDrizzleInstance,
->(db: DB) {
+export async function initSearchIfApplicable<DB extends DrizzleInstance>(
+  db: DB,
+) {
   //TODO: make other dialects compatible
   if (!isPostgresDB(db)) {
     console.info(
@@ -19,7 +19,11 @@ export async function initSearchIfApplicable<
   await db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
 }
 
-export function adjustQueryForSearch({
+/**
+ * Performs adjustments to the query args to issue a full text search in case the
+ * respective feature is enabled and a search term was provided.
+ */
+export function adjustQueryArgsForSearch({
   search,
   args,
   tableSchema,

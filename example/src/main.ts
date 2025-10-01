@@ -1,16 +1,13 @@
 import { createServer } from "node:http";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { rumble } from "../../lib";
 import {
   assertFindFirstExists,
   assertFirstEntryExists,
-} from "../../lib/helpers/helper";
-import type {
-  DrizzleQueryFunction,
-  DrizzleQueryFunctionInput,
-  InternalDrizzleInstance,
-} from "../../lib/types/drizzleInstanceType";
+  mapNullFieldsToUndefined,
+  rumble,
+} from "../../lib";
+import { mergeFilters } from "../../lib/helpers/mergeFilters";
 import { relations } from "./db/relations";
 import * as schema from "./db/schema";
 
@@ -31,26 +28,6 @@ export const db = drizzle(
     schema,
   },
 );
-
-const d = rumble({
-  // here we pass the db instance from above
-  db,
-  // this is how we can define a context callback
-  // it takes a request object as an argument and returns the objects you want in the request context
-  // similar to the context callback in express or similar frameworks
-  // the type of the request parameter may vary based on the HTTP library you are using
-  context(_request) {
-    return {
-      // for our usecase we simply mock a user ID to be set in the context
-      // this will allow us to perform permission checks based on who the user is
-      userId: 2,
-    };
-  },
-  // in case you want to allow searching via string in the helper implementations
-  // search: {
-  // 	enabled: true,
-  // },
-});
 
 /*
 
@@ -99,8 +76,6 @@ const {
 
 */
 
-abilityBuilder.users.allow(["read", "update", "delete"]).when();
-
 // users can edit themselves
 abilityBuilder.users.allow(["read", "update", "delete"]).when(({ userId }) => ({
   where: {
@@ -110,6 +85,13 @@ abilityBuilder.users.allow(["read", "update", "delete"]).when(({ userId }) => ({
 
 // everyone can read posts
 abilityBuilder.posts.allow("read");
+
+// or define a static condition
+// abilityBuilder.posts.allow("read").when({
+//   where: {
+//     published: true,
+//   },
+// });
 
 // only the author can update posts
 abilityBuilder.posts.allow(["update", "delete"]).when(({ userId }) => ({
@@ -157,7 +139,11 @@ abilityBuilder.posts.filter("read").by(({ context: _context, entities }) => {
 const PostRef = schemaBuilder.drizzleObject("posts", {
   name: "Post",
   // this is how you can apply application level filter in manual object definitions
-  applyFilters: abilityBuilder._.registeredFilters.posts.read,
+  // the helpers will do this for you automatically
+  applyFilters: abilityBuilder._.registeredFilters({
+    action: "read",
+    table: "posts",
+  }),
   fields: (t) => ({
     id: t.exposeInt("id"),
     content: t.exposeString("content", { nullable: false }),
@@ -245,20 +231,15 @@ schemaBuilder.queryFields((t) => {
         where: t.arg({ type: PostWhere }),
       },
       resolve: (query, _root, args, ctx, _info) => {
+        // a helper to map null fields to undefined in any object
+        const mappedArgs = mapNullFieldsToUndefined(args);
         return db.query.posts.findMany(
           query(
-            ctx.abilities.posts.filter("read", {
-              // this additional object offers temporarily injecting additional filters to our existing ability filters
-              // the inject field allows for temp, this time only filters to be added to our ability filters.
-              // They will only be applied for this specific call. This is a helper which exists because of the old
-              // filter API, and enabled easier handling. It is convenient since it provides proper typings and takes
-              // some boilerplate off your shoulders and will stay in the API. Where conditions which are injected
-              // will be applied with an AND rather than an OR so the injected filter will further restrict the
-              // existing restrictions rather than expanding them.
-              inject: {
-                where: args.where ?? undefined,
-              },
-            }).query.many,
+            // a helper to merge multiple filter objects into one
+            // so we can easily apply both the permissions filter and the user provided filter
+            mergeFilters(ctx.abilities.posts.filter("read").query.many, {
+              where: mappedArgs.where,
+            }),
           ),
         );
       },
@@ -333,11 +314,9 @@ schemaBuilder.mutationFields((t) => {
           db.query.users
             .findFirst(
               query(
-                ctx.abilities.users.filter("read", {
-                  inject: {
-                    where: { id: args.userId },
-                  },
-                }).query.single,
+                mergeFilters(ctx.abilities.users.filter("read").query.single, {
+                  where: { id: args.userId },
+                }),
               ),
             )
             // this maps the db response to a graphql response
@@ -373,17 +352,25 @@ schemaBuilder.mutationFields((t) => {
         // this notifies all subscribers that a user has been added
         createdUser();
 
-        return db.query.users
-          .findFirst(
-            query(
-              ctx.abilities.users.filter("read", {
-                inject: {
-                  where: { id: newUser.id },
-                },
-              }).query.single,
-            ),
-          )
-          .then(assertFindFirstExists);
+        return (
+          db.query.users
+            // run the db query
+            .findFirst(
+              // inject all graphql selections which ought to be queried from the db
+              query(
+                // merge multiple filter objects which should be applied to the query
+                mergeFilters(
+                  {
+                    // only retrieve the newly created user
+                    where: { id: newUser.id },
+                  },
+                  // only retrieve the user if the caller is allowed to read it
+                  ctx.abilities.users.filter("read").query.single,
+                ),
+              ),
+            )
+            .then(assertFindFirstExists)
+        );
       },
     }),
   };

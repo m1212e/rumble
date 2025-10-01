@@ -11,7 +11,7 @@ import {
 import type { createPubSub } from "graphql-yoga";
 import type { ContextType } from "./context";
 import ExplicitChecksPlugin from "./runtimeFiltersPlugin/runtimeFiltersPlugin";
-import type { InternalDrizzleInstance } from "./types/drizzleInstanceType";
+import type { DrizzleInstance } from "./types/drizzleInstanceType";
 import type {
   CustomRumblePothosConfig,
   RumbleInput,
@@ -25,7 +25,7 @@ import {
 
 export type SchemaBuilderType<
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
@@ -41,7 +41,7 @@ export type SchemaBuilderType<
 
 export const createSchemaBuilder = <
   UserContext extends Record<string, any>,
-  DB extends InternalDrizzleInstance,
+  DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,

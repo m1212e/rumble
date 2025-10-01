@@ -1,10 +1,12 @@
 import pluralize from "pluralize";
-import { assertFindFirstExists } from "./helpers/helper";
+import { assertFindFirstExists } from "./helpers/asserts";
+import { mapNullFieldsToUndefined } from "./helpers/mapNullFieldsToUndefined";
+import { mergeFilters } from "./helpers/mergeFilters";
 import { tableHelper } from "./helpers/tableHelpers";
 import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
-import { adjustQueryForSearch } from "./search";
+import { adjustQueryArgsForSearch } from "./search";
 import type {
   DrizzleInstance,
   DrizzleQueryFunction,
@@ -129,43 +131,32 @@ export const createQueryImplementer = <
           },
           args: manyArgs,
           resolve: (query, _root, args, ctx, _info) => {
-            // TODO: optimize this, transform null prototyped object
-            args = JSON.parse(JSON.stringify(args));
+            // args does not have Object.prototype as prototype, so we need to set it
+            // otherwise some libraries (like drizzle-orm) might have issues with it
+            Object.setPrototypeOf(args, Object.prototype);
 
-            adjustQueryForSearch({
+            const mappedArgs = mapNullFieldsToUndefined(args);
+
+            adjustQueryArgsForSearch({
               search,
               args,
               tableSchema,
               abilities: ctx.abilities[table].filter(listAction),
             });
 
-            const filter = ctx.abilities[table].filter(
-              listAction,
-              args.where || args.limit || args.offset
-                ? {
-                    inject: {
-                      where: args.where,
-                      limit: args.limit,
-                    },
-                  }
-                : undefined,
-            ).query.many;
-
-            if (args.offset) {
-              (filter as any).offset = args.offset;
-            }
-
-            if (args.orderBy) {
-              (filter as any).orderBy = args.orderBy;
-            }
-
-            const queryInstance = query(filter as any);
-
-            if (filter.columns) {
-              queryInstance.columns = filter.columns;
-            }
-
-            return db.query[table as any].findMany(queryInstance);
+            return (db.query as any)[table].findMany(
+              query(
+                mergeFilters(
+                  ctx.abilities[table].filter(listAction).query.many,
+                  {
+                    offset: mappedArgs.offset,
+                    limit: mappedArgs.limit,
+                    where: mappedArgs.where,
+                    orderBy: mappedArgs.orderBy,
+                  } as any,
+                ) as any,
+              ),
+            );
           },
         }),
         [pluralize.singular(table.toString())]: t.drizzleField({
@@ -174,25 +165,23 @@ export const createQueryImplementer = <
           smartSubscription: true,
           description: `Get a single ${pluralize.singular(table.toString())} by ID`,
           args: {
-            // where: t.arg({ type: WhereArg, required: false }),
             id: t.arg.id({ required: true }),
           },
           resolve: (query, _root, args, ctx, _info) => {
-            // transform null prototyped object
-            args = JSON.parse(JSON.stringify(args));
+            Object.setPrototypeOf(args, Object.prototype);
 
-            const filter = ctx.abilities[table as any].filter(readAction, {
-              inject: { where: { [primaryKeyField.name]: args.id } },
-            }).query.single;
+            const merged = mergeFilters(
+              ctx.abilities[table].filter(readAction).query.single,
+              { where: { [primaryKeyField.name]: args.id } },
+            ) as any;
 
-            const queryInstance = query(filter as any);
-
-            if (filter.columns) {
-              queryInstance.columns = filter.columns;
-            }
-
-            return db.query[table as any]
-              .findFirst(queryInstance)
+            return (db.query as any)[table]
+              .findFirst(
+                query({
+                  where: merged.where,
+                  columns: merged.columns,
+                } as any),
+              )
               .then(assertFindFirstExists);
           },
         }),

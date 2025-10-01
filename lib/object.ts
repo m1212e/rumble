@@ -1,6 +1,6 @@
 import type { FieldMap } from "@pothos/core";
 import type { DrizzleObjectFieldBuilder } from "@pothos/plugin-drizzle";
-import { One, type Table } from "drizzle-orm";
+import { One } from "drizzle-orm";
 import { capitalize } from "es-toolkit";
 import pluralize from "pluralize";
 import type { AbilityBuilderType } from "./abilityBuilder";
@@ -11,7 +11,7 @@ import { tableHelper } from "./helpers/tableHelpers";
 import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type { SchemaBuilderType } from "./schemaBuilder";
-import { adjustQueryForSearch } from "./search";
+import { adjustQueryArgsForSearch } from "./search";
 import type {
   DrizzleInstance,
   DrizzleQueryFunction,
@@ -390,7 +390,7 @@ export const createObjectImplementer = <
                   args = JSON.parse(JSON.stringify(args));
 
                   if (isMany) {
-                    adjustQueryForSearch({
+                    adjustQueryArgsForSearch({
                       search,
                       args,
                       tableSchema: relationSchema,

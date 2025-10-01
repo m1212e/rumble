@@ -1,7 +1,11 @@
-import type { drizzle } from "drizzle-orm/node-postgres";
+import type { drizzle as bunSQLiteDrizzle } from "drizzle-orm/bun-sqlite";
+import type { drizzle as pgDrizzle } from "drizzle-orm/node-postgres";
+
 import type { ObjectValues } from "./objectFieldType";
 
-export type DrizzleInstance = ReturnType<typeof drizzle<Record<string, any>>>;
+export type DrizzleInstance =
+  | ReturnType<typeof pgDrizzle<any, any, any>>
+  | ReturnType<typeof bunSQLiteDrizzle<any, any, any>>;
 
 /**
  * Type representing the schema of a Drizzle table.
@@ -19,15 +23,6 @@ export type DrizzleQueryFunction<DB extends DrizzleInstance> = DB["query"];
 /**
  * Type representing the input parameters for the `findMany` method of a specific table in the Drizzle query function.
  */
-// export type DrizzleQueryFunctionInput<
-//   DB extends DrizzleInstance,
-//   QueryField extends keyof DrizzleQueryFunction<DB>,
-// > = DrizzleQueryFunction<DB>[QueryField] extends { findMany: infer F }
-//   ? F extends (...args: any[]) => any
-//     ? Parameters<F>[0]
-//     : never
-//   : never;
-
 export type DrizzleQueryFunctionInput<
   DB extends DrizzleInstance,
   QueryField extends keyof DrizzleQueryFunction<DB>,

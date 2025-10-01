@@ -6,7 +6,7 @@ export { makeSubscription } from "./client/subscription";
 export {
   assertFindFirstExists,
   assertFirstEntryExists,
-  mapNullFieldsToUndefined,
-} from "./helpers/helper";
+} from "./helpers/asserts";
+export { mapNullFieldsToUndefined } from "./helpers/mapNullFieldsToUndefined";
 export { rumble } from "./rumble";
 export { RumbleError, RumbleErrorSafe } from "./types/rumbleError";

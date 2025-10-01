@@ -18,9 +18,9 @@
     "@types/bun": "latest",
     "@types/pg": "^8.15.5",
     "@types/pluralize": "^0.0.33",
-    "drizzle-kit": "^1.0.0-beta.1-f92627f",
-    "drizzle-orm": "^1.0.0-beta.1-f92627f",
-    "drizzle-seed": "^0.3.1-f92627f",
+    "drizzle-kit": "^1.0.0-beta.1-fd8bfcc",
+    "drizzle-orm": "^1.0.0-beta.1-fd8bfcc",
+    "drizzle-seed": "^0.3.1-fd8bfcc",
     "lefthook": "^1.13.3",
     "pg": "^8.16.3",
     "tsup": "^8.5.0"

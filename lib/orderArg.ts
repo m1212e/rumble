@@ -1,4 +1,3 @@
-import type { Table } from "drizzle-orm";
 import { toCamelCase } from "drizzle-orm/casing";
 import { capitalize } from "es-toolkit";
 import { lazy } from "./helpers/lazy";

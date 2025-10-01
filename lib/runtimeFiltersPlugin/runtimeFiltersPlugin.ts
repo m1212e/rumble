@@ -5,7 +5,7 @@ import SchemaBuilder, {
   type SchemaTypes,
 } from "@pothos/core";
 import type { GraphQLFieldResolver } from "graphql";
-import { applyFilters } from "../helpers/helper";
+import { applyFilters } from "../helpers/applyFilters";
 import type { ApplyFiltersField } from "./pluginTypes";
 
 const pluginName = "ManualFiltersPlugin";

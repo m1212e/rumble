@@ -9,6 +9,8 @@ import type {
   RumbleInput,
 } from "./types/rumbleInput";
 
+//TODO check if the enum find logic can be made more solid after drizzle reaches 1.0
+
 /**
  * Checks if a schema type is an enum
  */
