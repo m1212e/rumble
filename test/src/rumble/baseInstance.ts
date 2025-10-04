@@ -62,10 +62,8 @@ export function makeRumbleSeedInstance(
               firstName: args.firstName,
             })
             .where(
-              ctx.abilities.users.filter("update", {
-                inject: {
-                  where: { id: args.userId },
-                },
+              ctx.abilities.users.filter("update").merge({
+                where: { id: args.userId },
               }).sql.where,
             )
             .returning({

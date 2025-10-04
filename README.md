@@ -144,12 +144,9 @@ schemaBuilder.queryFields((t) => {
     return db.query.posts.findMany(
      query(
       // here we apply the ability filter
-      ctx.abilities.users.filter("read", {
-      // we can inject one time filters into the permission filter
-       inject: {
-        where: args.where,
-       },
-      }).query.many,
+      ctx.abilities.users.filter("read")
+      // we can merge one time filters into the permission filter for this specific request
+        .merge({ where: args.where }).query.many,
      ),
     );
    },

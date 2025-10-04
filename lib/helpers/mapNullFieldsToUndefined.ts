@@ -42,11 +42,11 @@
         return db.query.user
           .findFirst(
             query(
-              ctx.abilities.user.filter('read', {
-                inject: {
+              ctx.abilities.user.filter('read').merge(
+                {
                   where: { id: user.id },
-                },
-              }).query.single,
+                }
+              1).query.single,
             ),
           )
           .then(assertFindFirstExists);

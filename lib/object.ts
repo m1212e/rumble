@@ -399,12 +399,11 @@ export const createObjectImplementer = <
                     });
                   }
 
-                  const filter = ctx.abilities[relationSchema.tsName].filter(
-                    readAction,
-                    {
-                      inject: { where: args.where, limit: args.limit },
-                    },
-                  ).query[filterSpecifier];
+                  const filter = ctx.abilities[relationSchema.tsName]
+                    .filter(readAction)
+                    .merge({ where: args.where, limit: args.limit }).query[
+                    filterSpecifier
+                  ];
 
                   if (args.offset) {
                     (filter as any).offset = args.offset;

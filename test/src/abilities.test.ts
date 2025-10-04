@@ -299,7 +299,7 @@ describe("test rumble abilities", async () => {
     expect((r as any).data.comments.length).toEqual(3);
   });
 
-  test("limit read amount with injection lower than ability in query argument", async () => {
+  test("limit read amount with merge lower than ability in query argument", async () => {
     rumble.abilityBuilder.comments.allow("read").when({
       limit: 10,
     });
@@ -318,7 +318,7 @@ describe("test rumble abilities", async () => {
     expect((r as any).data.comments.length).toEqual(5);
   });
 
-  test("limit read amount with injection lower than ability in query argument", async () => {
+  test("limit read amount with merge lower than ability in query argument", async () => {
     rumble.abilityBuilder.comments.allow("read").when({
       limit: 5,
     });
@@ -512,7 +512,7 @@ describe("test rumble abilities", async () => {
   });
 
   //TODO
-  // test("perform read with applied condition and injection filters", async () => {
+  // test("perform read with applied condition and merge filters", async () => {
   // 	rumble.abilityBuilder.comments.allow("read").when({
   // 		limit: 100,
   // 		where: {

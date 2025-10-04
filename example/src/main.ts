@@ -359,7 +359,7 @@ schemaBuilder.mutationFields((t) => {
           db.query.users
             // run the db query
             .findFirst(
-              // inject all graphql selections which ought to be queried from the db
+              // inject all graphql selections which ought to be queried from the db according to the gql request
               query(
                 // merge multiple filter objects which should be applied to the query
                 mergeFilters(

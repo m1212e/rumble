@@ -17,8 +17,6 @@ import type {
 } from "./types/rumbleInput";
 import type { WhereArgImplementerType } from "./whereArg";
 
-// TODO: consider removing the whole inject helper thing since we dont need a syntax transform anymore
-
 export const createQueryImplementer = <
   UserContext extends Record<string, any>,
   DB extends DrizzleInstance,
