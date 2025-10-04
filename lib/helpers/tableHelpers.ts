@@ -5,6 +5,10 @@ import type {
 } from "../types/drizzleInstanceType";
 import { RumbleError } from "../types/rumbleError";
 
+const drizzleNameSymbol = Symbol.for("drizzle:Name");
+const drizzleOriginalNameSymbol = Symbol.for("drizzle:OriginalName");
+const drizzleBaseNameSymbol = Symbol.for("drizzle:BaseName");
+
 export function tableHelper<
   DB extends DrizzleInstance,
   TableIdentifier extends
@@ -12,17 +16,39 @@ export function tableHelper<
     | DrizzleTableSchema<DB>["dbName"]
     | DrizzleTableSchema<DB>,
 >({ db, table }: { db: DB; table: TableIdentifier }) {
-  const tableSchema = (typeof table === "string"
-    ? Object.values(db._.schema!).find(
-        (schema) => schema.dbName === table || schema.tsName === table,
-      )
-    : table) as unknown as DrizzleTableSchema<DB> | undefined;
+  if (typeof table !== "string") {
+    table =
+      table.tsName ||
+      table.dbName ||
+      table[drizzleNameSymbol] ||
+      table[drizzleOriginalNameSymbol] ||
+      table[drizzleBaseNameSymbol];
+  }
 
-  if (!tableSchema) {
+  const foundRelation: any = Object.values(db._.relations!).find(
+    (schema: any) =>
+      schema.name === table ||
+      schema.table[drizzleNameSymbol] === table ||
+      schema.table[drizzleOriginalNameSymbol] === table ||
+      schema.table[drizzleBaseNameSymbol] === table,
+  );
+
+  if (!foundRelation) {
     throw new RumbleError(`Could not find schema for ${JSON.stringify(table)}`);
   }
 
-  return tableSchema as Omit<typeof tableSchema, "columns"> & {
+  const foundSchema = Object.values(db._.schema!).find(
+    (schema) =>
+      schema.dbName === foundRelation.table[drizzleOriginalNameSymbol],
+  );
+
+  if (!foundSchema) {
+    throw new RumbleError(`Could not find schema for ${JSON.stringify(table)}`);
+  }
+
+  foundSchema.relations = foundRelation.relations;
+
+  return foundSchema as unknown as Omit<typeof foundSchema, "columns"> & {
     columns: Record<string, Column>;
   };
 }

@@ -15,3 +15,14 @@ export const posts = pgTable("posts_table", {
     onDelete: "cascade",
   }),
 });
+
+export const comments = pgTable("comments_table", {
+  id: serial().primaryKey(),
+  text: text().notNull(),
+  postId: integer().references(() => posts.id, {
+    onDelete: "cascade",
+  }),
+  ownerId: integer().references(() => users.id, {
+    onDelete: "cascade",
+  }),
+});

@@ -301,7 +301,8 @@ export const createObjectImplementer = <
           },
           {} as Record<
             keyof typeof columns,
-            ReturnType<typeof buildPothosResponseTypeFromGraphQLType>
+            | ReturnType<typeof buildPothosResponseTypeFromGraphQLType>
+            | ReturnType<typeof t.field>
           >,
         );
 
@@ -309,7 +310,7 @@ export const createObjectImplementer = <
           (acc, [key, value]) => {
             const relationSchema = tableHelper({
               db,
-              table: value.referencedTable,
+              table: (value as any).targetTable,
             });
             const WhereArg = whereArgImplementer({
               dbName: relationSchema.dbName,

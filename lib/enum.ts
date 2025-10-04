@@ -114,17 +114,7 @@ Please ensure that you use the enum at least once as a column of a table!`);
 
       enumValues = (enumCol as any).enumValues;
     } else if (enumColumn) {
-      const schemaEnumEntry = Object.entries(db._.schema!).find(
-        ([, value]) => value === (enumColumn as any).config.enum,
-      );
-
-      if (!schemaEnumEntry) {
-        throw new RumbleError(
-          `Could not find enum in schema for ${enumColumn.name}!`,
-        );
-      }
-
-      enumSchemaName = schemaEnumEntry[0];
+      enumSchemaName = (enumColumn as any).config.name as string;
       enumValues = enumColumn.enumValues;
     }
 

@@ -6,7 +6,6 @@ import {
   type YogaServerOptions,
 } from "graphql-yoga";
 import { useSofa } from "sofa-api";
-import { RumbleError } from "../out";
 import { createAbilityBuilder } from "./abilityBuilder";
 import { clientCreatorImplementer } from "./client/client";
 import { createContextFunction } from "./context";
@@ -20,6 +19,7 @@ import { createQueryImplementer } from "./query";
 import { createSchemaBuilder } from "./schemaBuilder";
 import { initSearchIfApplicable } from "./search";
 import type { DrizzleInstance } from "./types/drizzleInstanceType";
+import { RumbleError } from "./types/rumbleError";
 import type {
   CustomRumblePothosConfig,
   RumbleInput,

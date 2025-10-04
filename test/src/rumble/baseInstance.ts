@@ -1,6 +1,7 @@
 import { buildHTTPExecutor } from "@graphql-tools/executor-http";
 import { assertFirstEntryExists, rumble } from "../../../lib";
 import type { DB } from "../db/db";
+import * as relations from "../db/relations";
 import * as schema from "../db/schema";
 
 export function makeRumbleSeedInstance(

@@ -180,7 +180,7 @@ export const createWhereArgImplementer = <
             (acc, [key, value]) => {
               const relationSchema = tableHelper({
                 db,
-                table: value.referencedTable,
+                table: (value as any).targetTable,
               });
               const referenceModel = whereArgImplementer({
                 dbName: relationSchema.dbName,

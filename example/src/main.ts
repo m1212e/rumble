@@ -29,6 +29,9 @@ export const db = drizzle(
   },
 );
 
+// console.log(db._.schema);
+// console.log(db._.relations);
+
 /*
 
   Next, we can create a rumble instance. The creator returns a set of functions which you
@@ -263,6 +266,13 @@ schemaBuilder.queryFields((t) => {
 
 query({
   table: "users",
+});
+
+object({
+  table: "comments",
+});
+query({
+  table: "comments",
 });
 
 /*
