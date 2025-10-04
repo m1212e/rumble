@@ -235,11 +235,14 @@ schemaBuilder.queryFields((t) => {
         const mappedArgs = mapNullFieldsToUndefined(args);
         return db.query.posts.findMany(
           query(
-            // a helper to merge multiple filter objects into one
-            // so we can easily apply both the permissions filter and the user provided filter
-            mergeFilters(ctx.abilities.posts.filter("read").query.many, {
-              where: mappedArgs.where,
-            }),
+            ctx.abilities.posts
+              .filter("read")
+              // merge is a helper to merge multiple filter objects into one
+              // so we can easily apply both the permissions filter and the user provided filter
+              // just for this one query call
+              .merge({
+                where: mappedArgs.where,
+              }).query.many,
           ),
         );
       },

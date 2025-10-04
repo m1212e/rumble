@@ -105,208 +105,6 @@ but has been accessed. This will block everything. If this is intended, you can 
   1000,
 );
 
-/**
- * Packs the filters into a response object that can be applied for queries by the user
- */
-function transformToResponse<
-  DB extends DrizzleInstance,
-  Table extends keyof DrizzleQueryFunction<DB>,
->({
-  queryFilters,
-  defaultLimit,
-  tableSchema,
-}: {
-  defaultLimit: number | null | undefined;
-  queryFilters?: DrizzleQueryFunctionInput<DB, Table> | undefined;
-  tableSchema: SchemaEntry;
-}) {
-  const limit = lazy(() => {
-    let limit = queryFilters?.limit as number | undefined;
-
-    if (defaultLimit && (limit === undefined || limit > defaultLimit)) {
-      limit = defaultLimit;
-    }
-
-    // ensure that null is converted to undefined
-    return limit ?? undefined;
-  });
-
-  // we acutally need to define multiple return objects since we do not want to use delete for
-  // performance reasons and an undefined columns field on a drizzle filter will prevent any
-  // column from being selected at all
-  if (queryFilters?.columns) {
-    const ret = {
-      /**
-       * Query filters for the drizzle query API.
-       * @example
-       * ```ts
-       * author: t.relation("author", {
-       *  query: (_args, ctx) => ctx.abilities.users.filter("read").query.single,
-       * }),
-       * ´´´
-       */
-      query: {
-        /**
-         * For find first calls
-         */
-        single: {
-          where: queryFilters?.where,
-          columns: queryFilters?.columns,
-        } as Pick<
-          NonNullable<
-            NonNullable<Parameters<DB["query"][Table]["findFirst"]>[0]>
-          >,
-          "columns" | "where"
-        >,
-        /**
-         * For find many calls
-         */
-        many: {
-          where: queryFilters?.where,
-          columns: queryFilters?.columns,
-          get limit() {
-            return limit();
-          },
-        } as Pick<
-          NonNullable<
-            NonNullable<Parameters<DB["query"][Table]["findMany"]>[0]>
-          >,
-          "columns" | "where" | "limit"
-        >,
-      },
-      /**
-       * Query filters for the drizzle SQL API as used in e.g. updates.
-       * @example
-       *
-       * ```ts
-       * await db
-       *	.update(schema.users)
-       *	.set({
-       *	  name: args.newName,
-       * 	})
-       *	.where(
-       *	  and(
-       *	    eq(schema.users.id, args.userId),
-       *	    ctx.abilities.users.filter("update").sql.where,
-       *	  ),
-       *	);
-       * ```
-       *
-       */
-      sql: {
-        get where() {
-          return queryFilters?.where
-            ? relationsFilterToSQL(tableSchema, queryFilters.where)
-            : undefined;
-        },
-      },
-      merge: undefined,
-    };
-
-    /**
-     * Merges the current query filters with the provided filters for tthis call only
-     */
-    const merge = (p: Parameters<typeof mergeFilters>) => {
-      const merged = mergeFilters(queryFilters, ...p);
-      return transformToResponse({
-        defaultLimit,
-        tableSchema: tableSchema as any,
-        queryFilters: merged as any,
-      }) as Omit<typeof ret, "merge">;
-    };
-
-    (ret as any).merge = merge;
-
-    return ret as unknown as Omit<typeof ret, "merge"> & {
-      merge: typeof merge;
-    };
-  } else {
-    const ret = {
-      /**
-       * Query filters for the drizzle query API.
-       * @example
-       * ```ts
-       * author: t.relation("author", {
-       *  query: (_args, ctx) => ctx.abilities.users.filter("read").query.single,
-       * }),
-       * ´´´
-       */
-      query: {
-        /**
-         * For find first calls
-         */
-        single: {
-          where: queryFilters?.where,
-        } as Pick<
-          NonNullable<
-            NonNullable<Parameters<DB["query"][Table]["findFirst"]>[0]>
-          >,
-          "where"
-        >,
-        /**
-         * For find many calls
-         */
-        many: {
-          where: queryFilters?.where,
-          get limit() {
-            return limit();
-          },
-        } as Pick<
-          NonNullable<
-            NonNullable<Parameters<DB["query"][Table]["findMany"]>[0]>
-          >,
-          "where" | "limit"
-        >,
-      },
-      /**
-       * Query filters for the drizzle SQL API as used in e.g. updates.
-       * @example
-       *
-       * ```ts
-       * await db
-       *	.update(schema.users)
-       *	.set({
-       *	  name: args.newName,
-       * 	})
-       *	.where(
-       *	  and(
-       *	    eq(schema.users.id, args.userId),
-       *	    ctx.abilities.users.filter("update").sql.where,
-       *	  ),
-       *	);
-       * ```
-       *
-       */
-      sql: {
-        get where() {
-          return queryFilters?.where
-            ? relationsFilterToSQL(tableSchema as any, queryFilters.where)
-            : undefined;
-        },
-      },
-      merge: undefined,
-    };
-
-    /**
-     * Merges the current query filters with the provided filters for tthis call only
-     */
-    const merge = (p: Parameters<typeof mergeFilters>) => {
-      const merged = mergeFilters(queryFilters as any, ...p);
-      return transformToResponse({
-        defaultLimit,
-        tableSchema: tableSchema as any,
-        queryFilters: merged as any,
-      });
-    };
-
-    (ret as any).merge = merge;
-
-    return ret as unknown as Omit<typeof ret, "merge"> & {
-      merge: typeof merge;
-    };
-  }
-}
-
 export const createAbilityBuilder = <
   UserContext extends Record<string, any>,
   DB extends DrizzleInstance,
@@ -527,6 +325,202 @@ export const createAbilityBuilder = <
             },
           };
 
+          /**
+           * Packs the filters into a response object that can be applied for queries by the user
+           */
+          function transformToResponse(
+            queryFilters?: DrizzleQueryFunctionInput<DB, TableName>,
+          ) {
+            const internalTransformer = (
+              queryFilters?: DrizzleQueryFunctionInput<DB, TableName>,
+            ) => {
+              const limit = lazy(() => {
+                let limit = queryFilters?.limit as number | undefined;
+
+                if (
+                  defaultLimit &&
+                  (limit === undefined || limit > defaultLimit)
+                ) {
+                  limit = defaultLimit;
+                }
+
+                // ensure that null is converted to undefined
+                return limit ?? undefined;
+              });
+
+              // we acutally need to define multiple return objects since we do not want to use delete for
+              // performance reasons and an undefined columns field on a drizzle filter will prevent any
+              // column from being selected at all
+              if (queryFilters?.columns) {
+                return {
+                  /**
+                   * Query filters for the drizzle query API.
+                   * @example
+                   * ```ts
+                   * author: t.relation("author", {
+                   *  query: (_args, ctx) => ctx.abilities.users.filter("read").query.single,
+                   * }),
+                   * ´´´
+                   */
+                  query: {
+                    /**
+                     * For find first calls
+                     */
+                    single: {
+                      where: queryFilters?.where,
+                      columns: queryFilters?.columns,
+                    } as Pick<
+                      NonNullable<
+                        NonNullable<
+                          Parameters<DB["query"][TableName]["findFirst"]>[0]
+                        >
+                      >,
+                      "columns" | "where"
+                    >,
+                    /**
+                     * For find many calls
+                     */
+                    many: {
+                      where: queryFilters?.where,
+                      columns: queryFilters?.columns,
+                      get limit() {
+                        return limit();
+                      },
+                    } as Pick<
+                      NonNullable<
+                        NonNullable<
+                          Parameters<DB["query"][TableName]["findMany"]>[0]
+                        >
+                      >,
+                      "columns" | "where" | "limit"
+                    >,
+                  },
+                  /**
+                   * Query filters for the drizzle SQL API as used in e.g. updates.
+                   * @example
+                   *
+                   * ```ts
+                   * await db
+                   *	.update(schema.users)
+                   *	.set({
+                   *	  name: args.newName,
+                   * 	})
+                   *	.where(
+                   *	  and(
+                   *	    eq(schema.users.id, args.userId),
+                   *	    ctx.abilities.users.filter("update").sql.where,
+                   *	  ),
+                   *	);
+                   * ```
+                   *
+                   */
+                  sql: {
+                    get where() {
+                      return queryFilters?.where
+                        ? relationsFilterToSQL(
+                            tableSchema as any,
+                            queryFilters.where,
+                          )
+                        : undefined;
+                    },
+                  },
+                };
+              } else {
+                return {
+                  /**
+                   * Query filters for the drizzle query API.
+                   * @example
+                   * ```ts
+                   * author: t.relation("author", {
+                   *  query: (_args, ctx) => ctx.abilities.users.filter("read").query.single,
+                   * }),
+                   * ´´´
+                   */
+                  query: {
+                    /**
+                     * For find first calls
+                     */
+                    single: {
+                      where: queryFilters?.where,
+                    } as Pick<
+                      NonNullable<
+                        NonNullable<
+                          Parameters<DB["query"][TableName]["findFirst"]>[0]
+                        >
+                      >,
+                      "where"
+                    >,
+                    /**
+                     * For find many calls
+                     */
+                    many: {
+                      where: queryFilters?.where,
+                      get limit() {
+                        return limit();
+                      },
+                    } as Pick<
+                      NonNullable<
+                        NonNullable<
+                          Parameters<DB["query"][TableName]["findMany"]>[0]
+                        >
+                      >,
+                      "where" | "limit"
+                    >,
+                  },
+                  /**
+                   * Query filters for the drizzle SQL API as used in e.g. updates.
+                   * @example
+                   *
+                   * ```ts
+                   * await db
+                   *	.update(schema.users)
+                   *	.set({
+                   *	  name: args.newName,
+                   * 	})
+                   *	.where(
+                   *	  and(
+                   *	    eq(schema.users.id, args.userId),
+                   *	    ctx.abilities.users.filter("update").sql.where,
+                   *	  ),
+                   *	);
+                   * ```
+                   *
+                   */
+                  sql: {
+                    get where() {
+                      return queryFilters?.where
+                        ? relationsFilterToSQL(
+                            tableSchema as any,
+                            queryFilters.where,
+                          )
+                        : undefined;
+                    },
+                  },
+                };
+              }
+            };
+
+            const ret = internalTransformer(queryFilters);
+
+            /**
+             * Merges the current query filters with the provided filters for this call only
+             */
+            function merge<
+              P extends NonNullable<DrizzleQueryFunctionInput<DB, TableName>>[],
+            >(...p: P) {
+              const merged = mergeFilters(ret.query.many, ...p);
+              return internalTransformer(merged);
+            }
+
+            (ret as any).merge = merge;
+
+            return ret as typeof ret & {
+              merge: typeof merge<
+                NonNullable<DrizzleQueryFunctionInput<DB, TableName>>[]
+              >;
+            };
+          }
+
           return {
             withContext: (userContext: UserContext) => {
               return {
@@ -535,10 +529,7 @@ export const createAbilityBuilder = <
 
                   // in case we have a wildcard ability, skip the rest and return no filters at all
                   if (filters === "unrestricted") {
-                    return transformToResponse({
-                      defaultLimit,
-                      tableSchema: tableSchema as any,
-                    });
+                    return transformToResponse();
                   }
 
                   // if nothing has been allowed, block everything
@@ -547,11 +538,7 @@ export const createAbilityBuilder = <
                       tableName.toString(),
                       action,
                     );
-                    return transformToResponse({
-                      defaultLimit,
-                      tableSchema: tableSchema as any,
-                      queryFilters: blockEverythingFilter as any,
-                    });
+                    return transformToResponse(blockEverythingFilter);
                   }
 
                   // run all dynamic filters
@@ -564,10 +551,7 @@ export const createAbilityBuilder = <
                     const result = func(userContext);
                     // if one of the dynamic filters returns "allow", we want to allow everything
                     if (result === "allow") {
-                      return transformToResponse({
-                        defaultLimit,
-                        tableSchema: tableSchema as any,
-                      });
+                      return transformToResponse();
                     }
                     // if nothing is returned, nothing is allowed by this filter
                     if (result === undefined) continue;
@@ -584,11 +568,7 @@ export const createAbilityBuilder = <
 
                   // if we don't have any permitted filters then block everything
                   if (allQueryFilters.length === 0) {
-                    return transformToResponse({
-                      defaultLimit,
-                      tableSchema: tableSchema as any,
-                      queryFilters: blockEverythingFilter as any,
-                    });
+                    return transformToResponse(blockEverythingFilter);
                   }
 
                   let highestLimit: number | undefined;
@@ -626,22 +606,18 @@ export const createAbilityBuilder = <
                     .map((o) => o!.where);
 
                   return transformToResponse({
-                    defaultLimit,
-                    tableSchema: tableSchema as any,
-                    queryFilters: {
-                      where:
-                        accumulatedWhereConditions.length > 0
-                          ? { OR: accumulatedWhereConditions }
-                          : undefined,
-                      columns: allowedColumns
-                        ? allowedColumns.values().reduce((prev, curr) => {
-                            prev[curr] = true;
-                            return prev;
-                          }, {} as any)
+                    where:
+                      accumulatedWhereConditions.length > 0
+                        ? { OR: accumulatedWhereConditions }
                         : undefined,
-                      limit: highestLimit,
-                    } as any,
-                  });
+                    columns: allowedColumns
+                      ? allowedColumns.values().reduce((prev, curr) => {
+                          prev[curr] = true;
+                          return prev;
+                        }, {} as any)
+                      : undefined,
+                    limit: highestLimit,
+                  } as any);
                 },
               };
             },
