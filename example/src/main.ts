@@ -29,9 +29,6 @@ export const db = drizzle(
   },
 );
 
-// console.log(db._.schema);
-// console.log(db._.relations);
-
 /*
 
   Next, we can create a rumble instance. The creator returns a set of functions which you
@@ -372,14 +369,11 @@ schemaBuilder.mutationFields((t) => {
               // inject all graphql selections which ought to be queried from the db according to the gql request
               query(
                 // merge multiple filter objects which should be applied to the query
-                mergeFilters(
-                  {
-                    // only retrieve the newly created user
-                    where: { id: newUser.id },
-                  },
-                  // only retrieve the user if the caller is allowed to read it
-                  ctx.abilities.users.filter("read").query.single,
-                ),
+                // only retrieve the user if the caller is allowed to read it
+                ctx.abilities.users.filter("read").merge({
+                  // only retrieve the newly created user
+                  where: { id: newUser.id },
+                }).query.single,
               ),
             )
             .then(assertFindFirstExists)

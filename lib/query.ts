@@ -1,7 +1,6 @@
 import pluralize from "pluralize";
 import { assertFindFirstExists } from "./helpers/asserts";
 import { mapNullFieldsToUndefined } from "./helpers/mapNullFieldsToUndefined";
-import { mergeFilters } from "./helpers/mergeFilters";
 import { tableHelper } from "./helpers/tableHelpers";
 import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
@@ -144,15 +143,12 @@ export const createQueryImplementer = <
 
             return (db.query as any)[table].findMany(
               query(
-                mergeFilters(
-                  ctx.abilities[table].filter(listAction).query.many,
-                  {
-                    offset: mappedArgs.offset,
-                    limit: mappedArgs.limit,
-                    where: mappedArgs.where,
-                    orderBy: mappedArgs.orderBy,
-                  } as any,
-                ) as any,
+                ctx.abilities[table].filter(listAction).merge({
+                  offset: mappedArgs.offset,
+                  limit: mappedArgs.limit,
+                  where: mappedArgs.where,
+                  orderBy: mappedArgs.orderBy,
+                } as any).query.many as any,
               ),
             );
           },
@@ -168,18 +164,18 @@ export const createQueryImplementer = <
           resolve: (query, _root, args, ctx, _info) => {
             Object.setPrototypeOf(args, Object.prototype);
 
-            const merged = mergeFilters(
-              ctx.abilities[table].filter(readAction).query.single,
-              { where: { [primaryKeyField.name]: args.id } },
-            ) as any;
+            const filter = (ctx.abilities as any)[table]
+              .filter(readAction)
+              .merge({ where: { [primaryKeyField.name]: args.id } })
+              .query.single;
+            const q = query(filter);
+
+            if (filter.columns) {
+              q.columns = filter.columns;
+            }
 
             return (db.query as any)[table]
-              .findFirst(
-                query({
-                  where: merged.where,
-                  columns: merged.columns,
-                } as any),
-              )
+              .findFirst(q)
               .then(assertFindFirstExists);
           },
         }),

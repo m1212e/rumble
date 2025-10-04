@@ -1,70 +1,67 @@
-import { merge } from "es-toolkit";
+import { toMerged } from "es-toolkit";
 
-export function mergeFilters<Filter>(...filters: Partial<Filter>[]) {
-  const allWhereClauses = filters
-    .map((f) => (f as any).where)
-    .filter((w) => w !== undefined && w !== null);
+export function mergeFilters<
+  FilterA extends Record<string, any>,
+  FilterB extends Record<string, any>,
+>(filterA?: Partial<FilterA>, filterB?: Partial<FilterB>) {
+  const where =
+    filterA?.where && filterB?.where
+      ? { AND: [filterA?.where, filterB?.where] }
+      : (filterA?.where ?? filterB?.where);
 
-  const uniqueColumns = new Set(
-    filters.flatMap((f) =>
-      (f as any).columns ? Object.keys((f as any).columns) : [],
-    ),
-  );
-  const mappedUniqueColumns =
-    uniqueColumns.size > 0
-      ? uniqueColumns.values().reduce((prev, curr) => {
-          prev[curr] = true;
-          return prev;
-        }, {} as any)
+  const columns =
+    filterA?.columns || filterB?.columns
+      ? new Set(
+          [
+            Object.entries(filterA?.columns ?? {}),
+            Object.entries(filterB?.columns ?? {}),
+          ]
+            .flat()
+            .filter(([, v]) => v === true)
+            .map(([k]) => k),
+        )
+          .entries()
+          .reduce(
+            (acc, [key]) => {
+              acc[key] = true;
+              return acc;
+            },
+            {} as Record<string, true>,
+          )
       : undefined;
 
-  const mergedExtras = {};
-  let touchedExtras = false;
-  for (let i = 0; i < filters.length; i++) {
-    const filter = filters[i];
-    if ((filter as any).extras) {
-      merge(mergedExtras, (filter as any).extras);
-      touchedExtras = true;
-    }
-  }
+  const extras =
+    filterA?.extras || filterB?.extras
+      ? toMerged(filterA?.extras ?? {}, filterB?.extras ?? {})
+      : undefined;
 
-  const mergedOrderBy = {};
-  let touchedOrderBy = false;
-  for (let i = 0; i < filters.length; i++) {
-    const filter = filters[i];
-    if ((filter as any).orderBy) {
-      merge(mergedOrderBy, (filter as any).orderBy);
-      touchedOrderBy = true;
-    }
-  }
+  const orderBy =
+    filterA?.orderBy || filterB?.orderBy
+      ? toMerged(filterA?.orderBy ?? {}, filterB?.orderBy ?? {})
+      : undefined;
 
-  const lowestLimit: number = Math.min(
-    ...filters.map((f) => (f as any).limit ?? Infinity),
-  );
-  const lowestOffset: number = Math.min(
-    ...filters.map((f) => (f as any).offset ?? Infinity),
-  );
+  const limit =
+    filterA?.limit || filterB?.limit
+      ? Math.min(filterA?.limit ?? Infinity, filterB?.limit ?? Infinity)
+      : undefined;
 
-  const mergedWith = {};
-  let touchedWith = false;
-  for (let i = 0; i < filters.length; i++) {
-    const filter = filters[i];
-    if ((filter as any).with) {
-      merge(mergedWith, (filter as any).with);
-      touchedWith = true;
-    }
-  }
+  const offset =
+    filterA?.offset || filterB?.offset
+      ? Math.min(filterA?.offset ?? Infinity, filterB?.offset ?? Infinity)
+      : undefined;
+
+  const with_ =
+    filterA?.with || filterB?.with
+      ? toMerged(filterA?.with ?? {}, filterB?.with ?? {})
+      : undefined;
 
   return {
-    where:
-      allWhereClauses.length > 0
-        ? ({ AND: allWhereClauses } as any)
-        : undefined,
-    columns: mappedUniqueColumns,
-    extras: touchedExtras ? mergedExtras : undefined,
-    orderBy: touchedOrderBy ? mergedOrderBy : undefined,
-    limit: lowestLimit < Infinity ? lowestLimit : undefined,
-    offset: lowestOffset < Infinity ? lowestOffset : undefined,
-    with: touchedWith ? mergedWith : undefined,
-  } as Filter;
+    where,
+    columns,
+    extras,
+    orderBy,
+    limit,
+    offset,
+    with: with_,
+  } as unknown as FilterA & FilterB;
 }

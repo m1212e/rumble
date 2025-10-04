@@ -332,10 +332,10 @@ export const createAbilityBuilder = <
             queryFilters?: DrizzleQueryFunctionInput<DB, TableName>,
           ) {
             const internalTransformer = (
-              queryFilters?: DrizzleQueryFunctionInput<DB, TableName>,
+              filters?: DrizzleQueryFunctionInput<DB, TableName>,
             ) => {
               const limit = lazy(() => {
-                let limit = queryFilters?.limit as number | undefined;
+                let limit = filters?.limit as number | undefined;
 
                 if (
                   defaultLimit &&
@@ -351,7 +351,7 @@ export const createAbilityBuilder = <
               // we acutally need to define multiple return objects since we do not want to use delete for
               // performance reasons and an undefined columns field on a drizzle filter will prevent any
               // column from being selected at all
-              if (queryFilters?.columns) {
+              if (filters?.columns) {
                 return {
                   /**
                    * Query filters for the drizzle query API.
@@ -367,8 +367,8 @@ export const createAbilityBuilder = <
                      * For find first calls
                      */
                     single: {
-                      where: queryFilters?.where,
-                      columns: queryFilters?.columns,
+                      where: filters?.where,
+                      columns: filters?.columns,
                     } as Pick<
                       NonNullable<
                         NonNullable<
@@ -381,8 +381,8 @@ export const createAbilityBuilder = <
                      * For find many calls
                      */
                     many: {
-                      where: queryFilters?.where,
-                      columns: queryFilters?.columns,
+                      where: filters?.where,
+                      columns: filters?.columns,
                       get limit() {
                         return limit();
                       },
@@ -416,10 +416,10 @@ export const createAbilityBuilder = <
                    */
                   sql: {
                     get where() {
-                      return queryFilters?.where
+                      return filters?.where
                         ? relationsFilterToSQL(
                             tableSchema as any,
-                            queryFilters.where,
+                            filters.where,
                           )
                         : undefined;
                     },
@@ -441,7 +441,7 @@ export const createAbilityBuilder = <
                      * For find first calls
                      */
                     single: {
-                      where: queryFilters?.where,
+                      where: filters?.where,
                     } as Pick<
                       NonNullable<
                         NonNullable<
@@ -454,7 +454,7 @@ export const createAbilityBuilder = <
                      * For find many calls
                      */
                     many: {
-                      where: queryFilters?.where,
+                      where: filters?.where,
                       get limit() {
                         return limit();
                       },
@@ -488,10 +488,10 @@ export const createAbilityBuilder = <
                    */
                   sql: {
                     get where() {
-                      return queryFilters?.where
+                      return filters?.where
                         ? relationsFilterToSQL(
                             tableSchema as any,
-                            queryFilters.where,
+                            filters.where,
                           )
                         : undefined;
                     },
@@ -505,19 +505,17 @@ export const createAbilityBuilder = <
             /**
              * Merges the current query filters with the provided filters for this call only
              */
-            function merge<
-              P extends NonNullable<DrizzleQueryFunctionInput<DB, TableName>>[],
-            >(...p: P) {
-              const merged = mergeFilters(ret.query.many, ...p);
+            function merge(
+              p: NonNullable<DrizzleQueryFunctionInput<DB, TableName>>,
+            ) {
+              const merged = mergeFilters(ret.query.many, p);
               return internalTransformer(merged);
             }
 
             (ret as any).merge = merge;
 
             return ret as typeof ret & {
-              merge: typeof merge<
-                NonNullable<DrizzleQueryFunctionInput<DB, TableName>>[]
-              >;
+              merge: typeof merge;
             };
           }
 
@@ -571,53 +569,14 @@ export const createAbilityBuilder = <
                     return transformToResponse(blockEverythingFilter);
                   }
 
-                  let highestLimit: number | undefined;
-                  for (let i = 0; i < allQueryFilters.length; i++) {
-                    const conditionObject = allQueryFilters[i];
-                    if (conditionObject?.limit) {
-                      if (
-                        highestLimit === undefined ||
-                        (conditionObject.limit as number) > highestLimit
-                      ) {
-                        highestLimit = conditionObject.limit as number;
-                      }
-                    }
-                  }
+                  const mergedFilters =
+                    allQueryFilters.length === 1
+                      ? allQueryFilters[0]
+                      : allQueryFilters.reduce((a, b) => {
+                          return mergeFilters(a, b);
+                        }, {});
 
-                  let allowedColumns: Set<string> | undefined;
-                  for (let i = 0; i < allQueryFilters.length; i++) {
-                    const conditionObject = allQueryFilters[i];
-                    if (conditionObject?.columns) {
-                      if (allowedColumns === undefined) {
-                        allowedColumns = new Set(
-                          Object.keys(conditionObject.columns),
-                        );
-                      } else {
-                        const fields = Object.keys(conditionObject.columns);
-                        for (let i = 0; i < fields.length; i++) {
-                          allowedColumns.add(fields[i]);
-                        }
-                      }
-                    }
-                  }
-
-                  const accumulatedWhereConditions = allQueryFilters
-                    .filter((o) => o?.where)
-                    .map((o) => o!.where);
-
-                  return transformToResponse({
-                    where:
-                      accumulatedWhereConditions.length > 0
-                        ? { OR: accumulatedWhereConditions }
-                        : undefined,
-                    columns: allowedColumns
-                      ? allowedColumns.values().reduce((prev, curr) => {
-                          prev[curr] = true;
-                          return prev;
-                        }, {} as any)
-                      : undefined,
-                    limit: highestLimit,
-                  } as any);
+                  return transformToResponse(mergedFilters as any);
                 },
               };
             },

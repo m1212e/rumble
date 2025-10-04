@@ -74,9 +74,6 @@ export function adjustQueryArgsForSearch({
         ? sql.join([argsOrderBySQL, searchSQL], sql.raw(", "))
         : searchSQL;
 
-      // const pgDialect = new PgDialect();
-      // console.log(pgDialect.sqlToQuery(ret));
-
       return ret;
     };
 
