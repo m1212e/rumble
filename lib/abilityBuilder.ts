@@ -1,4 +1,4 @@
-import { relationsFilterToSQL, type SchemaEntry } from "drizzle-orm";
+import { relationsFilterToSQL } from "drizzle-orm";
 import { debounce } from "es-toolkit";
 import { lazy } from "./helpers/lazy";
 import { mergeFilters } from "./helpers/mergeFilters";

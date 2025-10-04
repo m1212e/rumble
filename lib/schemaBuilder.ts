@@ -10,7 +10,7 @@ import {
 } from "graphql-scalars";
 import type { createPubSub } from "graphql-yoga";
 import type { ContextType } from "./context";
-import ExplicitChecksPlugin from "./runtimeFiltersPlugin/runtimeFiltersPlugin";
+import RuntimeFiltersPlugin from "./runtimeFiltersPlugin/runtimeFiltersPlugin";
 import type { DrizzleInstance } from "./types/drizzleInstanceType";
 import type {
   CustomRumblePothosConfig,
@@ -79,7 +79,7 @@ export const createSchemaBuilder = <
   }>({
     ...pothosConfig,
     plugins: [
-      ExplicitChecksPlugin,
+      RuntimeFiltersPlugin,
       DrizzlePlugin,
       SmartSubscriptionsPlugin,
       ...(pothosConfig?.plugins ?? []),

@@ -8,13 +8,13 @@ import type { GraphQLFieldResolver } from "graphql";
 import { applyFilters } from "../helpers/applyFilters";
 import type { ApplyFiltersField } from "./pluginTypes";
 
-const pluginName = "ManualFiltersPlugin";
+const pluginName = "RuntimeFiltersPlugin" as const;
 
 export default pluginName;
 
 export const applyFiltersKey = "applyFilters";
 
-export class ManualFiltersPlugin<
+export class RuntimeFiltersPlugin<
   Types extends SchemaTypes,
 > extends BasePlugin<Types> {
   override wrapResolve(
@@ -60,4 +60,4 @@ export class ManualFiltersPlugin<
   }
 }
 
-SchemaBuilder.registerPlugin(pluginName, ManualFiltersPlugin);
+SchemaBuilder.registerPlugin(pluginName, RuntimeFiltersPlugin);

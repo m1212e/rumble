@@ -1,10 +1,9 @@
 import type { SchemaTypes } from "@pothos/core";
-
+import type pluginName from "./runtimeFiltersPlugin";
 import type {
   applyFiltersKey,
-  ManualFiltersPlugin,
+  RuntimeFiltersPlugin,
 } from "./runtimeFiltersPlugin";
-import pluginName from "./runtimeFiltersPlugin";
 
 export type Filter<Context, T> = (p: {
   context: Context;
@@ -19,7 +18,7 @@ export type ApplyFiltersField<Context, T> =
 declare global {
   export namespace PothosSchemaTypes {
     export interface Plugins<Types extends SchemaTypes> {
-      [pluginName]: ManualFiltersPlugin<Types>;
+      [pluginName]: RuntimeFiltersPlugin<Types>;
     }
 
     // export interface SchemaBuilderOptions<Types extends SchemaTypes> {
