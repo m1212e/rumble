@@ -132,8 +132,6 @@ export const createQueryImplementer = <
             // otherwise some libraries (like drizzle-orm) might have issues with it
             Object.setPrototypeOf(args, Object.prototype);
 
-            const mappedArgs = mapNullFieldsToUndefined(args);
-
             adjustQueryArgsForSearch({
               search,
               args,
@@ -141,16 +139,26 @@ export const createQueryImplementer = <
               abilities: ctx.abilities[table].filter(listAction),
             });
 
-            return (db.query as any)[table].findMany(
-              query(
-                ctx.abilities[table].filter(listAction).merge({
-                  offset: mappedArgs.offset,
-                  limit: mappedArgs.limit,
-                  where: mappedArgs.where,
-                  orderBy: mappedArgs.orderBy,
-                } as any).query.many as any,
-              ),
-            );
+            const mappedArgs = mapNullFieldsToUndefined(args);
+            const filter = ctx.abilities[table]
+              .filter(listAction)
+              .merge(mappedArgs as any).query.many;
+
+            if (mappedArgs.offset) {
+              (filter as any).offset = mappedArgs.offset;
+            }
+
+            if (mappedArgs.orderBy) {
+              (filter as any).orderBy = mappedArgs.orderBy;
+            }
+
+            const queryInstance = query(filter as any);
+
+            if ((filter as any).columns) {
+              queryInstance.columns = (filter as any).columns;
+            }
+
+            return (db.query as any)[table].findMany(queryInstance);
           },
         }),
         [pluralize.singular(table.toString())]: t.drizzleField({

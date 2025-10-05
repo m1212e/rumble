@@ -55,6 +55,8 @@ export function mergeFilters<
       ? toMerged(filterA?.with ?? {}, filterB?.with ?? {})
       : undefined;
 
+  console.log({ limit, offset });
+
   return {
     where,
     columns,
