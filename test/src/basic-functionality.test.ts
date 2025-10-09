@@ -35,7 +35,7 @@ describe("test rumble basics", async () => {
     expect((r as any).data.users).toHaveLength(9);
   });
 
-  test("allow simple write without any conditions", async () => {
+  test.only("allow simple write without any conditions", async () => {
     rumble.abilityBuilder.users.allow(["update"]);
 
     const newName = "NewFirstName";

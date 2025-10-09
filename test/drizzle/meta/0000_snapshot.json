@@ -1,11 +1,11 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "9cc27506-c627-4568-aa30-5b60a2498e72",
+  "id": "6a8f1655-63b9-47e2-8d31-b41a2e0062e9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "comments": {
-      "name": "comments",
+    "comments_table": {
+      "name": "comments_table",
       "columns": {
         "id": {
           "name": "id",
@@ -28,6 +28,14 @@
           "notNull": false,
           "autoincrement": false
         },
+        "someNumber": {
+          "name": "someNumber",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
         "post_id": {
           "name": "post_id",
           "type": "text",
@@ -45,19 +53,19 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "comments_post_id_posts_id_fk": {
-          "name": "comments_post_id_posts_id_fk",
-          "tableFrom": "comments",
-          "tableTo": "posts",
+        "comments_table_post_id_posts_table_id_fk": {
+          "name": "comments_table_post_id_posts_table_id_fk",
+          "tableFrom": "comments_table",
+          "tableTo": "posts_table",
           "columnsFrom": ["post_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "comments_owner_id_users_id_fk": {
-          "name": "comments_owner_id_users_id_fk",
-          "tableFrom": "comments",
-          "tableTo": "users",
+        "comments_table_owner_id_users_table_id_fk": {
+          "name": "comments_table_owner_id_users_table_id_fk",
+          "tableFrom": "comments_table",
+          "tableTo": "users_table",
           "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
@@ -68,8 +76,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "posts": {
-      "name": "posts",
+    "posts_table": {
+      "name": "posts_table",
       "columns": {
         "id": {
           "name": "id",
@@ -102,10 +110,10 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "posts_owner_id_users_id_fk": {
-          "name": "posts_owner_id_users_id_fk",
-          "tableFrom": "posts",
-          "tableTo": "users",
+        "posts_table_owner_id_users_table_id_fk": {
+          "name": "posts_table_owner_id_users_table_id_fk",
+          "tableFrom": "posts_table",
+          "tableTo": "users_table",
           "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
@@ -116,8 +124,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "users": {
-      "name": "users",
+    "users_table": {
+      "name": "users_table",
       "columns": {
         "id": {
           "name": "id",

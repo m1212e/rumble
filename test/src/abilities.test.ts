@@ -337,7 +337,7 @@ describe("test rumble abilities", async () => {
     expect((r as any).data.comments.length).toEqual(5);
   });
 
-  test.only("limit read amount to max value with abilities", async () => {
+  test("limit read amount to max value with abilities", async () => {
     rumble.abilityBuilder.comments.allow("read").when({
       limit: 3,
     });

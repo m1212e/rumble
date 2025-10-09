@@ -55,9 +55,8 @@ export function makeRumbleSeedInstance(
           userId: t.arg.string({ required: true }),
           firstName: t.arg.string({ required: true }),
         },
-        resolve: (_query, _root, args, ctx, _info) => {
-          updatedUser(args.userId);
-          return db
+        resolve: async (_query, _root, args, ctx, _info) => {
+          const r = await db
             .update(schema.users)
             .set({
               firstName: args.firstName,
@@ -74,6 +73,9 @@ export function makeRumbleSeedInstance(
               email: schema.users.email,
             })
             .then(assertFirstEntryExists);
+
+          updatedUser(args.userId);
+          return r;
         },
       }),
     };

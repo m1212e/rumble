@@ -1,4 +1,5 @@
-import type { Column } from "drizzle-orm";
+import type { Column, Many, One } from "drizzle-orm";
+import { primaryKey } from "drizzle-orm/gel-core";
 import type {
   DrizzleInstance,
   DrizzleTableSchema,
@@ -8,6 +9,7 @@ import { RumbleError } from "../types/rumbleError";
 const drizzleNameSymbol = Symbol.for("drizzle:Name");
 const drizzleOriginalNameSymbol = Symbol.for("drizzle:OriginalName");
 const drizzleBaseNameSymbol = Symbol.for("drizzle:BaseName");
+const drizzleColumnsSymbol = Symbol.for("drizzle:Columns");
 
 export function tableHelper<
   DB extends DrizzleInstance,
@@ -46,9 +48,18 @@ export function tableHelper<
     throw new RumbleError(`Could not find schema for ${JSON.stringify(table)}`);
   }
 
-  foundSchema.relations = foundRelation.relations;
+  // console.log(foundRelation );
+  // console.log("-----");
 
-  return foundSchema as unknown as Omit<typeof foundSchema, "columns"> & {
-    columns: Record<string, Column>;
+  return {
+    columns: foundSchema.columns,
+    primaryKey: foundSchema.primaryKey,
+    relations: (foundRelation as any).relations as {
+      [key: string]: One<any, any> | Many<any>;
+    },
+    dbName: foundSchema.dbName,
+    tsName: foundSchema.tsName,
+    foundSchema,
+    foundRelation,
   };
 }

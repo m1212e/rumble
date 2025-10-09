@@ -418,7 +418,7 @@ export const createAbilityBuilder = <
                     get where() {
                       return filters?.where
                         ? relationsFilterToSQL(
-                            tableSchema as any,
+                            tableSchema.foundRelation.table,
                             filters.where,
                           )
                         : undefined;
@@ -490,7 +490,7 @@ export const createAbilityBuilder = <
                     get where() {
                       return filters?.where
                         ? relationsFilterToSQL(
-                            tableSchema as any,
+                            tableSchema.foundRelation,
                             filters.where,
                           )
                         : undefined;

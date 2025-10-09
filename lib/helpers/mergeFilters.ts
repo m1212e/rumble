@@ -42,7 +42,7 @@ export function mergeFilters<
 
   const limit =
     filterA?.limit || filterB?.limit
-      ? Math.min(filterA?.limit ?? Infinity, filterB?.limit ?? Infinity)
+      ? Math.max(filterA?.limit ?? -Infinity, filterB?.limit ?? -Infinity)
       : undefined;
 
   const offset =
@@ -54,8 +54,6 @@ export function mergeFilters<
     filterA?.with || filterB?.with
       ? toMerged(filterA?.with ?? {}, filterB?.with ?? {})
       : undefined;
-
-  console.log({ limit, offset });
 
   return {
     where,
