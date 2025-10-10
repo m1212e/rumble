@@ -55,6 +55,10 @@ export class RuntimeFiltersPlugin<
   }
 }
 
+let registered = false;
 export function registerRuntimeFiltersPlugin() {
-  SchemaBuilder.registerPlugin(pluginName, RuntimeFiltersPlugin);
+  if (!registered) {
+    SchemaBuilder.registerPlugin(pluginName, RuntimeFiltersPlugin);
+    registered = true;
+  }
 }
