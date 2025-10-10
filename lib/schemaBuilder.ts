@@ -17,6 +17,7 @@ import {
 } from "./args/whereArgsImplementer";
 import type { ContextType } from "./context";
 import { pluginName } from "./runtimeFiltersPlugin/filterTypes";
+import { registerRuntimeFiltersPlugin } from "./runtimeFiltersPlugin/runtimeFiltersPlugin";
 import type { DrizzleInstance } from "./types/drizzleInstanceType";
 import type {
   CustomRumblePothosConfig,
@@ -37,6 +38,7 @@ export const createSchemaBuilder = <
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
   pubsub: ReturnType<typeof createPubSub>;
 }) => {
+  registerRuntimeFiltersPlugin();
   const schemaBuilder = new SchemaBuilder<{
     Context: ContextType<UserContext, DB, RequestEvent, Action, PothosConfig>;
     DrizzleRelations: DB["_"]["relations"];

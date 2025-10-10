@@ -55,4 +55,6 @@ export class RuntimeFiltersPlugin<
   }
 }
 
-SchemaBuilder.registerPlugin(pluginName, RuntimeFiltersPlugin);
+export function registerRuntimeFiltersPlugin() {
+  SchemaBuilder.registerPlugin(pluginName, RuntimeFiltersPlugin);
+}
