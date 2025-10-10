@@ -1,8 +1,12 @@
 name: Build client
 
 on:
-  release:
-    types: [created]
+  push:
+    branches:
+      - 'main'
+  pull_request:
+    branches:
+      - 'main'
 
 jobs:
   test_and_build:
@@ -77,3 +81,11 @@ jobs:
         token: ${{ steps.token.outputs.token }} 
         registry: ${{ matrix.registry-url }}
         tag: ${{ steps.tag.outputs.tag }}
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      if: github.ref_type == 'tag'
+      with:
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
