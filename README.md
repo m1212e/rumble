@@ -16,11 +16,12 @@ npm i @m1212e/rumble
 then call the rumble creator:
 ```ts
 import * as schema from "./db/schema";
+import * as relations from "./db/relations";
 import { rumble } from "@m1212e/rumble";
 
 export const db = drizzle(
  "postgres://postgres:postgres@localhost:5432/postgres",
- { schema }
+ { schema, relations }
 );
 
 const { abilityBuilder } = rumble({ db });
@@ -101,7 +102,10 @@ Applying filters on objects is done automatically if you use the helpers. If you
 const PostRef = schemaBuilder.drizzleObject("posts", {
 	name: "Post",
 	// apply the application level filters
-	applyFilters: abilityBuilder.registeredFilters.posts.read,
+	applyFilters: abilityBuilder._.registeredFilters({
+    action: "read",
+    table: "posts",
+  }),
 	fields: (t) => ({
 ...
 ```

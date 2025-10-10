@@ -1,5 +1,4 @@
 import { createServer } from "node:http";
-import { and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import {
   assertFindFirstExists,
@@ -24,6 +23,8 @@ import * as schema from "./db/schema";
 export const db = drizzle(
   "postgres://postgres:postgres@localhost:5432/postgres",
   {
+    // although drizzle might not force you to pass both schema and relations,
+    // rumble needs both to be able to infer relations between tables
     relations,
     schema,
   },
@@ -111,7 +112,7 @@ abilityBuilder.posts.allow(["update", "delete"]).when(({ userId }) => {
     }; // we can return a standard ability which allows things under a specific condition
   }
   if (userId === 2) {
-    return "allow"; // we can return a wildcard, which allows everything
+    return "allow"; // we can return a wildcard, which allows everything, without any conditions
   }
   return undefined; // we can return nothing, which does not allow anything
 });
@@ -138,7 +139,8 @@ abilityBuilder.posts.filter("read").by(({ context: _context, entities }) => {
 // we define the schema of the post object so we can later use it in our queries as a return type
 const PostRef = schemaBuilder.drizzleObject("posts", {
   name: "Post",
-  // this is how you can apply application level filter in manual object definitions
+  // this is how you can apply application level filter (the one defined by abilityBuilder.posts.filter("read").by)
+  // in manual object definitions
   // the helpers will do this for you automatically
   applyFilters: abilityBuilder._.registeredFilters({
     action: "read",
@@ -150,7 +152,10 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
     author: t.relation("author", {
       // this is how you can apply the above abilities to the queries
       // you define the action you want the filters for by passing it to the filter call
-      query: (_args, ctx) => ctx.abilities.users.filter("read").query.single,
+      query: (_args, ctx) =>
+        // for a findFirst query (1:1 relation)
+        // we want a query filter
+        ctx.abilities.users.filter("read").query.single,
     }),
   }),
 });
@@ -159,7 +164,7 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 
   Since this might get a bit verbose, rumble offers a helper for defining default object implementations.
   It will expose all fields and relations but apply the above abilities to the queries so you don't have
-  to worry about data getting returned which the caller should not be able to fetch.
+  to worry about data getting returned which the caller should not be able to see
 
  */
 
@@ -167,10 +172,11 @@ const UserRef = object({
   // name of the table you want to implement ("posts" in the above example)
   table: "users",
   // optionally specify the name of the object ("Post" in the above example)
-  refName: "User",
+  // refName: "User",
   // optionally, we can extend this with some custom fields (you can also overwrite existing fields in case you need to change default behavior)
   adjust(t) {
     return {
+      // the user should have the "somethingElse" field in addition to the default fields
       somethingElse: t.field({
         type: "String",
         args: {
@@ -179,6 +185,10 @@ const UserRef = object({
         resolve: (parent, args, _context, _info) =>
           `Hello ${parent.name}, you have provided the number: ${args.amount}`,
       }),
+      // here we also could overwrite the "name" field to apply some custom logic
+      // name: t.exposeString("name", {
+      // 	resolve: (parent) => `Mr./Ms. ${parent.name}`
+      // })
     };
   },
 });
@@ -265,6 +275,8 @@ query({
   table: "users",
 });
 
+// for the comments table we fully rely on the helpers. This is all you need to do to get a full
+// CRUD api for the comments table with permissions and filtering applied:
 object({
   table: "comments",
 });
@@ -274,21 +286,16 @@ query({
 
 /*
 
-  Lastly, we want to implement the mutations so we can actually edit some data.
+  Finally, we want to implement the mutations so we can actually edit some data.
   We can use the schemaBuilder to do that.
-
-  NOTE: The below example uses the assertFirstEntryExists mapper.
-  rumble offers two helpers to map drizzle responses to graphql compatible responses:
-
-  `assertFirstEntryExists` - throws an error if the response does not contain a single entry
-  `assertFindFirstExists` - makes the result of a findFirst query compatible with graphql. Also throws if not present.
+ 
 */
 
 // OPTIONAL: If you want to use graphql subscriptions, you can use the pubsub helper
 // this makes notifying subscribers easier. The rumble helpers all support subscriptions
 // right out of the box, so all subscriptions will automatically get notified if necessary
 // the only thing you have to do is to call the pubsub helper with the table name
-// and embed the helper into your mutations
+// and embed the helper into your mutations or other places where data changes
 const { updated: updatedUser, created: createdUser } = pubsub({
   table: "users",
 });
@@ -302,20 +309,17 @@ schemaBuilder.mutationFields((t) => {
         newName: t.arg.string({ required: true }),
       },
       resolve: async (query, _root, args, ctx, _info) => {
-        // for update mutations, rumble exports the 'mapNullFieldsToUndefined' helper
-        // which might become handy in some situtations
-
         await db
           .update(schema.users)
           .set({
             name: args.newName,
           })
           .where(
-            and(
-              ctx.abilities.users.filter("update").merge({
-                where: { id: args.userId },
-              }).sql.where,
-            ),
+            // we need an sql condition here sowe use .sql.where instead of .query.x as we did above
+            ctx.abilities.users.filter("update").merge({
+              where: { id: args.userId },
+            }).sql.where,
+            // the output of this is a normal drizzle sql condition and can be further processed with e.g. `and()` etc.
           );
 
         // this notifies all subscribers that the user has been updated
@@ -330,7 +334,9 @@ schemaBuilder.mutationFields((t) => {
                 }),
               ),
             )
-            // this maps the db response to a graphql response
+            // this helper maps the db response to a graphql response
+            // `assertFirstEntryExists` - throws an error if the response array does not contain a single entry
+            // `assertFindFirstExists` - makes the result of a findFirst query compatible with graphql. Also throws if not present.
             .then(assertFindFirstExists)
         );
       },
@@ -384,12 +390,12 @@ schemaBuilder.mutationFields((t) => {
   };
 });
 
-// /*
+/*
 
-//   Finally, we can start the server. We use graphql-yoga under the hood. It allows for
-//   a very simple and easy to use GraphQL API and is compatible with many HTTP libraries and frameworks.
+  Finally, we can start the server. We use graphql-yoga under the hood. It allows for
+  a very simple and easy to use GraphQL API and is compatible with many HTTP libraries and frameworks.
 
-// */
+*/
 
 // when we are done defining the objects, queries and mutations,
 // we can start the server
@@ -399,6 +405,15 @@ server.listen(3000, () => {
 });
 
 // if you also need a REST API built from your GraphQL API, you can use 'createSofa()' instead or in addition
+
+/*
+
+  That's it for the server/api part! Running the above demo will get you going with a fully functional
+  GraphQL API with permissions and filtering applied. You can now query users, posts and comments
+  according to the defined permissions.
+  We covered most of the relevant features of rumble, but there is more to explore.
+
+*/
 
 // Making calls to the API
 
@@ -411,19 +426,23 @@ await clientCreator({
   apiUrl: "http://localhost:3000/graphql",
 });
 
+// it will write a typesafe client to the specified output path on your filesystem
 // which then can be used like this:
-// import { client } from "./generated-client/client";
 
-// const r1 = client.liveQuery.users({
-// 	id: true,
-// 	name: true,
-// });
+/*
+import { client } from "./generated-client/client";
 
-// r1.subscribe((s) => s?.at(0));
+const r1 = client.liveQuery.users({
+	id: true,
+	name: true,
+});
 
-// const a = client.subscribe.users({
-// 	id: true,
-// 	name: true,
-// });
+r1.subscribe((s) => s?.at(0));
 
-// a.subscribe((s) => s.at(0));
+const a = client.subscribe.users({
+	id: true,
+	name: true,
+});
+
+a.subscribe((s) => s.at(0));
+*/
