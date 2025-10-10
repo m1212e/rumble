@@ -1,5 +1,4 @@
 import type { Column, Many, One } from "drizzle-orm";
-import { primaryKey } from "drizzle-orm/gel-core";
 import type {
   DrizzleInstance,
   DrizzleTableSchema,
@@ -9,7 +8,6 @@ import { RumbleError } from "../types/rumbleError";
 const drizzleNameSymbol = Symbol.for("drizzle:Name");
 const drizzleOriginalNameSymbol = Symbol.for("drizzle:OriginalName");
 const drizzleBaseNameSymbol = Symbol.for("drizzle:BaseName");
-const drizzleColumnsSymbol = Symbol.for("drizzle:Columns");
 
 export function tableHelper<
   DB extends DrizzleInstance,
