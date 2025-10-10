@@ -97,7 +97,7 @@ export const createEnumImplementer = <
     let enumValues: any[] | undefined;
 
     if (tsName) {
-      const schemaEnum = db._.schema![tsName as string];
+      const schemaEnum = db._.fullSchema![tsName as string];
 
       enumSchemaName = tsName.toString();
 
@@ -105,7 +105,8 @@ export const createEnumImplementer = <
         .filter((s) => typeof s === "object")
         .map((s) => Object.values(s.columns))
         .flat(2)
-        .find((s: any) => s.config?.enum === schemaEnum);
+        .filter(isEnumSchema)
+        .find((e: any) => e.config.enum === schemaEnum);
 
       if (!enumCol) {
         throw new RumbleError(`Could not find applied enum column for ${tsName.toString()}.
