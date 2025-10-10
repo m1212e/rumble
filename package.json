@@ -1,7 +1,7 @@
 {
   "name": "@m1212e/rumble",
   "module": "./out/index.js",
-  "version": "0.12.11",
+  "version": "0.12.12",
   "type": "module",
   "repository": "https://github.com/m1212e/rumble",
   "engines": {
