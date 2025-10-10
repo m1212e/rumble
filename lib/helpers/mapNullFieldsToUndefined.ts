@@ -56,12 +56,7 @@
  * 
  * ```
  */
-export function mapNullFieldsToUndefined<T extends object>(
-  obj?: T | null | undefined,
-) {
-  if (!obj) {
-    return undefined;
-  }
+export function mapNullFieldsToUndefined<T extends object>(obj: T) {
   return Object.fromEntries(
     Object.entries(obj).map(([key, value]) => [
       key,
