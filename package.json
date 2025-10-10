@@ -3,13 +3,16 @@
   "module": "index.ts",
   "type": "module",
   "repository": "https://github.com/m1212e/rumble",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "format": "bun run lint",
     "lint": "bunx biome check --write .",
     "dev:docker": "docker compose -f ./dev.docker-compose.yml up",
     "dev:example": "bun ./example/src/main.ts",
     "dev:example:seed": "bun example/src/db/seed.ts",
-    "build": "bun run typecheck && bun build.ts",
+    "build": "tsdown",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
@@ -23,7 +26,7 @@
     "drizzle-seed": "^0.3.1-ac4ce44",
     "lefthook": "^1.13.6",
     "pg": "^8.16.3",
-    "tsup": "^8.5.0"
+    "tsdown": "^0.15.6"
   },
   "peerDependencies": {
     "typescript": "^5",
