@@ -41,6 +41,8 @@ jobs:
           path: |
             out
             package.json
+            README.md
+            LICENSE
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.ref_type == 'tag'
