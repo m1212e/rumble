@@ -337,7 +337,7 @@ describe("test rumble abilities", async () => {
     expect((r as any).data.comments.length).toEqual(5);
   });
 
-  test("limit read amount to max value with abilities", async () => {
+  test("limit read amount to min value with abilities", async () => {
     rumble.abilityBuilder.comments.allow("read").when({
       limit: 3,
     });
@@ -357,7 +357,7 @@ describe("test rumble abilities", async () => {
       `),
     });
 
-    expect((r as any).data.comments.length).toEqual(4);
+    expect((r as any).data.comments.length).toEqual(3);
   });
 
   test("error simple read with helper implementation with column restrictions", async () => {

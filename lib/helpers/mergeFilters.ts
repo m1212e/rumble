@@ -42,7 +42,7 @@ export function mergeFilters<
 
   const limit =
     filterA?.limit || filterB?.limit
-      ? Math.min(filterA?.limit ?? -Infinity, filterB?.limit ?? -Infinity)
+      ? Math.min(filterA?.limit ?? Infinity, filterB?.limit ?? Infinity)
       : undefined;
 
   const offset =
