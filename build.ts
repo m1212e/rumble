@@ -24,7 +24,6 @@ await build({
   entry: [libIndex],
   format: ["cjs", "esm"],
   target: ["node20", "es2020"],
-  minify: true,
   dts: true,
   outDir,
   sourcemap: true,
