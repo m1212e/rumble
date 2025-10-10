@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6a8f1655-63b9-47e2-8d31-b41a2e0062e9",
+  "id": "179c2d22-f205-4852-8a21-d74d25d40a63",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "comments_table": {
@@ -16,7 +16,7 @@
         },
         "text": {
           "name": "text",
-          "type": "text(256)",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -36,15 +36,15 @@
           "autoincrement": false,
           "default": 0
         },
-        "post_id": {
-          "name": "post_id",
+        "postId": {
+          "name": "postId",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "owner_id": {
-          "name": "owner_id",
+        "ownerId": {
+          "name": "ownerId",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -53,20 +53,20 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "comments_table_post_id_posts_table_id_fk": {
-          "name": "comments_table_post_id_posts_table_id_fk",
+        "comments_table_postId_posts_table_id_fk": {
+          "name": "comments_table_postId_posts_table_id_fk",
           "tableFrom": "comments_table",
           "tableTo": "posts_table",
-          "columnsFrom": ["post_id"],
+          "columnsFrom": ["postId"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "comments_table_owner_id_users_table_id_fk": {
-          "name": "comments_table_owner_id_users_table_id_fk",
+        "comments_table_ownerId_users_table_id_fk": {
+          "name": "comments_table_ownerId_users_table_id_fk",
           "tableFrom": "comments_table",
           "tableTo": "users_table",
-          "columnsFrom": ["owner_id"],
+          "columnsFrom": ["ownerId"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -86,13 +86,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "text": {
-          "name": "text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "title": {
           "name": "title",
           "type": "text",
@@ -100,8 +93,15 @@
           "notNull": false,
           "autoincrement": false
         },
-        "owner_id": {
-          "name": "owner_id",
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ownerId": {
+          "name": "ownerId",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -110,11 +110,11 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "posts_table_owner_id_users_table_id_fk": {
-          "name": "posts_table_owner_id_users_table_id_fk",
+        "posts_table_ownerId_users_table_id_fk": {
+          "name": "posts_table_ownerId_users_table_id_fk",
           "tableFrom": "posts_table",
           "tableTo": "users_table",
-          "columnsFrom": ["owner_id"],
+          "columnsFrom": ["ownerId"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -134,15 +134,15 @@
           "notNull": true,
           "autoincrement": false
         },
-        "first_name": {
-          "name": "first_name",
+        "firstName": {
+          "name": "firstName",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "last_name": {
-          "name": "last_name",
+        "lastName": {
+          "name": "lastName",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

@@ -48,9 +48,6 @@ export function tableHelper<
     throw new RumbleError(`Could not find schema for ${JSON.stringify(table)}`);
   }
 
-  // console.log(foundRelation );
-  // console.log("-----");
-
   return {
     columns: foundSchema.columns,
     primaryKey: foundSchema.primaryKey,

@@ -312,8 +312,9 @@ schemaBuilder.mutationFields((t) => {
           })
           .where(
             and(
-              eq(schema.users.id, args.userId),
-              ctx.abilities.users.filter("update").sql.where,
+              ctx.abilities.users.filter("update").merge({
+                where: { id: args.userId },
+              }).sql.where,
             ),
           );
 

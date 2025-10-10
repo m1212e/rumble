@@ -3,30 +3,30 @@ import { sqliteTable as table } from "drizzle-orm/sqlite-core";
 
 export const users = table("users_table", {
   id: t.text().primaryKey(),
-  firstName: t.text("first_name"),
-  lastName: t.text("last_name"),
+  firstName: t.text(),
+  lastName: t.text(),
   email: t.text().notNull(),
 });
 
 export const posts = table("posts_table", {
   id: t.text().primaryKey(),
-  text: t.text(),
   title: t.text(),
-  ownerId: t.text("owner_id").references(() => users.id, {
+  text: t.text(),
+  ownerId: t.text().references(() => users.id, {
     onDelete: "cascade",
   }),
 });
 
 export const comments = table("comments_table", {
   id: t.text().primaryKey(),
-  text: t.text({ length: 256 }),
+  text: t.text(),
   published: t.integer({ mode: "boolean" }),
   someNumber: t.numeric({ mode: "number" }).default(0),
-  postId: t.text("post_id").references(() => posts.id, {
+  postId: t.text().references(() => posts.id, {
     onDelete: "cascade",
   }),
   ownerId: t
-    .text("owner_id")
+    .text()
     .notNull()
     .references(() => users.id, {
       onDelete: "cascade",

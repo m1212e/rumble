@@ -19,9 +19,9 @@ export async function makeSeededDBInstanceForTest() {
     users: {
       columns: {
         id: r.uuid(),
-        email: r.email(),
         firstName: r.firstName(),
         lastName: r.lastName(),
+        email: r.email(),
       },
     },
   }));
@@ -46,14 +46,14 @@ export async function makeSeededDBInstanceForTest() {
       columns: {
         id: r.uuid(),
         text: r.loremIpsum(),
+        published: r.boolean(),
         someNumber: r.int(),
-        ownerId: r.valuesFromArray({
-          values: users.map((u) => u.id),
-        }),
         postId: r.valuesFromArray({
           values: posts.map((u) => u.id),
         }),
-        published: r.boolean(),
+        ownerId: r.valuesFromArray({
+          values: users.map((u) => u.id),
+        }),
       },
     },
   }));

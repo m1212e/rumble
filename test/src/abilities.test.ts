@@ -318,7 +318,7 @@ describe("test rumble abilities", async () => {
     expect((r as any).data.comments.length).toEqual(5);
   });
 
-  test("limit read amount with merge lower than ability in query argument", async () => {
+  test("limit read amount with ability lower than merge in query argument", async () => {
     rumble.abilityBuilder.comments.allow("read").when({
       limit: 5,
     });

@@ -333,8 +333,24 @@ export const createAbilityBuilder = <
           ) {
             const internalTransformer = (
               filters?: DrizzleQueryFunctionInput<DB, TableName>,
+              mergedLimit?: number,
             ) => {
               const limit = lazy(() => {
+                if (
+                  // got a merge injection
+                  mergedLimit !== undefined
+                ) {
+                  if (!filters?.limit) {
+                    // there is not ability limit
+                    return mergedLimit;
+                  }
+
+                  if ((filters.limit as number) > mergedLimit) {
+                    // there is an ability limit and it is higher that the injected merge limit
+                    return mergedLimit;
+                  }
+                }
+
                 let limit = filters?.limit as number | undefined;
 
                 if (
@@ -346,6 +362,15 @@ export const createAbilityBuilder = <
 
                 // ensure that null is converted to undefined
                 return limit ?? undefined;
+              });
+
+              const sqlTransformedWhere = lazy(() => {
+                return filters?.where
+                  ? relationsFilterToSQL(
+                      tableSchema.foundRelation.table,
+                      filters.where,
+                    )
+                  : undefined;
               });
 
               // we acutally need to define multiple return objects since we do not want to use delete for
@@ -416,12 +441,7 @@ export const createAbilityBuilder = <
                    */
                   sql: {
                     get where() {
-                      return filters?.where
-                        ? relationsFilterToSQL(
-                            tableSchema.foundRelation.table,
-                            filters.where,
-                          )
-                        : undefined;
+                      return sqlTransformedWhere();
                     },
                   },
                 };
@@ -488,12 +508,7 @@ export const createAbilityBuilder = <
                    */
                   sql: {
                     get where() {
-                      return filters?.where
-                        ? relationsFilterToSQL(
-                            tableSchema.foundRelation,
-                            filters.where,
-                          )
-                        : undefined;
+                      return sqlTransformedWhere();
                     },
                   },
                 };
@@ -509,7 +524,13 @@ export const createAbilityBuilder = <
               p: NonNullable<DrizzleQueryFunctionInput<DB, TableName>>,
             ) {
               const merged = mergeFilters(ret.query.many, p);
-              return internalTransformer(merged);
+              return internalTransformer(
+                merged,
+                // in case the user wants to inject a limit, we need to ensure that it is applied
+                // and not the potential default limit will be used
+                // this is important for functions of the default query pagination implementation
+                p.limit as number | undefined,
+              );
             }
 
             (ret as any).merge = merge;
@@ -554,8 +575,7 @@ export const createAbilityBuilder = <
                     // if nothing is returned, nothing is allowed by this filter
                     if (result === undefined) continue;
 
-                    dynamicResults.push(result);
-                    filtersReturned++;
+                    dynamicResults[filtersReturned++] = result;
                   }
                   dynamicResults.length = filtersReturned;
 
