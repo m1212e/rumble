@@ -33,7 +33,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: client-build-output
-          path: out
+          path: |
+            out
+            package.json
 
   publish:
     strategy:
