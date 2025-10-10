@@ -4,62 +4,62 @@ import type { PgDatabase } from "drizzle-orm/pg-core";
 import { PgTable } from "drizzle-orm/pg-core";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { SQLiteTable } from "drizzle-orm/sqlite-core";
-import type { GenericDrizzleDbTypeConstraints } from "../types/genericDrizzleDbType";
+import type { DrizzleInstance } from "../types/drizzleInstanceType";
 
 export type DBDialect = "mysql" | "postgres" | "sqlite";
 
-export function determineDBDialectFromSchema<
-	DB extends GenericDrizzleDbTypeConstraints,
->(schema: DB["_"]["relations"]["schema"]) {
-	const found = new Set<DBDialect>();
+export function determineDBDialectFromSchema<DB extends DrizzleInstance>(
+  schema: DB["_"]["relations"]["schema"],
+) {
+  const found = new Set<DBDialect>();
 
-	for (const table of Object.values(schema)) {
-		if (typeof table !== "object") {
-			continue;
-		}
+  for (const table of Object.values(schema)) {
+    if (typeof table !== "object") {
+      continue;
+    }
 
-		if (table instanceof PgTable) {
-			found.add("postgres");
-		} else if (table instanceof MySqlTable) {
-			found.add("mysql");
-		} else if (table instanceof SQLiteTable) {
-			found.add("sqlite");
-		}
-	}
+    if (table instanceof PgTable) {
+      found.add("postgres");
+    } else if (table instanceof MySqlTable) {
+      found.add("mysql");
+    } else if (table instanceof SQLiteTable) {
+      found.add("sqlite");
+    }
+  }
 
-	const dialects = Array.from(found);
+  const dialects = Array.from(found);
 
-	if (dialects.length === 1) {
-		return dialects[0];
-	}
+  if (dialects.length === 1) {
+    return dialects[0];
+  }
 
-	if (dialects.length === 0) {
-		throw new Error("No tables found in schema, could not determine dialect");
-	}
+  if (dialects.length === 0) {
+    throw new Error("No tables found in schema, could not determine dialect");
+  }
 
-	throw new Error(`Multiple dialects found in schema: ${dialects.join(", ")}`);
+  throw new Error(`Multiple dialects found in schema: ${dialects.join(", ")}`);
 }
 
 export function isPostgresDB<
-	Narrowed extends PgDatabase<any, any> = PgDatabase<any, any>,
->(db: GenericDrizzleDbTypeConstraints): db is Narrowed {
-	const dialect = determineDBDialectFromSchema(db._.schema);
+  Narrowed extends PgDatabase<any, any> = PgDatabase<any, any>,
+>(db: any): db is Narrowed {
+  const dialect = determineDBDialectFromSchema(db._.schema);
 
-	return dialect === "postgres";
+  return dialect === "postgres";
 }
 
 export function isMySQLDB<
-	Narrowed extends MySqlDatabase<any, any> = MySqlDatabase<any, any>,
->(db: GenericDrizzleDbTypeConstraints): db is Narrowed {
-	const dialect = determineDBDialectFromSchema(db._.schema);
+  Narrowed extends MySqlDatabase<any, any> = MySqlDatabase<any, any>,
+>(db: any): db is Narrowed {
+  const dialect = determineDBDialectFromSchema(db._.schema);
 
-	return dialect === "mysql";
+  return dialect === "mysql";
 }
 
 export function isSQLiteDB<
-	Narrowed extends BaseSQLiteDatabase<any, any> = BaseSQLiteDatabase<any, any>,
->(db: GenericDrizzleDbTypeConstraints): db is Narrowed {
-	const dialect = determineDBDialectFromSchema(db._.schema);
+  Narrowed extends BaseSQLiteDatabase<any, any> = BaseSQLiteDatabase<any, any>,
+>(db: any): db is Narrowed {
+  const dialect = determineDBDialectFromSchema(db._.schema);
 
-	return dialect === "sqlite";
+  return dialect === "sqlite";
 }

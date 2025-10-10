@@ -3,22 +3,22 @@ import { makeGraphQLMutation } from "./request";
 import type { QueryableObjectFromGeneratedTypes } from "./types";
 
 export function makeMutation<Mutation extends Record<string, any>>({
-	urqlClient,
+  urqlClient,
 }: {
-	urqlClient: Client;
+  urqlClient: Client;
 }) {
-	return new Proxy(
-		{},
-		{
-			get: (_target, prop) => {
-				return (input: Record<string, any>) => {
-					return makeGraphQLMutation({
-						mutationName: prop as string,
-						input,
-						client: urqlClient,
-					});
-				};
-			},
-		},
-	) as QueryableObjectFromGeneratedTypes<Mutation>;
+  return new Proxy(
+    {},
+    {
+      get: (_target, prop) => {
+        return (input: Record<string, any>) => {
+          return makeGraphQLMutation({
+            mutationName: prop as string,
+            input,
+            client: urqlClient,
+          });
+        };
+      },
+    },
+  ) as QueryableObjectFromGeneratedTypes<Mutation>;
 }

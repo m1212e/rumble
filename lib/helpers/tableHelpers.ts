@@ -1,79 +1,62 @@
-import type { Column, Many, One, Table } from "drizzle-orm";
-import type { NonEnumFields } from "../enum";
-import type { GenericDrizzleDbTypeConstraints } from "../types/genericDrizzleDbType";
+import type { Column, Many, One } from "drizzle-orm";
+import { primaryKey } from "drizzle-orm/gel-core";
+import type {
+  DrizzleInstance,
+  DrizzleTableSchema,
+} from "../types/drizzleInstanceType";
 import { RumbleError } from "../types/rumbleError";
 
-export type TableIdentifierTSName<DB extends GenericDrizzleDbTypeConstraints> =
-	keyof NonEnumFields<NonNullable<DB["_"]["relations"]["schema"]>>;
-
-const nameSymbol = Symbol.for("drizzle:Name");
-const columnsSymbol = Symbol.for("drizzle:Columns");
+const drizzleNameSymbol = Symbol.for("drizzle:Name");
+const drizzleOriginalNameSymbol = Symbol.for("drizzle:OriginalName");
+const drizzleBaseNameSymbol = Symbol.for("drizzle:BaseName");
+const drizzleColumnsSymbol = Symbol.for("drizzle:Columns");
 
 export function tableHelper<
-	DB extends GenericDrizzleDbTypeConstraints,
-	TSVariable extends TableIdentifierTSName<DB>,
-	DBVariable extends string,
-	T extends Table,
->({
-	dbName,
-	tsName,
-	table,
-	db,
-}: Partial<{
-	tsName: TSVariable;
-	dbName: DBVariable;
-	table: T;
-}> &
-	(
-		| {
-				dbName: DBVariable;
-		  }
-		| {
-				tsName: TSVariable;
-		  }
-		| {
-				table: T;
-		  }
-	) & { db: DB }) {
-	let tableSchema: Table | undefined = table;
+  DB extends DrizzleInstance,
+  TableIdentifier extends
+    | DrizzleTableSchema<DB>["tsName"]
+    | DrizzleTableSchema<DB>["dbName"]
+    | DrizzleTableSchema<DB>,
+>({ db, table }: { db: DB; table: TableIdentifier }) {
+  if (typeof table !== "string") {
+    table =
+      table.tsName ||
+      table.dbName ||
+      table[drizzleNameSymbol] ||
+      table[drizzleOriginalNameSymbol] ||
+      table[drizzleBaseNameSymbol];
+  }
 
-	if (tsName) {
-		tableSchema = db._.schema[tsName as string];
-	}
+  const foundRelation: any = Object.values(db._.relations!).find(
+    (schema: any) =>
+      schema.name === table ||
+      schema.table[drizzleNameSymbol] === table ||
+      schema.table[drizzleOriginalNameSymbol] === table ||
+      schema.table[drizzleBaseNameSymbol] === table,
+  );
 
-	if (dbName) {
-		tableSchema = Object.values(db._.schema).find(
-			(schema: any) => schema[nameSymbol] === dbName,
-		);
-	}
+  if (!foundRelation) {
+    throw new RumbleError(`Could not find schema for ${JSON.stringify(table)}`);
+  }
 
-	if (!tableSchema) {
-		throw new RumbleError(
-			`Could not find schema for ${JSON.stringify({ tsName, dbName, table: (table as any)?.[nameSymbol] }).toString()}`,
-		);
-	}
+  const foundSchema = Object.values(db._.schema!).find(
+    (schema) =>
+      schema.dbName === foundRelation.table[drizzleOriginalNameSymbol],
+  );
 
-	return {
-		tableSchema,
-		columns: (tableSchema as any)[columnsSymbol] as Record<string, Column>,
-		get primaryColumns() {
-			return Object.entries((tableSchema as any)[columnsSymbol])
-				.filter(([, v]) => (v as Column).primary)
-				.reduce((acc, [k, v]) => {
-					(acc as any)[k] = v;
-					return acc;
-				}, {}) as Record<string, Column>;
-		},
-		relations: db._.relations.config[tsName as string] as
-			| {
-					[key: string]: One<any, any> | Many<any, any>;
-			  }
-			| undefined,
-		dbName: (tableSchema as any)[nameSymbol] as string,
-		get tsName() {
-			return Object.entries(db._.schema)
-				.find(([, v]) => v === tableSchema)!
-				.at(0) as string;
-		},
-	};
+  if (!foundSchema) {
+    throw new RumbleError(`Could not find schema for ${JSON.stringify(table)}`);
+  }
+
+  return {
+    columns: foundSchema.columns,
+    primaryKey: foundSchema.primaryKey,
+    relations: (foundRelation as any).relations as {
+      [key: string]: One<any, any> | Many<any>;
+    },
+    dbName: foundSchema.dbName,
+    tsName: foundSchema.tsName,
+    foundSchema,
+    foundRelation,
+  };
 }

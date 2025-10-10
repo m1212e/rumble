@@ -1,70 +1,74 @@
 import type {
-	AbilityBuilderType,
-	createAbilityBuilder,
+  AbilityBuilderType,
+  createAbilityBuilder,
 } from "./abilityBuilder";
-import type { GenericDrizzleDbTypeConstraints } from "./types/genericDrizzleDbType";
+import { lazy } from "./helpers/lazy";
+import type { DrizzleInstance } from "./types/drizzleInstanceType";
 import type {
-	CustomRumblePothosConfig,
-	RumbleInput,
+  CustomRumblePothosConfig,
+  RumbleInput,
 } from "./types/rumbleInput";
 
 export type ContextFunctionType<
-	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
-	RequestEvent extends Record<string, any>,
-	Action extends string,
-	PothosConfig extends CustomRumblePothosConfig,
+  UserContext extends Record<string, any>,
+  DB extends DrizzleInstance,
+  RequestEvent extends Record<string, any>,
+  Action extends string,
+  PothosConfig extends CustomRumblePothosConfig,
 > = ReturnType<
-	typeof createContextFunction<
-		UserContext,
-		DB,
-		RequestEvent,
-		Action,
-		PothosConfig,
-		AbilityBuilderType<UserContext, DB, RequestEvent, Action, PothosConfig>
-	>
+  typeof createContextFunction<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig,
+    AbilityBuilderType<UserContext, DB, RequestEvent, Action, PothosConfig>
+  >
 >;
 
 export type ContextType<
-	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
-	RequestEvent extends Record<string, any>,
-	Action extends string,
-	PothosConfig extends CustomRumblePothosConfig,
+  UserContext extends Record<string, any>,
+  DB extends DrizzleInstance,
+  RequestEvent extends Record<string, any>,
+  Action extends string,
+  PothosConfig extends CustomRumblePothosConfig,
 > = Awaited<
-	ReturnType<
-		ContextFunctionType<UserContext, DB, RequestEvent, Action, PothosConfig>
-	>
+  ReturnType<
+    ContextFunctionType<UserContext, DB, RequestEvent, Action, PothosConfig>
+  >
 >;
 
 export const createContextFunction = <
-	UserContext extends Record<string, any>,
-	DB extends GenericDrizzleDbTypeConstraints,
-	RequestEvent extends Record<string, any>,
-	Action extends string,
-	PothosConfig extends CustomRumblePothosConfig,
-	AbilityBuilder extends ReturnType<
-		typeof createAbilityBuilder<
-			UserContext,
-			DB,
-			RequestEvent,
-			Action,
-			PothosConfig
-		>
-	>,
+  UserContext extends Record<string, any>,
+  DB extends DrizzleInstance,
+  RequestEvent extends Record<string, any>,
+  Action extends string,
+  PothosConfig extends CustomRumblePothosConfig,
+  AbilityBuilder extends ReturnType<
+    typeof createAbilityBuilder<
+      UserContext,
+      DB,
+      RequestEvent,
+      Action,
+      PothosConfig
+    >
+  >,
 >({
-	context: makeUserContext,
-	abilityBuilder,
+  context: makeUserContext,
+  abilityBuilder,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
-	abilityBuilder: AbilityBuilder;
+  abilityBuilder: AbilityBuilder;
 }) => {
-	return async (req: RequestEvent) => {
-		const userContext = makeUserContext
-			? await makeUserContext(req)
-			: ({} as UserContext);
-		return {
-			...userContext,
-			abilities: abilityBuilder.z_buildWithUserContext(userContext),
-		};
-	};
+  const builtAbilityBuilder = lazy(() => abilityBuilder._.build());
+
+  return async (req: RequestEvent) => {
+    const userContext = makeUserContext
+      ? await makeUserContext(req)
+      : ({} as UserContext);
+
+    return {
+      ...userContext,
+      abilities: builtAbilityBuilder()(userContext),
+    };
+  };
 };
