@@ -81,7 +81,7 @@ jobs:
         node-version: "24"
         registry-url: ${{ matrix.registry-url }}
     - name: Publish package
-      run: npm publish --provenance --ignore-scripts
+      run: npm publish --provenance --access public
       env:
         NODE_AUTH_TOKEN: ${{ steps.token.outputs.token }} 
 
