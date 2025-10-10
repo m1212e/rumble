@@ -20,7 +20,7 @@ jobs:
       - name: Run tests
         run: bun test
       - name: Run linter
-        run: biome ci
+        run: bunx biome ci
       - name: Run typecheck
         run: bun run typecheck
       - name: Run Trivy scanner on fs
