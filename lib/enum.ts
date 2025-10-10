@@ -70,7 +70,7 @@ export const createEnumImplementer = <
 
   const enumImplementer = <
     ExplicitEnumVariableName extends keyof EnumFields<
-      NonNullable<DB["_"]["relations"]["schema"]>
+      NonNullable<DB["_"]["fullSchema"]>
     >,
     EnumColumn extends EnumTypes,
     RefName extends string,
