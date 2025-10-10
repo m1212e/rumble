@@ -4,13 +4,13 @@ import { One } from "drizzle-orm";
 import { capitalize } from "es-toolkit";
 import pluralize from "pluralize";
 import type { AbilityBuilderType } from "./abilityBuilder";
+import type { OrderArgImplementerType } from "./args/orderArg";
+import type { WhereArgImplementerType } from "./args/whereArg";
 import { type EnumImplementerType, isEnumSchema } from "./enum";
 import { buildPothosResponseTypeFromGraphQLType } from "./helpers/sqlTypes/mapDrizzleTypeToGraphQlType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
 import { tableHelper } from "./helpers/tableHelpers";
-import type { OrderArgImplementerType } from "./orderArg";
 import type { MakePubSubInstanceType } from "./pubsub";
-import type { SchemaBuilderType } from "./schemaBuilder";
 import { adjustQueryArgsForSearch } from "./search";
 import type {
   DrizzleInstance,
@@ -22,7 +22,7 @@ import type {
   CustomRumblePothosConfig,
   RumbleInput,
 } from "./types/rumbleInput";
-import type { WhereArgImplementerType } from "./whereArg";
+import type { SchemaBuilderType } from "./types/schemaBuilderType";
 
 // TODO remove as many as any types as possible here
 

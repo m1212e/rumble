@@ -1,6 +1,6 @@
 {
   "name": "@m1212e/rumble",
-  "module": "index.ts",
+  "module": "./out/index.js",
   "type": "module",
   "repository": "https://github.com/m1212e/rumble",
   "engines": {
@@ -47,5 +47,14 @@
     "pluralize": "^8.0.0",
     "sofa-api": "^0.18.8",
     "wonka": "^6.3.5"
+  },
+  "main": "./out/index.cjs",
+  "types": "./out/index.d.cts",
+  "exports": {
+    ".": {
+      "import": "./out/index.js",
+      "require": "./out/index.cjs"
+    },
+    "./package.json": "./package.json"
   }
 }

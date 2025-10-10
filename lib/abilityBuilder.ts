@@ -4,7 +4,7 @@ import { lazy } from "./helpers/lazy";
 import { mergeFilters } from "./helpers/mergeFilters";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
 import { tableHelper } from "./helpers/tableHelpers";
-import type { Filter } from "./runtimeFiltersPlugin/pluginTypes";
+import type { Filter } from "./runtimeFiltersPlugin/filterTypes";
 import type {
   DrizzleInstance,
   DrizzleQueryFunction,

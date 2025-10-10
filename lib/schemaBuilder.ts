@@ -9,35 +9,19 @@ import {
   JSONResolver,
 } from "graphql-scalars";
 import type { createPubSub } from "graphql-yoga";
-import type { ContextType } from "./context";
-import RuntimeFiltersPlugin from "./runtimeFiltersPlugin/runtimeFiltersPlugin";
-import type { DrizzleInstance } from "./types/drizzleInstanceType";
-import type {
-  CustomRumblePothosConfig,
-  RumbleInput,
-} from "./types/rumbleInput";
 import {
   type DateWhereInputArgument,
   implementDefaultWhereInputArgs,
   type NumberWhereInputArgument,
   type StringWhereInputArgument,
-} from "./whereArg";
-
-export type SchemaBuilderType<
-  UserContext extends Record<string, any>,
-  DB extends DrizzleInstance,
-  RequestEvent extends Record<string, any>,
-  Action extends string,
-  PothosConfig extends CustomRumblePothosConfig,
-> = ReturnType<
-  typeof createSchemaBuilder<
-    UserContext,
-    DB,
-    RequestEvent,
-    Action,
-    PothosConfig
-  >
->["schemaBuilder"];
+} from "./args/whereArgsImplementer";
+import type { ContextType } from "./context";
+import { pluginName } from "./runtimeFiltersPlugin/filterTypes";
+import type { DrizzleInstance } from "./types/drizzleInstanceType";
+import type {
+  CustomRumblePothosConfig,
+  RumbleInput,
+} from "./types/rumbleInput";
 
 export const createSchemaBuilder = <
   UserContext extends Record<string, any>,
@@ -79,7 +63,7 @@ export const createSchemaBuilder = <
   }>({
     ...pothosConfig,
     plugins: [
-      RuntimeFiltersPlugin,
+      pluginName,
       DrizzlePlugin,
       SmartSubscriptionsPlugin,
       ...(pothosConfig?.plugins ?? []),
@@ -107,7 +91,7 @@ export const createSchemaBuilder = <
   schemaBuilder.addScalarType("JSON", JSONResolver);
   schemaBuilder.addScalarType("Date", DateResolver);
   schemaBuilder.addScalarType("DateTime", DateTimeISOResolver);
-  implementDefaultWhereInputArgs(schemaBuilder as any);
+  implementDefaultWhereInputArgs(schemaBuilder);
 
   if (!disableDefaultObjects?.query) {
     schemaBuilder.queryType({});

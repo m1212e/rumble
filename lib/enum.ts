@@ -1,13 +1,13 @@
 import { toCamelCase } from "drizzle-orm/casing";
 import { type PgEnum, PgEnumColumn } from "drizzle-orm/pg-core";
 import { capitalize } from "es-toolkit";
-import type { SchemaBuilderType } from "./schemaBuilder";
 import type { DrizzleInstance } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
   CustomRumblePothosConfig,
   RumbleInput,
 } from "./types/rumbleInput";
+import type { SchemaBuilderType } from "./types/schemaBuilderType";
 
 //TODO check if the enum find logic can be made more solid after drizzle reaches 1.0
 

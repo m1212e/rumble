@@ -1,4 +1,3 @@
-import "./pluginTypes";
 import SchemaBuilder, {
   BasePlugin,
   type PothosOutputFieldConfig,
@@ -6,11 +5,7 @@ import SchemaBuilder, {
 } from "@pothos/core";
 import type { GraphQLFieldResolver } from "graphql";
 import { applyFilters } from "../helpers/applyFilters";
-import type { ApplyFiltersField } from "./pluginTypes";
-
-const pluginName = "RuntimeFiltersPlugin" as const;
-
-export default pluginName;
+import { type ApplyFiltersField, pluginName } from "./filterTypes";
 
 export const applyFiltersKey = "applyFilters";
 

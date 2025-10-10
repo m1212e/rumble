@@ -1,9 +1,9 @@
-import type { SchemaBuilderType } from "../schemaBuilder";
 import type { DrizzleInstance } from "../types/drizzleInstanceType";
 import type {
   CustomRumblePothosConfig,
   RumbleInput,
 } from "../types/rumbleInput";
+import type { SchemaBuilderType } from "../types/schemaBuilderType";
 import { generateFromSchema } from "./generate/generate";
 
 export const clientCreatorImplementer = <

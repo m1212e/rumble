@@ -1,4 +1,4 @@
-import type { Filter } from "../runtimeFiltersPlugin/pluginTypes";
+import type { Filter } from "../runtimeFiltersPlugin/filterTypes";
 
 /**
  * A helper to apply a list of filters to a given list of entities.

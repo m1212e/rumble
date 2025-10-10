@@ -1,6 +1,6 @@
-import type { SchemaBuilderType } from "../../schemaBuilder";
 import type { DrizzleInstance } from "../../types/drizzleInstanceType";
 import type { CustomRumblePothosConfig } from "../../types/rumbleInput";
+import type { SchemaBuilderType } from "../../types/schemaBuilderType";
 import {
   isBooleanSQLTypeString,
   isDateLikeSQLTypeString,

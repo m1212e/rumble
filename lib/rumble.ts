@@ -7,13 +7,14 @@ import {
 } from "graphql-yoga";
 import { useSofa } from "sofa-api";
 import { createAbilityBuilder } from "./abilityBuilder";
+import { createOrderArgImplementer } from "./args/orderArg";
+import { createWhereArgImplementer } from "./args/whereArg";
 import { clientCreatorImplementer } from "./client/client";
 import { createContextFunction } from "./context";
 import { createEnumImplementer } from "./enum";
 import { lazy } from "./helpers/lazy";
 import { sofaOpenAPIWebhookDocs } from "./helpers/sofaOpenAPIWebhookDocs";
 import { createObjectImplementer } from "./object";
-import { createOrderArgImplementer } from "./orderArg";
 import { createPubSubInstance } from "./pubsub";
 import { createQueryImplementer } from "./query";
 import { createSchemaBuilder } from "./schemaBuilder";
@@ -24,7 +25,6 @@ import type {
   CustomRumblePothosConfig,
   RumbleInput,
 } from "./types/rumbleInput";
-import { createWhereArgImplementer } from "./whereArg";
 
 export const rumble = <
   UserContext extends Record<string, any>,
