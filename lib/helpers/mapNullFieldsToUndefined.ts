@@ -56,7 +56,16 @@
  * 
  * ```
  */
-export function mapNullFieldsToUndefined<T extends object>(obj: T) {
+export function mapNullFieldsToUndefined<T extends object>(
+  obj: T,
+): {
+  [K in keyof T]: T[K] extends null ? undefined : Exclude<T[K], null>;
+};
+export function mapNullFieldsToUndefined(obj: undefined | null): undefined;
+export function mapNullFieldsToUndefined<T extends object>(obj?: T) {
+  if (!obj) {
+    return undefined;
+  }
   return Object.fromEntries(
     Object.entries(obj).map(([key, value]) => [
       key,
