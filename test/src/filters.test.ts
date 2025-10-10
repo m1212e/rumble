@@ -5,6 +5,7 @@ import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
 describe("test rumble abilities and filters", async () => {
   let { db, data } = await makeSeededDBInstanceForTest();
+  // @ts-expect-error
   let { rumble, build } = makeRumbleSeedInstance(db, data.users.at(0)?.id);
 
   beforeEach(async () => {
@@ -12,6 +13,7 @@ describe("test rumble abilities and filters", async () => {
     db = s.db;
     data = s.data;
 
+    // @ts-expect-error
     const r = makeRumbleSeedInstance(db, data.users.at(0)?.id);
     rumble = r.rumble;
     build = r.build;

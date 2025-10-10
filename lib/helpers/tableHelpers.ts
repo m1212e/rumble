@@ -49,7 +49,7 @@ export function tableHelper<
   }
 
   return {
-    columns: foundSchema.columns,
+    columns: foundSchema.columns as Record<string, Column>,
     primaryKey: foundSchema.primaryKey,
     relations: (foundRelation as any).relations as {
       [key: string]: One<any, any> | Many<any>;
