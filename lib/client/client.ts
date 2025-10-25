@@ -55,6 +55,11 @@ export const clientCreatorImplementer = <
      */
     useExternalUrqlClient?: string;
   }) => {
+    if (process.env.NODE_ENV !== "development") {
+      console.warn(
+        "Running rumble client generation in non development mode. Are you sure this is correct?",
+      );
+    }
     const schema = builtSchema();
     await generateFromSchema({
       schema,
