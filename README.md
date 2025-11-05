@@ -210,6 +210,9 @@ const enumRef = enum_({
 ```
 > The enum parameter allows other fields to be used to reference an enum. This is largely due to how this is used internally. Because of the way how drizzle handles enums, we are not able to provide type safety with enums. In case you actually need to use it, the above way is the recommended approach.
 
+### and more...
+See [the example file](./example/src/main.ts) or clone it and let intellisense guide you. Rumble offers various other helpers which might become handy!
+
 ## Running the server
 In case you directly want to run a server from your rumble instance, you can do so by using the `createYoga` function. It returns a graphql `yoga` instance which can be used to provide a graphql api in [a multitude of ways](https://the-guild.dev/graphql/yoga-server/docs/integrations/z-other-environments).
 ```ts
