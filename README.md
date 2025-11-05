@@ -245,7 +245,9 @@ await clientCreator({
   // to point to your custom client
 });
 ```
-> The client uses [urql](https://nearform.com/open-source/urql/docs/basics/core/) under the hood. If you would like more info on how the internals work, please see the docs.
+> The client uses [urql](https://nearform.com/open-source/urql/docs/basics/core/) under the hood. If you would like more info on how the internals work, please see their docs.
+
+This way of generating code is especially helpful in monorepos, where it is convenient to output client code when running the server during development. If you do not use a monorepo and want to decouple the generation process, see below.
 
 An example usage might look like this:
 ```ts
@@ -275,7 +277,7 @@ users.subscribe((s) => s?.at(0));
 // you can directly access the values of an awaited result
 console.log(users.firstName)
 ```
-### Alternative
+### Alternative decoupled client generation
 As an alternative to use the client generator with a fully instanciated rumble instance, you can also import the `generateFromSchema` function from rumble and pass it a standard `GraphQLSchema` object to generate the client:
 ```ts
 import { generateFromSchema } from "@m1212e/rumble";
