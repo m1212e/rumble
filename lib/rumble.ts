@@ -11,6 +11,7 @@ import { createOrderArgImplementer } from "./args/orderArg";
 import { createWhereArgImplementer } from "./args/whereArg";
 import { clientCreatorImplementer } from "./client/client";
 import { createContextFunction } from "./context";
+import { createCountQueryImplementer } from "./countQuery";
 import { createEnumImplementer } from "./enum";
 import { lazy } from "./helpers/lazy";
 import { sofaOpenAPIWebhookDocs } from "./helpers/sofaOpenAPIWebhookDocs";
@@ -196,6 +197,13 @@ export const db = drizzle(
     makePubSubInstance,
   });
 
+  const countQuery = createCountQueryImplementer({
+    ...rumbleInput,
+    schemaBuilder,
+    whereArgImplementer: whereArg,
+    makePubSubInstance,
+  });
+
   const builtSchema = lazy(() => schemaBuilder.toSchema());
 
   const createYoga = (
@@ -336,5 +344,9 @@ export const db = drizzle(
      * Requires GraphQL, does not work with the SOFA REST API.
      */
     clientCreator,
+    /**
+     * A function for creating count queries for your tables
+     */
+    countQuery,
   };
 };

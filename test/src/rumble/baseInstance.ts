@@ -39,6 +39,7 @@ export function makeRumbleSeedInstance(
   const { updated: updatedUser } = r.pubsub({
     table: "users",
   });
+  r.countQuery({ table: "users" });
 
   r.object({ refName: "Post", table: "posts" });
   r.query({ table: "posts" });

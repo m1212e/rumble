@@ -513,6 +513,34 @@ describe("test rumble abilities", async () => {
     );
   });
 
+  test("count query", async () => {
+    rumble.abilityBuilder.users.allow(["read"]);
+
+    const { executor, yogaInstance: _yogaInstance } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          usersCount 
+        }
+      `),
+    });
+
+    expect((r as any).data.usersCount).toEqual(200);
+  });
+
+  test("count query no permissions", async () => {
+    const { executor, yogaInstance: _yogaInstance } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          usersCount 
+        }
+      `),
+    });
+
+    expect((r as any).data.usersCount).toEqual(0);
+  });
+
   //TODO
   // test("perform read with applied condition and merge filters", async () => {
   // 	rumble.abilityBuilder.comments.allow("read").when({

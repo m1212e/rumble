@@ -46,6 +46,14 @@ export function tableHelper<
     throw new RumbleError(`Could not find schema for ${JSON.stringify(table)}`);
   }
 
+  const fullSchema = db._.fullSchema?.[foundSchema.tsName!];
+
+  if (!fullSchema) {
+    throw new RumbleError(
+      `Could not find full schema for ${JSON.stringify(table)}`,
+    );
+  }
+
   return {
     columns: foundSchema.columns as Record<string, Column>,
     primaryKey: foundSchema.primaryKey,
@@ -56,5 +64,6 @@ export function tableHelper<
     tsName: foundSchema.tsName,
     foundSchema,
     foundRelation,
+    fullSchema,
   };
 }
