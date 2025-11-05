@@ -111,7 +111,7 @@ export const createCountQueryImplementer = <
             // otherwise some libraries (like drizzle-orm) might have issues with it
             Object.setPrototypeOf(args, Object.prototype);
 
-            return db
+            return (db as any)
               .select({ count: count() })
               .from(tableSchema.fullSchema)
               .where(
