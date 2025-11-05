@@ -129,10 +129,10 @@ rumble({
 ## Helpers
 Rumble offers various helpers to make it easy and fast to implement your api. Ofcourse you can write your api by hand using the provided `schemaBuilder` from the rumble initiator, but since this might get repetitive, the provided helpers automate a lot of this work for you while also automatically applying the concepts of rumble directly into your api.
 
-### arg
-`arg` is a helper to implement query arguments for filtering the results of a query for certain results. In many cases you would implement arguments for a query with something as `matchUsername: t.arg.string()` which is supposed to restrict the query to users which have that username. The arg helper implements such a filter tailored to the specific entity which you then can directly pass on to the database query.
+### whereArg
+`whereArg` is a helper to implement query arguments for filtering the results of a query for certain results. In many cases you would implement arguments for a query with something as `matchUsername: t.arg.string()` which is supposed to restrict the query to users which have that username. The whereArg helper implements such a filter tailored to the specific entity which you then can directly pass on to the database query.
 ```ts
-const WhereArgs = arg({
+const WhereArgs = whereArg({
  table: "posts",
 });
 
