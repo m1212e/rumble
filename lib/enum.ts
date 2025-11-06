@@ -1,4 +1,5 @@
 import { toCamelCase } from "drizzle-orm/casing";
+import type { drizzle } from "drizzle-orm/node-postgres";
 import { type PgEnum, PgEnumColumn } from "drizzle-orm/pg-core";
 import { capitalize } from "es-toolkit";
 import type { DrizzleInstance } from "./types/drizzleInstanceType";
@@ -101,7 +102,9 @@ export const createEnumImplementer = <
 
       enumSchemaName = tsName.toString();
 
-      const enumCol = Object.values(db._.schema!)
+      const enumCol = Object.values(
+        (db as ReturnType<typeof drizzle<any, any, any>>)._.schema!,
+      )
         .filter((s) => typeof s === "object")
         .map((s) => Object.values(s.columns))
         .flat(2)

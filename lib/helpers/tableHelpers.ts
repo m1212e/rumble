@@ -1,4 +1,5 @@
 import type { Column, Many, One } from "drizzle-orm";
+import type { drizzle } from "drizzle-orm/node-postgres";
 import type {
   DrizzleInstance,
   DrizzleTableSchema,
@@ -37,7 +38,9 @@ export function tableHelper<
     throw new RumbleError(`Could not find schema for ${JSON.stringify(table)}`);
   }
 
-  const foundSchema = Object.values(db._.schema!).find(
+  const foundSchema = Object.values(
+    (db as ReturnType<typeof drizzle<any, any, any>>)._.schema!,
+  ).find(
     (schema) =>
       schema.dbName === foundRelation.table[drizzleOriginalNameSymbol],
   );
