@@ -437,12 +437,20 @@ const r1 = client.liveQuery.users({
 	name: true,
 });
 
-r1.subscribe((s) => s?.at(0));
+r1.subscribe((s) => console.log(s?.at(0)));
 
 const a = client.subscribe.users({
 	id: true,
 	name: true,
 });
 
-a.subscribe((s) => s.at(0));
+a.subscribe((s) => console.log(s.at(0)));
+
+// awaiting this allows us to use the data directly, without subscribing
+const r3 = await client.liveQuery.users({
+	id: true,
+	name: true,
+});
+
+console.log(r3.at(0));
 */
