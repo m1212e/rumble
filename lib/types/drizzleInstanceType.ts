@@ -1,11 +1,12 @@
-import type { drizzle as bunSQLiteDrizzle } from "drizzle-orm/bun-sqlite";
-import type { drizzle as pgDrizzle } from "drizzle-orm/node-postgres";
-
+import type { MySqlDatabase } from "drizzle-orm/mysql-core";
+import type { PgDatabase } from "drizzle-orm/pg-core";
+import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { ObjectValues } from "./objectFieldType";
 
 export type DrizzleInstance =
-  | ReturnType<typeof pgDrizzle<any, any, any>>
-  | ReturnType<typeof bunSQLiteDrizzle<any, any, any>>;
+  | PgDatabase<any, any, any, any>
+  | BaseSQLiteDatabase<any, any, any, any>
+  | MySqlDatabase<any, any, any, any>;
 
 /**
  * Type representing the schema of a Drizzle table.
