@@ -2,7 +2,6 @@ import type { Client } from "@urql/core";
 import { capitalize } from "es-toolkit";
 import {
   empty,
-  fromValue,
   map,
   merge,
   onPush,
@@ -31,7 +30,7 @@ export function makeGraphQLQuery({
 
   let awaitedReturnValueReference: any;
 
-  const response = pipe(
+  const observable = pipe(
     merge([
       client.query(operationString("query"), {}),
       enableSubscription
@@ -46,25 +45,24 @@ export function makeGraphQLQuery({
 
       return data;
     }),
+    // keep the returned object reference updated with new data
     onPush((data) => {
       if (awaitedReturnValueReference) {
         Object.assign(awaitedReturnValueReference, data);
       }
     }),
+    toObservable,
   );
 
   const promise = new Promise((resolve) => {
-    const unsub = toObservable(response).subscribe((v) => {
+    const unsub = observable.subscribe((v) => {
       unsub();
-      const newObservableWithAwaitedValue = pipe(
-        merge([response, fromValue(v)]),
-        toObservable,
-      );
-      awaitedReturnValueReference = { ...v, ...newObservableWithAwaitedValue };
+      awaitedReturnValueReference = Object.assign(v, observable);
       resolve(awaitedReturnValueReference);
     }).unsubscribe;
   });
-  Object.assign(promise, toObservable(response));
+
+  Object.assign(promise, observable);
 
   return promise;
 }
