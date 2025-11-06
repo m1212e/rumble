@@ -3,6 +3,7 @@ import pluralize from "pluralize";
 import type { WhereArgImplementerType } from "./args/whereArg";
 import { assertFirstEntryExists } from "./helpers/asserts";
 import { mapNullFieldsToUndefined } from "./helpers/mapNullFieldsToUndefined";
+import { deepSetProto } from "./helpers/protoMapper";
 import { tableHelper } from "./helpers/tableHelpers";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type {
@@ -107,9 +108,7 @@ export const createCountQueryImplementer = <
               throw new RumbleErrorSafe("Not allowed to perform this action");
             }
 
-            // args does not have Object.prototype as prototype, so we need to set it
-            // otherwise some libraries (like drizzle-orm) might have issues with it
-            Object.setPrototypeOf(args, Object.prototype);
+            deepSetProto(args);
 
             return (db as any)
               .select({ count: count() })

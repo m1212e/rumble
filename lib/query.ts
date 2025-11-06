@@ -3,6 +3,7 @@ import type { OrderArgImplementerType } from "./args/orderArg";
 import type { WhereArgImplementerType } from "./args/whereArg";
 import { assertFindFirstExists } from "./helpers/asserts";
 import { mapNullFieldsToUndefined } from "./helpers/mapNullFieldsToUndefined";
+import { deepSetProto } from "./helpers/protoMapper";
 import { tableHelper } from "./helpers/tableHelpers";
 import type { MakePubSubInstanceType } from "./pubsub";
 import { adjustQueryArgsForSearch } from "./search";
@@ -130,7 +131,7 @@ export const createQueryImplementer = <
           resolve: (query, _root, args, ctx, _info) => {
             // args does not have Object.prototype as prototype, so we need to set it
             // otherwise some libraries (like drizzle-orm) might have issues with it
-            Object.setPrototypeOf(args, Object.prototype);
+            deepSetProto(args);
 
             adjustQueryArgsForSearch({
               search,
@@ -170,7 +171,7 @@ export const createQueryImplementer = <
             id: t.arg.id({ required: true }),
           },
           resolve: (query, _root, args, ctx, _info) => {
-            Object.setPrototypeOf(args, Object.prototype);
+            deepSetProto(args);
 
             const filter = (ctx.abilities as any)[table]
               .filter(readAction)
