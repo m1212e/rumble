@@ -1,5 +1,5 @@
 import type { argsKey } from "./request";
-import type { RequireAtLeastOneFieldSet, UnArray } from "./utilTypes";
+import type { RequireAtLeastOneFieldSet, UnArray, UnFunc } from "./utilTypes";
 
 //TODO: Find out how to sanely refactor these types
 
@@ -27,13 +27,19 @@ type QueryableObjectField<T> =
       ) => QueryResponse extends null
         ? Response<
             QueryResponse extends Array<any>
-              ? ApplySelection<NonNullable<UnArray<QueryResponse>>, Selected>[]
-              : ApplySelection<NonNullable<UnArray<QueryResponse>>, Selected>
+              ? ApplySelection<
+                  NonNullable<UnArray<UnFunc<QueryResponse>>>,
+                  Selected
+                >[]
+              : ApplySelection<
+                  NonNullable<UnArray<UnFunc<QueryResponse>>>,
+                  Selected
+                >
           > | null
         : Response<
             QueryResponse extends Array<any>
-              ? ApplySelection<UnArray<QueryResponse>, Selected>[]
-              : ApplySelection<UnArray<QueryResponse>, Selected>
+              ? ApplySelection<UnArray<UnFunc<QueryResponse>>, Selected>[]
+              : ApplySelection<UnArray<UnFunc<QueryResponse>>, Selected>
           >
     : // otherwise this is just types as a simple field
       Response<T>;
@@ -54,8 +60,13 @@ export type ApplySelection<Object, Selection> = {
     p: infer _P,
   ) => infer _A
     ? ReturnType<Object[Key]> extends Array<any>
-      ? Array<ApplySelection<UnArray<ReturnType<Object[Key]>>, Selection[Key]>>
-      : ApplySelection<UnArray<Object[Key]>, Selection[Key]>
+      ? Array<
+          ApplySelection<
+            UnArray<UnFunc<ReturnType<Object[Key]>>>,
+            Selection[Key]
+          >
+        >
+      : ApplySelection<UnArray<UnFunc<Object[Key]>>, Selection[Key]>
     : Object[Key];
 };
 
