@@ -11,7 +11,7 @@ export function makeQuery<Query extends Record<string, any>>({
     {},
     {
       get: (_target, prop) => {
-        return (input: Record<string, any>) => {
+        return (input?: Record<string, any>) => {
           return makeGraphQLQuery({
             queryName: prop as string,
             input,

@@ -1,13 +1,22 @@
+import {
+  getIntrospectedSchema,
+  minifyIntrospectionQuery,
+} from "@urql/introspection";
+import { uneval } from "devalue";
+import type { GraphQLSchema } from "graphql";
+
 export function generateClient({
   apiUrl,
   rumbleImportPath,
   useExternalUrqlClient,
   availableSubscriptions,
+  schema,
 }: {
   rumbleImportPath: string;
   useExternalUrqlClient: string | boolean;
   apiUrl?: string;
   availableSubscriptions: Set<string>;
+  schema?: GraphQLSchema;
 }) {
   const imports: string[] = [];
   let code: string = "";
@@ -17,6 +26,7 @@ export function generateClient({
   } else {
     imports.push(`import { Client, fetchExchange } from '@urql/core';`);
     imports.push(`import { cacheExchange } from '@urql/exchange-graphcache';`);
+    imports.push(`import { nativeDateExchange } from '${rumbleImportPath}';`);
   }
 
   imports.push(
@@ -28,7 +38,7 @@ export function generateClient({
 const urqlClient = new Client({
   url: "${apiUrl ?? "PLEASE PROVIDE A URL WHEN GENERATING OR IMPORT AN EXTERNAL URQL CLIENT"}",
   fetchSubscriptions: true,
-  exchanges: [cacheExchange({}), fetchExchange],
+  exchanges: [cacheExchange({ schema: ${schema ? uneval(minifyIntrospectionQuery(getIntrospectedSchema(schema))) : "undefined"} }), nativeDateExchange, fetchExchange],
   fetchOptions: {
     credentials: "include",
   },

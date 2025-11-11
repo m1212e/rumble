@@ -1,19 +1,18 @@
 import type { argsKey } from "./request";
-import type { RequireAtLeastOneFieldSet, UnArray, UnFunc } from "./utilTypes";
+import type {
+  DeriveArrayType,
+  DeriveNullability,
+  ExtractGQLTypeFromField,
+  RequireAtLeastOneFieldSet,
+  UnArray,
+  UnFunc,
+} from "./utilTypes";
 
 //TODO: Find out how to sanely refactor these types
 
-/**
- * A gql object defined from the generated types.
- * Most keys are functions that take a selection set and return a promise of the selected data.
- */
 export type QueryableObjectFromGeneratedTypes<Q> = {
-  [Key in keyof Q]: QueryableObjectField<Q[Key]>;
-};
-
-type QueryableObjectField<T> =
-  // in case this is a function and not a simple field, transform the function to callable ts types
-  T extends (p: infer QueryArgs) => infer QueryResponse
+  // do we have a simple type or a function that returns a type?
+  [Key in keyof Q]: Q[Key] extends (p: infer QueryArgs) => infer QueryResponse
     ? <
         // if the field function has arguments, this means that gql accepts arguments
         Selected extends QueryArgs extends Record<string, any>
@@ -21,28 +20,26 @@ type QueryableObjectField<T> =
             ObjectFieldSelection<UnArray<NonNullable<QueryResponse>>> & {
               [argsKey]: QueryArgs;
             }
-          : ObjectFieldSelection<UnArray<NonNullable<QueryResponse>>>,
+          : // for no-argument functions, we just want the selection
+            ObjectFieldSelection<UnArray<NonNullable<QueryResponse>>>,
       >(
         s: Selected,
-      ) => QueryResponse extends null
-        ? Response<
-            QueryResponse extends Array<any>
-              ? ApplySelection<
-                  NonNullable<UnArray<UnFunc<QueryResponse>>>,
-                  Selected
-                >[]
-              : ApplySelection<
-                  NonNullable<UnArray<UnFunc<QueryResponse>>>,
-                  Selected
-                >
-          > | null
-        : Response<
-            QueryResponse extends Array<any>
-              ? ApplySelection<UnArray<UnFunc<QueryResponse>>, Selected>[]
-              : ApplySelection<UnArray<UnFunc<QueryResponse>>, Selected>
+      ) => DeriveNullability<
+        // transfer nullability from the original response type to the returned type
+        QueryResponse,
+        // wrap it in a return
+        Response<
+          DeriveArrayType<
+            // transfer array-ness from the original response type to the returned type
+            QueryResponse,
+            // apply the selection to get the final type
+            ApplySelection<ExtractGQLTypeFromField<QueryResponse>, Selected>
           >
-    : // otherwise this is just types as a simple field
-      Response<T>;
+        >
+      >
+    : // if it's a simple type, we just return the type wrapped in a response
+      () => Response<Q[Key]>;
+};
 
 /**
  * The input to select fields for an object

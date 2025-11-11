@@ -51,6 +51,7 @@ export type ${key} = ${rep};
 
   const c = generateClient({
     apiUrl,
+    schema,
     useExternalUrqlClient,
     rumbleImportPath,
     availableSubscriptions: new Set(

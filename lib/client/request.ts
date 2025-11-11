@@ -19,14 +19,16 @@ export function makeGraphQLQuery({
   enableSubscription = false,
 }: {
   queryName: string;
-  input: Record<string, any>;
+  input?: Record<string, any>;
   client: Client;
   enableSubscription?: boolean;
 }) {
   const otwQueryName = `${capitalize(queryName)}Query`;
-  const argsString = stringifyArgumentObjectToGraphqlList(input[argsKey] ?? {});
+  const argsString = stringifyArgumentObjectToGraphqlList(
+    input?.[argsKey] ?? {},
+  );
   const operationString = (operationVerb: "query" | "subscription") =>
-    `${operationVerb} ${otwQueryName} { ${queryName}${argsString} { ${stringifySelection(input)} }}`;
+    `${operationVerb} ${otwQueryName} { ${queryName}${argsString} ${input ? `{ ${stringifySelection(input)} }` : ""}}`;
 
   let awaitedReturnValueReference: any;
 
