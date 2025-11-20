@@ -35,6 +35,7 @@ export const clientCreatorImplementer = <
     outputPath,
     rumbleImportPath,
     useExternalUrqlClient,
+    removeExisting,
   }: {
     /**
      * Path to the output directory where the client files will be generated.
@@ -54,6 +55,10 @@ export const clientCreatorImplementer = <
      * If false, creates a new urql client with the provided apiUrl.
      */
     useExternalUrqlClient?: string;
+    /**
+     * Whether to remove existing generated files in the output directory before generating new ones.
+     */
+    removeExisting?: boolean;
   }) => {
     if (process.env.NODE_ENV !== "development") {
       console.warn(
@@ -67,6 +72,7 @@ export const clientCreatorImplementer = <
       rumbleImportPath,
       apiUrl,
       useExternalUrqlClient,
+      removeExisting,
     });
   };
 
