@@ -56,20 +56,12 @@ export function makeGraphQLQuery({
     toObservable,
   );
 
-  // TODO check this
   const promise = new Promise((resolve) => {
-    const subscription = observable.subscribe((v) => {
-      // force handler to run asynchronously to avoid synchronous invocation
-      Promise.resolve().then(() => {
-        if (typeof v === "object") {
-          awaitedReturnValueReference = Object.assign(v, observable);
-        } else {
-          awaitedReturnValueReference = observable;
-        }
-        resolve(awaitedReturnValueReference);
-        subscription.unsubscribe();
-      });
-    });
+    const unsub = observable.subscribe((v) => {
+      unsub();
+      awaitedReturnValueReference = Object.assign(v, observable);
+      resolve(awaitedReturnValueReference);
+    }).unsubscribe;
   });
 
   Object.assign(promise, observable);
