@@ -6,6 +6,8 @@ import {
   merge,
   onPush,
   pipe,
+  share,
+  take,
   toObservable,
   toPromise,
 } from "wonka";
@@ -30,15 +32,16 @@ export function makeGraphQLQuery({
   const operationString = (operationVerb: "query" | "subscription") =>
     `${operationVerb} ${otwQueryName} { ${queryName}${argsString} ${input ? `{ ${stringifySelection(input)} }` : ""}}`;
 
-  let awaitedReturnValueReference: any;
+  const awaitedReturnValueReference = {};
 
-  const observable = pipe(
+  const source = pipe(
     merge([
       client.query(operationString("query"), {}),
       enableSubscription
         ? client.subscription(operationString("subscription"), {})
         : empty,
     ]),
+    share,
     map((v) => {
       const data = v.data?.[queryName];
       if (!data && v.error) {
@@ -49,21 +52,28 @@ export function makeGraphQLQuery({
     }),
     // keep the returned object reference updated with new data
     onPush((data) => {
-      if (awaitedReturnValueReference) {
+      if (typeof data === "object" && data !== null) {
         Object.assign(awaitedReturnValueReference, data);
       }
     }),
-    toObservable,
   );
 
-  const promise = new Promise((resolve) => {
-    const unsub = observable.subscribe((v) => {
-      unsub();
-      awaitedReturnValueReference = Object.assign(v, observable);
-      resolve(awaitedReturnValueReference);
-    }).unsubscribe;
-  });
+  const observable = toObservable(source);
+  const promise = toPromise(
+    pipe(
+      source,
+      take(1),
+      map((data) => {
+        if (typeof data === "object" && data !== null) {
+          Object.assign(awaitedReturnValueReference, data);
+          Object.assign(awaitedReturnValueReference, observable);
+          return awaitedReturnValueReference;
+        }
 
+        return data;
+      }),
+    ),
+  );
   Object.assign(promise, observable);
 
   return promise;
@@ -98,10 +108,7 @@ export function makeGraphQLMutation({
   );
 
   const observable = toObservable(response);
-  const promise = toPromise(response).then((res) => {
-    Object.assign(res, observable);
-    return res;
-  });
+  const promise = toPromise(pipe(response, take(1)));
   Object.assign(promise, observable);
 
   return promise;

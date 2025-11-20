@@ -10,17 +10,21 @@ export async function generateFromSchema({
   rumbleImportPath = "@m1212e/rumble",
   apiUrl,
   useExternalUrqlClient = false,
+  removeExisting = true,
 }: {
   schema: GraphQLSchema;
   outputPath: string;
   rumbleImportPath?: string;
   apiUrl?: string;
   useExternalUrqlClient?: boolean | string;
+  removeExisting?: boolean;
 }) {
-  try {
-    await access(outputPath);
-    await rm(outputPath, { recursive: true, force: true });
-  } catch (_error) {}
+  if (removeExisting) {
+    try {
+      await access(outputPath);
+      await rm(outputPath, { recursive: true, force: true });
+    } catch (_error) {}
+  }
 
   await mkdir(outputPath, { recursive: true });
 
