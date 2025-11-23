@@ -178,6 +178,10 @@ function stringifyArgumentObjectToGraphqlList(args: Record<any, any>) {
 }
 
 function stringifyArgumentValue(arg: any): string {
+  if (arg === null) {
+    return "null";
+  }
+
   switch (typeof arg) {
     case "string":
       return `"${arg}"`;
