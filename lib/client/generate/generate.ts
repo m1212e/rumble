@@ -1,5 +1,10 @@
 import { access, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import {
+  getIntrospectedSchema,
+  minifyIntrospectionQuery,
+} from "@urql/introspection";
+import { uneval } from "devalue";
 import type { GraphQLSchema } from "graphql";
 import { generateClient } from "./client";
 import { makeTSRepresentation } from "./tsRepresentation";
@@ -49,9 +54,11 @@ export type ${key} = ${rep};
 		`;
   }
 
+  const schemaFileName = "schema";
+
   const c = generateClient({
     apiUrl,
-    schema,
+    schemaPath: `./${schemaFileName}`,
     useExternalUrqlClient,
     rumbleImportPath,
     availableSubscriptions: new Set(
@@ -62,8 +69,12 @@ export type ${key} = ${rep};
   imports.push(...c.imports);
   code += c.code;
 
-  await writeFile(
-    join(outputPath, "client.ts"),
-    `${imports.join("\n")}\n${code}`,
-  );
+  await Promise.all([
+    writeFile(join(outputPath, "client.ts"), `${imports.join("\n")}\n${code}`),
+    writeFile(
+      join(outputPath, `${schemaFileName}.ts`),
+      `// @ts-ignore
+export const schema = ${uneval(minifyIntrospectionQuery(getIntrospectedSchema(schema)))}`,
+    ),
+  ]);
 }
