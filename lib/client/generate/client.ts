@@ -28,10 +28,6 @@ export function generateClient({
   );
 
   code += `
-  
-// @ts-ignore
-export const schema = ${schema ? uneval(minifyIntrospectionQuery(getIntrospectedSchema(schema))) : "undefined"};
-
 export const defaultOptions: ConstructorParameters<Client>[0] = {
   url: "${apiUrl ?? "PLEASE PROVIDE A URL WHEN GENERATING OR IMPORT AN EXTERNAL URQL CLIENT"}",
   fetchSubscriptions: true,
