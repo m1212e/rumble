@@ -75,7 +75,7 @@ export function isDateLikeSQLTypeString(
   return dateLikeSQLTypeStrings.includes(sqlType as any);
 }
 
-const jsonLikeSQLTypeStrings = ["json"] as const;
+const jsonLikeSQLTypeStrings = ["json", "jsonb"] as const;
 
 export function isJSONLikeSQLTypeString(
   sqlType: string,
