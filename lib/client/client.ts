@@ -24,12 +24,6 @@ export const clientCreatorImplementer = <
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
   builtSchema: () => ReturnType<SchemaBuilder["toSchema"]>;
 }) => {
-  if (process.env.NODE_ENV !== "development") {
-    console.warn(
-      "Running rumble client generation in non development mode. Are you sure this is correct?",
-    );
-  }
-
   const clientCreator = async ({
     apiUrl,
     outputPath,
