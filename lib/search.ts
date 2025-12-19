@@ -47,21 +47,23 @@ export function adjustQueryArgsForSearch({
       : Object.entries(tableSchema.columns);
 
     const searchParam = sql`${args.search}`;
+    const scoring = (table: any) =>
+      (search?.score ?? "sum") === "sum"
+        ? sql`(${sql.join(
+            columnsToSearch.map(([key]) => {
+              return sql`COALESCE(similarity(${table[key]}::TEXT, ${searchParam}), 0)`;
+            }),
+            sql.raw(" + "),
+          )})`
+        : sql`GREATEST(${sql.join(
+            columnsToSearch.map(([key]) => {
+              return sql`similarity(${table[key]}::TEXT, ${searchParam})`;
+            }),
+            sql.raw(", "),
+          )})`;
+
     args.extras = {
-      search_score: (table: any) =>
-        (search?.score ?? "sum") === "sum"
-          ? sql`(${sql.join(
-              columnsToSearch.map(([key]) => {
-                return sql`COALESCE(similarity(${table[key]}::TEXT, ${searchParam}), 0)`;
-              }),
-              sql.raw(" + "),
-            )})`
-          : sql`GREATEST(${sql.join(
-              columnsToSearch.map(([key]) => {
-                return sql`similarity(${table[key]}::TEXT, ${searchParam})`;
-              }),
-              sql.raw(", "),
-            )})`,
+      search_score: scoring,
     };
 
     const originalOrderBy = cloneDeep(args.orderBy);
@@ -87,6 +89,20 @@ export function adjustQueryArgsForSearch({
         : searchSQL;
 
       return ret;
+    };
+
+    const originalWhere = cloneDeep(args.where);
+
+    // this limits the search to the rows which at least match the threshold score
+    (args as any).where = {
+      AND: [
+        originalWhere ?? {},
+        {
+          RAW: (table: any) => {
+            return sql`${scoring(table)} > ${search.threshold ?? 0.15}`;
+          },
+        },
+      ],
     };
   }
 }

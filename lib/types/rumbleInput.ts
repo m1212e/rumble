@@ -69,8 +69,15 @@ export type RumbleInput<
          *
          * sum: The sum of the similarity scores for each column. Accounts for matches in all columns and aggregates the scores.
          * greatest: The highest similarity score for any column. Picks the highest score of any column and discards the rest.
+         *
+         * Note: If you change the score type, you may need to adjust the threshold accordingly.
          */
         score?: "sum" | "greatest";
+        /**
+         * The cuttoff factor to reduce the amount of returned results.
+         * Defaults to 0.15
+         */
+        threshold?: number;
       }
     | undefined;
 };
