@@ -402,9 +402,11 @@ export const createObjectImplementer = <
 
                   const filter = ctx.abilities[relationSchema.tsName]
                     .filter(readAction)
-                    .merge({ where: args.where, limit: args.limit }).query[
-                    filterSpecifier
-                  ];
+                    .merge({
+                      where: args.where,
+                      limit: args.limit,
+                      extras: args.extras,
+                    }).query[filterSpecifier];
 
                   if (args.offset) {
                     (filter as any).offset = args.offset;
@@ -425,6 +427,26 @@ export const createObjectImplementer = <
             ReturnType<typeof buildPothosResponseTypeFromGraphQLType>
           >,
         );
+
+        if (search?.enabled) {
+          if (fields.search_score) {
+            throw new Error(
+              "Reserved field name 'search_score' found on " +
+                tableSchema.tsName +
+                ". If search is enabled, the 'search_score' field is automatically added and cannot be defined manually.",
+            );
+          }
+
+          fields.search_score = t.float({
+            description:
+              "The search score of the object. If a search is provided, this field will be populated with the search score.",
+            nullable: true,
+            resolve: (parent, args, ctx, info) => {
+              console.log(parent);
+              return (parent as any).search_score;
+            },
+          });
+        }
 
         return {
           ...fields,

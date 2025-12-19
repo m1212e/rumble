@@ -392,6 +392,7 @@ export const createAbilityBuilder = <
                      * For find first calls
                      */
                     single: {
+                      extras: filters?.extras,
                       where: filters?.where,
                       columns: filters?.columns,
                     } as Pick<
@@ -406,6 +407,7 @@ export const createAbilityBuilder = <
                      * For find many calls
                      */
                     many: {
+                      extras: filters?.extras,
                       where: filters?.where,
                       columns: filters?.columns,
                       get limit() {
@@ -461,6 +463,7 @@ export const createAbilityBuilder = <
                      * For find first calls
                      */
                     single: {
+                      extras: filters?.extras,
                       where: filters?.where,
                     } as Pick<
                       NonNullable<
@@ -474,6 +477,7 @@ export const createAbilityBuilder = <
                      * For find many calls
                      */
                     many: {
+                      extras: filters?.extras,
                       where: filters?.where,
                       get limit() {
                         return limit();

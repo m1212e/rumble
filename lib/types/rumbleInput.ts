@@ -64,9 +64,13 @@ export type RumbleInput<
          */
         enabled?: boolean;
         /**
-         * The threshold for cutting off non matching results. Defaults to 0.1. Lower = more results.
+         * Whether to use the sum or max similarity score when determining the search score.
+         * Defaults to "sum".
+         *
+         * sum: The sum of the similarity scores for each column. Accounts for matches in all columns and aggregates the scores.
+         * greatest: The highest similarity score for any column. Picks the highest score of any column and discards the rest.
          */
-        threshold?: number;
+        score?: "sum" | "greatest";
       }
     | undefined;
 };

@@ -36,6 +36,34 @@ export function adjustQueryArgsForSearch({
   abilities: any;
 }) {
   if (search?.enabled && args.search && args.search.length > 0) {
+    // this prevents columns beeing searched which are not accessible to the user
+    // if the abilities defined the user not to be allowed to read something, we need
+    // to prevent it from beeing included in the search since this could
+    // leak information
+    const columnsToSearch = abilities.query.many.columns
+      ? Object.entries(tableSchema.columns).filter(
+          ([key]) => abilities.query.many.columns[key],
+        )
+      : Object.entries(tableSchema.columns);
+
+    const searchParam = sql`${args.search}`;
+    args.extras = {
+      search_score: (table: any) =>
+        (search?.score ?? "sum") === "sum"
+          ? sql`(${sql.join(
+              columnsToSearch.map(([key]) => {
+                return sql`COALESCE(similarity(${table[key]}::TEXT, ${searchParam}), 0)`;
+              }),
+              sql.raw(" + "),
+            )})`
+          : sql`GREATEST(${sql.join(
+              columnsToSearch.map(([key]) => {
+                return sql`similarity(${table[key]}::TEXT, ${searchParam})`;
+              }),
+              sql.raw(", "),
+            )})`,
+    };
+
     const originalOrderBy = cloneDeep(args.orderBy);
     (args as any).orderBy = (table: any) => {
       const argsOrderBySQL = sql.join(
@@ -52,48 +80,13 @@ export function adjustQueryArgsForSearch({
         sql.raw(", "),
       );
 
-      // this prevents columns beeing searched which are not accessible to the user
-      // if the abilities defined the user not to be allowed to read something, we need
-      // to prevent it from beeing included in the search since this could
-      // leak information
-      const columnsToSearch = abilities.query.many.columns
-        ? Object.entries(tableSchema.columns).filter(
-            ([key]) => abilities.query.many.columns[key],
-          )
-        : Object.entries(tableSchema.columns);
-
-      // GREATEST(similarity(name, ${query.search}), similarity(description, ${query.search})) DESC
-      const searchSQL = sql`GREATEST(${sql.join(
-        columnsToSearch.map(([key]) => {
-          return sql`similarity(${table[key]}::TEXT, ${args.search})`;
-        }),
-        sql.raw(", "),
-      )}) DESC`;
+      const searchSQL = sql`search_score DESC`;
 
       const ret = originalOrderBy
         ? sql.join([argsOrderBySQL, searchSQL], sql.raw(", "))
         : searchSQL;
 
       return ret;
-    };
-
-    const originalWhere = cloneDeep(args.where);
-
-    // this limits the search to the rows which at least match the threshold score
-    (args as any).where = {
-      AND: [
-        originalWhere ?? {},
-        {
-          RAW: (table: any) => {
-            return sql`GREATEST(${sql.join(
-              Object.entries(tableSchema.columns).map(([key]) => {
-                return sql`similarity(${table[key]}::TEXT, ${args.search})`;
-              }),
-              sql.raw(", "),
-            )}) > ${search.threshold ?? 0.1}`;
-          },
-        },
-      ],
     };
   }
 }

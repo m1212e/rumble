@@ -14,7 +14,7 @@ await reset(db, schema);
 console.info("Seeding users...");
 // users
 await db.insert(schema.users).values({
-  name: "John Doe",
+  name: "Johny Doe",
   id: 1,
 });
 await db.insert(schema.users).values({
