@@ -441,10 +441,7 @@ export const createObjectImplementer = <
             description:
               "The search score of the object. If a search is provided, this field will be populated with the search score.",
             nullable: true,
-            resolve: (parent, args, ctx, info) => {
-              console.log(parent);
-              return (parent as any).search_score;
-            },
+            resolve: (parent, args, ctx, info) => (parent as any).search_score,
           });
         }
 
