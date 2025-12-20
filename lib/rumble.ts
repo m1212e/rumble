@@ -78,7 +78,7 @@ export const db = drizzle(
   }
 
   if (rumbleInput.search?.enabled) {
-    initSearchIfApplicable(rumbleInput.db);
+    initSearchIfApplicable(rumbleInput);
   }
 
   const abilityBuilder = createAbilityBuilder<

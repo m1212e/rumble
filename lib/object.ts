@@ -429,19 +429,20 @@ export const createObjectImplementer = <
         );
 
         if (search?.enabled) {
-          if (fields.search_score) {
+          if (fields.search_distance) {
             throw new Error(
-              "Reserved field name 'search_score' found on " +
+              "Reserved field name 'search_distance' found on " +
                 tableSchema.tsName +
-                ". If search is enabled, the 'search_score' field is automatically added and cannot be defined manually.",
+                ". If search is enabled, the 'search_distance' field is automatically added and cannot be defined manually.",
             );
           }
 
-          fields.search_score = t.float({
+          fields.search_distance = t.float({
             description:
-              "The search score of the object. If a search is provided, this field will be populated with the search score.",
+              "The search distance of the object. If a search is provided, this field will be populated with the search distance.",
             nullable: true,
-            resolve: (parent, args, ctx, info) => (parent as any).search_score,
+            resolve: (parent, args, ctx, info) =>
+              (parent as any).search_distance,
           });
         }
 

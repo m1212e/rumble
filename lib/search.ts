@@ -2,21 +2,36 @@ import { sql } from "drizzle-orm";
 import { cloneDeep } from "es-toolkit";
 import { isPostgresDB } from "./helpers/determineDialectFromSchema";
 import type { tableHelper } from "./helpers/tableHelpers";
-import type { DrizzleInstance } from "./types/drizzleInstanceType";
 import type { RumbleInput } from "./types/rumbleInput";
 
-export async function initSearchIfApplicable<DB extends DrizzleInstance>(
-  db: DB,
+export async function initSearchIfApplicable(
+  input: RumbleInput<any, any, any, any, any>,
 ) {
-  //TODO: make other dialects compatible
-  if (!isPostgresDB(db)) {
+  if (!isPostgresDB(input.db)) {
     console.info(
-      "Database dialect is not compatible with search, skipping search initialization.",
+      "Database dialect is not compatible with search, skipping search initialization. Only PostgreSQL is supported.",
     );
     return;
   }
 
-  await db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
+  await input.db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
+  if (input.search?.threshold) {
+    // make absolutely sure the threshold is a number
+    const threshold = Number(input.search.threshold);
+
+    if (threshold < 0 || threshold > 1) {
+      throw new Error(`Search threshold must be between 0 and 1`);
+    }
+
+    const result = await input.db.execute(sql`SELECT current_database()`);
+    const dbName = result.rows[0].current_database;
+
+    await input.db.execute(
+      sql.raw(
+        `ALTER DATABASE ${dbName} SET pg_trgm.similarity_threshold = ${threshold};`,
+      ),
+    );
+  }
 }
 
 /**
@@ -47,23 +62,25 @@ export function adjustQueryArgsForSearch({
       : Object.entries(tableSchema.columns);
 
     const searchParam = sql`${args.search}`;
-    const scoring = (table: any) =>
-      (search?.score ?? "sum") === "sum"
-        ? sql`(${sql.join(
-            columnsToSearch.map(([key]) => {
-              return sql`COALESCE(similarity(${table[key]}::TEXT, ${searchParam}), 0)`;
-            }),
-            sql.raw(" + "),
-          )})`
-        : sql`GREATEST(${sql.join(
-            columnsToSearch.map(([key]) => {
-              return sql`similarity(${table[key]}::TEXT, ${searchParam})`;
-            }),
-            sql.raw(", "),
-          )})`;
+
+    // args.extras = {
+    //   search_distance: (table: any) =>
+    //     sql`GREATEST(${sql.join(
+    //       columnsToSearch.map(([key]) => {
+    //         return sql`COALESCE((${table[key]}::TEXT <-> ${searchParam}), 0)`;
+    //       }),
+    //       sql.raw(" , "),
+    //     )})`,
+    // };
 
     args.extras = {
-      search_score: scoring,
+      search_distance: (table: any) =>
+        sql`${sql.join(
+          columnsToSearch.map(([key]) => {
+            return sql`COALESCE((${table[key]}::TEXT <-> ${searchParam}), 1)`;
+          }),
+          sql.raw(" + "),
+        )}`,
     };
 
     const originalOrderBy = cloneDeep(args.orderBy);
@@ -82,7 +99,7 @@ export function adjustQueryArgsForSearch({
         sql.raw(", "),
       );
 
-      const searchSQL = sql`search_score DESC`;
+      const searchSQL = sql`search_distance ASC`;
 
       const ret = originalOrderBy
         ? sql.join([argsOrderBySQL, searchSQL], sql.raw(", "))
@@ -98,9 +115,13 @@ export function adjustQueryArgsForSearch({
       AND: [
         originalWhere ?? {},
         {
-          RAW: (table: any) => {
-            return sql`${scoring(table)} > ${search.threshold ?? 0.15}`;
-          },
+          RAW: (table: any) =>
+            sql`(${sql.join(
+              columnsToSearch.map(([key]) => {
+                return sql`(${table[key]}::TEXT % ${searchParam})`;
+              }),
+              sql.raw(" OR "),
+            )})`,
         },
       ],
     };
