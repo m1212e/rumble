@@ -1,6 +1,10 @@
 import { sql } from "drizzle-orm";
 import { cloneDeep } from "es-toolkit";
 import { isPostgresDB } from "./helpers/determineDialectFromSchema";
+import {
+  isIDLikeSQLTypeString,
+  isStringLikeSQLTypeString,
+} from "./helpers/sqlTypes/types";
 import type { tableHelper } from "./helpers/tableHelpers";
 import type { RumbleInput } from "./types/rumbleInput";
 
@@ -55,23 +59,19 @@ export function adjustQueryArgsForSearch({
     // if the abilities defined the user not to be allowed to read something, we need
     // to prevent it from beeing included in the search since this could
     // leak information
-    const columnsToSearch = abilities.query.many.columns
-      ? Object.entries(tableSchema.columns).filter(
-          ([key]) => abilities.query.many.columns[key],
-        )
-      : Object.entries(tableSchema.columns);
+    const columnsToSearch = (
+      abilities.query.many.columns
+        ? Object.entries(tableSchema.columns).filter(
+            ([key]) => abilities.query.many.columns[key],
+          )
+        : Object.entries(tableSchema.columns)
+    ).filter(
+      ([key, col]) =>
+        isStringLikeSQLTypeString(col.getSQLType()) ||
+        isIDLikeSQLTypeString(col.getSQLType()),
+    );
 
     const searchParam = sql`${args.search}`;
-
-    // args.extras = {
-    //   search_distance: (table: any) =>
-    //     sql`GREATEST(${sql.join(
-    //       columnsToSearch.map(([key]) => {
-    //         return sql`COALESCE((${table[key]}::TEXT <-> ${searchParam}), 0)`;
-    //       }),
-    //       sql.raw(" , "),
-    //     )})`,
-    // };
 
     args.extras = {
       search_distance: (table: any) =>
@@ -118,7 +118,7 @@ export function adjustQueryArgsForSearch({
           RAW: (table: any) =>
             sql`(${sql.join(
               columnsToSearch.map(([key]) => {
-                return sql`(${table[key]}::TEXT % ${searchParam})`;
+                return sql`${table[key]} % ${searchParam}`;
               }),
               sql.raw(" OR "),
             )})`,
