@@ -210,6 +210,69 @@ const enumRef = enum_({
 ```
 > The enum parameter allows other fields to be used to reference an enum. This is largely due to how this is used internally. Because of the way how drizzle handles enums, we are not able to provide type safety with enums. In case you actually need to use it, the above way is the recommended approach.
 
+### Enable search
+> Search is currently only supported in postgres!
+
+rumble and its helpers offer out of the box search capabilities. You can activate this functionality by passing the `search` parameter to the `createRumble` function.
+```ts
+const rumble = createRumble({
+  ...
+  search: {
+    enabled: true,
+    threshold: 0.2, // optionally adjust this value to your needs
+  },
+});
+```
+This will add a search field to all list queries and many relations created by the rumble helper functions. E.g. if you have a `users` table with a `name` and `email` field, and use the `object` and `query` helpers to implement queries for this table, you will get a search argument like this:
+```graphql
+{
+  users(limit: 10, search: "alice") {
+    id
+    name
+    email
+    search_distance
+  }
+}
+```
+Additionally, a search distance will be returned for each result if the search argument is used (null otherwise). The results are returned sorted by their distance with the best matching fields in the first place. The search will respect all text fields (IDs included) on the table, you always search for all text columns at once. Matches in multiple columns stack and therefore result in a better matching score. So if you search for "alice" and there is a user with the name "Alice" and an email "alice@example.com", the two matching columns will result in a better score than e.g. "al007@example.com"/"Alice".
+> If you have abilities in place which prevent a caller from accessing certain columns, the search will not respect those columns to prevent leaking information.
+#### Pro tip: Indexing
+In case your table grows large, it can be a good idea to create an index to increase performance. Under the hood, searching uses the [pg_trgm](https://www.postgresql.org/docs/current/pgtrgm.html#PGTRGM-INDEX) extension. To create indexes for our searchable columns, we can adjust our drizzle schema accordingly:
+```ts
+export const user = pgTable('user', {
+    id: text()
+      .$defaultFn(() => nanoid())
+      .primaryKey(),
+    email: text().notNull().unique(),
+    name: text().notNull(),
+  },
+  (table) => [
+    index('user_id_trgm')
+      .using('gin', sql`${table.id} gin_trgm_ops`)
+      .concurrently(),
+    index('user_email_trgm')
+      .using('gin', sql`${table.email} gin_trgm_ops`)
+      .concurrently(),
+    index('user_name_trgm')
+      .using('gin', sql`${table.name} gin_trgm_ops`)
+      .concurrently(),
+  ],
+);
+```
+> When deciding to create indexes for faster searches, ensure that you create them for all text based columns that exist in your table. This includes `text`, `char`, `varchar` and so on. Since rumble always searches all the text columns, it is recommended to create indexes for all text columns in your table, otherwise the search might not be as fast as possible.
+
+In case you never started rumble with the search mode activated and you want to create the indexes in your migration, please ensure that the `pg_trgm` extension is installed and enabled in your database. You can do this by running the following SQL command:
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+```
+rumble does this automatically on startup if the search feature is enabled, nonetheless it is recommended to include the extension installation in your migration scripts to ensure that the extension is available when you create the indexes which rely on it.
+
+**What this means for you**: After creating the migration files containing the indexes the first time with the `drizzle-kit generate` command (or your respective migration tool), add the above SQL statement before any index creation inside that generated migration file. This will ensure that the extension is installed and enabled before the indexes that rely on it are created.
+
+Another important aspect to consider when using indexes is that the PostgreSQL instance should be properly configured for optimal performance (e.g. the drive type you use might have an impact). This includes tuning settings such as `random_page_cost` and `effective_io_concurrency`. Please see [this quick writeup on the topic](https://blog.frehi.be/2025/07/28/tuning-postgresql-performance-for-ssd). If not done properly, your indexes might not be used as expected rendering them useless.
+
+Please also note that `GIST` indexes are also supported by `pg_trgm` but will oftentimes not be useable for the sorting since a lot of columns are accumulated in the query which causes the query planner to not use them. Feel free to experiment with different index types and configurations to find the best fit for your specific use case.
+
 ### and more...
 See [the example file](./example/src/main.ts) or clone it and let intellisense guide you. Rumble offers various other helpers which might become handy!
 

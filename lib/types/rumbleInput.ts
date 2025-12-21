@@ -65,7 +65,7 @@ export type RumbleInput<
         enabled?: boolean;
         /**
          * The cuttoff factor to reduce the amount of returned results.
-         * Defaults to 0.3.
+         * Defaults to 0.3. Lower values will return more results.
          */
         threshold?: number;
       }
