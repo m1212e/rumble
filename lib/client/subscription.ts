@@ -1,5 +1,5 @@
 import type { Client } from "@urql/core";
-import { argsKey, makeGraphQLSubscription } from "./request";
+import { argsKey, makeGraphQLSubscriptionRequest } from "./request";
 import type {
   ApplySelection,
   ObjectFieldSelection,
@@ -17,7 +17,7 @@ export function makeSubscription<Subscription extends Record<string, any>>({
     {
       get: (_target, prop) => {
         return (input: Record<string, any>) => {
-          return makeGraphQLSubscription({
+          return makeGraphQLSubscriptionRequest({
             subscriptionName: prop as string,
             input,
             client: urqlClient,

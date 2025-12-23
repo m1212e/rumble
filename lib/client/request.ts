@@ -14,7 +14,7 @@ import {
 
 export const argsKey = "__args";
 
-export function makeGraphQLQuery({
+export function makeGraphQLQueryRequest({
   queryName,
   input,
   client,
@@ -79,7 +79,7 @@ export function makeGraphQLQuery({
   return promise;
 }
 
-export function makeGraphQLMutation({
+export function makeGraphQLMutationRequest({
   mutationName,
   input,
   client,
@@ -114,7 +114,7 @@ export function makeGraphQLMutation({
   return promise;
 }
 
-export function makeGraphQLSubscription({
+export function makeGraphQLSubscriptionRequest({
   subscriptionName,
   input,
   client,

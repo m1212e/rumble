@@ -72,10 +72,6 @@ export type Subscribeable<Data> = {
 };
 
 type Response<Data> = Data extends object
-  ? {
-      then: (onFulfilled: (value: Subscribeable<Data> & Data) => void) => void;
-    } & Subscribeable<Data | undefined>
-  : {
-      // if this is a primitive type, we can't merge the Subscribeable with the Data type
-      then: (onFulfilled: (value: Data) => void) => void;
-    } & Subscribeable<Data | undefined>;
+  ? Promise<Subscribeable<Data> & Data> & Subscribeable<Data | undefined>
+  : // if this is a primitive type, we can't merge the Subscribeable with the Data type
+    Promise<Data> & Subscribeable<Data | undefined>;

@@ -1,5 +1,5 @@
 import type { Client } from "@urql/core";
-import { makeGraphQLQuery } from "./request";
+import { makeGraphQLQueryRequest } from "./request";
 import type { QueryableObjectFromGeneratedTypes } from "./types";
 
 export function makeQuery<Query extends Record<string, any>>({
@@ -12,7 +12,7 @@ export function makeQuery<Query extends Record<string, any>>({
     {
       get: (_target, prop) => {
         return (input?: Record<string, any>) => {
-          return makeGraphQLQuery({
+          return makeGraphQLQueryRequest({
             queryName: prop as string,
             input,
             client: urqlClient,

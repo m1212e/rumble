@@ -1,5 +1,5 @@
 import type { Client } from "@urql/core";
-import { makeGraphQLMutation } from "./request";
+import { makeGraphQLMutationRequest } from "./request";
 import type { QueryableObjectFromGeneratedTypes } from "./types";
 
 export function makeMutation<Mutation extends Record<string, any>>({
@@ -12,7 +12,7 @@ export function makeMutation<Mutation extends Record<string, any>>({
     {
       get: (_target, prop) => {
         return (input: Record<string, any>) => {
-          return makeGraphQLMutation({
+          return makeGraphQLMutationRequest({
             mutationName: prop as string,
             input,
             client: urqlClient,
