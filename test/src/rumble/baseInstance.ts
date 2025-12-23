@@ -30,6 +30,7 @@ export function makeRumbleSeedInstance(
         }),
         firstName: t.field({
           type: "String",
+          nullable: true,
           resolve: (parent, _args, _context, _info) => parent.firstName,
         }),
       };
