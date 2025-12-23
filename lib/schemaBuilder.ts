@@ -62,6 +62,7 @@ export const createSchemaBuilder = <
       StringWhereInputArgument: StringWhereInputArgument;
       DateWhereInputArgument: DateWhereInputArgument;
     };
+    DefaultFieldNullability: false;
   }>({
     ...pothosConfig,
     plugins: [
@@ -88,6 +89,7 @@ export const createSchemaBuilder = <
         return pubsub.subscribe(name);
       }),
     },
+    defaultFieldNullability: false,
   });
 
   schemaBuilder.addScalarType("JSON", JSONResolver);
