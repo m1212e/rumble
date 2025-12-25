@@ -118,7 +118,16 @@ Please ensure that you use the enum at least once as a column of a table!`);
 
       enumValues = (enumCol as any).enumValues;
     } else if (enumColumn) {
-      enumSchemaName = (enumColumn as any).config.name as string;
+      const entry = Object.entries(
+        (db as ReturnType<typeof drizzle<any, any, any>>)._.fullSchema!,
+      ).filter(([_, value]) => (enumColumn as any).config.enum === value)[0];
+
+      if (!entry) {
+        throw new RumbleError(
+          `Could not find enum entry for ${(enumColumn as any).config.name}.`,
+        );
+      }
+      enumSchemaName = entry[0];
       enumValues = enumColumn.enumValues;
     }
 

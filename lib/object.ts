@@ -262,7 +262,7 @@ export const createObjectImplementer = <
           ) ?? {};
 
         const fields = Object.entries(columns).reduce(
-          (acc, [key, value]) => {
+          (acc, [key, column]) => {
             // in case the user wants to overwrite a field
             // we want to merge with our stuff in case the user
             // did not specify it themselves
@@ -272,29 +272,29 @@ export const createObjectImplementer = <
               )!;
 
               if (typeof configObject.nullable !== "boolean") {
-                configObject.nullable = !value.notNull;
+                configObject.nullable = !column.notNull;
               }
 
               userAdjustments[key] = creatorFunction.bind(t)(...params);
               return acc;
             }
 
-            if (isEnumSchema(value)) {
+            if (isEnumSchema(column)) {
               const enumImpl = enumImplementer({
-                enumColumn: value,
+                enumColumn: column,
               });
 
               acc[key] = t.field({
                 type: enumImpl,
                 resolve: (element) => (element as any)[key],
-                nullable: !value.notNull,
+                nullable: !column.notNull,
               });
             } else {
               acc[key] = buildPothosResponseTypeFromGraphQLType({
                 builder: t,
-                sqlType: value.getSQLType() as PossibleSQLType,
+                sqlType: column.getSQLType() as PossibleSQLType,
                 fieldName: key,
-                nullable: !value.notNull,
+                nullable: !column.notNull,
               });
             }
             return acc;

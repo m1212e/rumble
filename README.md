@@ -5,6 +5,8 @@ rumble is a combined ability and graphql builder built around [drizzle](https://
 
 > Using rumble and reading these docs requires some basic knowledge about the above mentioned tools. If you feel stuck, please make sure to familiarize yourself with those first! Especially familiarity with pothos and its drizzle plugin are very helpful!
 
+> rumble currently works best with postgres. Some features might not work with other databases.
+
 ## Getting started
 The following example is an excerpt from the example setup you can find [here](./example). If you are interested in a real world app thats using rumble (and is still work in progress) please see [CHASE](https://github.com/DeutscheModelUnitedNations/munify-chase).
 
