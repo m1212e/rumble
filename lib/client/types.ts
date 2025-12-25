@@ -47,23 +47,28 @@ export type QueryableObjectFromGeneratedTypes<Q> = {
 export type ObjectFieldSelection<O> = RequireAtLeastOneFieldSet<{
   [Key in keyof O]: NonNullable<UnArray<O[Key]>> extends (p: infer P) => infer A
     ? P extends Record<string, any>
-      ? ObjectFieldSelection<UnArray<NonNullable<A>>> & { [argsKey]: P }
-      : ObjectFieldSelection<UnArray<NonNullable<A>>>
-    : boolean;
+      ? // if the field is a function with required arguments, require the arguments in the selection
+        ObjectFieldSelection<UnArray<NonNullable<A>>> & { [argsKey]: P }
+      : // if we do not have required arguments, we can omit them
+        ObjectFieldSelection<UnArray<NonNullable<A>>>
+    : // request a selection for the field if it is to be included or not
+      boolean;
 }>;
 
+/**
+ * Apply a selection to an object type
+ */
 export type ApplySelection<Object, Selection> = {
   [Key in keyof Selection & keyof Object]: Object[Key] extends (
-    p: infer _P,
-  ) => infer _A
-    ? ReturnType<Object[Key]> extends Array<any>
-      ? Array<
-          ApplySelection<
-            UnArray<UnFunc<ReturnType<Object[Key]>>>,
-            Selection[Key]
-          >
+    p: infer _RequestArgs,
+  ) => infer FieldResponse
+    ? DeriveNullability<
+        FieldResponse,
+        DeriveArrayType<
+          NonNullable<FieldResponse>,
+          ApplySelection<ExtractGQLTypeFromField<FieldResponse>, Selection[Key]>
         >
-      : ApplySelection<UnArray<UnFunc<Object[Key]>>, Selection[Key]>
+      >
     : Object[Key];
 };
 

@@ -328,7 +328,7 @@ export const createObjectImplementer = <
             let filterSpecifier = "many";
             if (value instanceof One) {
               isMany = false;
-              nullable = (value as any).optional;
+              nullable = !value.sourceColumns.every((column) => column.notNull);
               filterSpecifier = "single";
             }
 
