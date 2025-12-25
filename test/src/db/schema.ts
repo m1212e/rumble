@@ -22,9 +22,12 @@ export const comments = table("comments_table", {
   text: t.text(),
   published: t.integer({ mode: "boolean" }),
   someNumber: t.numeric({ mode: "number" }).default(0),
-  postId: t.text().references(() => posts.id, {
-    onDelete: "cascade",
-  }),
+  postId: t
+    .text()
+    .notNull()
+    .references(() => posts.id, {
+      onDelete: "cascade",
+    }),
   ownerId: t
     .text()
     .notNull()
