@@ -106,11 +106,10 @@ export function makeGraphQLMutationRequest({
 
   const argsString = stringifyArgumentObjectToGraphqlList(input[argsKey] ?? {});
 
+  const operationString = `mutation ${otwMutationName} { ${mutationName}${argsString} { ${stringifySelection(input)} }}`;
+
   const response = pipe(
-    client.mutation(
-      `mutation ${otwMutationName} { ${mutationName}${argsString} { ${stringifySelection(input)} }}`,
-      {},
-    ),
+    client.mutation(operationString, {}),
     map((v) => {
       const data = v.data?.[mutationName];
       if (!data && v.error) {
@@ -142,11 +141,10 @@ export function makeGraphQLSubscriptionRequest({
   const otwSubscriptionName = `${capitalize(subscriptionName)}Subscription`;
   const argsString = stringifyArgumentObjectToGraphqlList(input[argsKey] ?? {});
 
+  const operationString = `subscription ${otwSubscriptionName} { ${subscriptionName}${argsString} { ${stringifySelection(input)} }}`;
+
   return pipe(
-    client.subscription(
-      `subscription ${otwSubscriptionName} { ${subscriptionName}${argsString} { ${stringifySelection(input)} }}`,
-      {},
-    ),
+    client.subscription(operationString, {}),
     map((v) => {
       const data = v.data?.[subscriptionName];
       if (!data && v.error) {
@@ -173,7 +171,8 @@ function stringifySelection(selection: Record<string, any>) {
           return acc;
         }
 
-        acc += `${key} { ${stringifySelection(value)} }
+        acc += `${key} {
+${stringifySelection(value)} }
 `;
       } else {
         acc += `${key}
@@ -185,16 +184,25 @@ function stringifySelection(selection: Record<string, any>) {
 
 function stringifyArgumentObjectToGraphqlList(args: Record<any, any>) {
   const entries = Object.entries(args);
-  if (entries.length === 0) {
-    return "";
+  if (Array.isArray(args)) {
+    return `(${stringifyArgumentValue(args)})`;
   }
 
-  return `(${entries.map(([key, value]) => `${key}: ${stringifyArgumentValue(value)}`).join(", ")})`;
+  if (entries.length > 0) {
+    // Object without the {} brackets since we don't want them at the top level arguments
+    return `(${entries.map(([key, value]) => `${key}: ${stringifyArgumentValue(value)}`).join(", ")})`;
+  }
+
+  return "";
 }
 
 function stringifyArgumentValue(arg: any): string {
   if (arg === null) {
     return "null";
+  }
+
+  if (Array.isArray(arg)) {
+    return `[${arg.map(stringifyArgumentValue).join(", ")}]`;
   }
 
   switch (typeof arg) {
