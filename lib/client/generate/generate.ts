@@ -16,6 +16,7 @@ export async function generateFromSchema({
   apiUrl,
   useExternalUrqlClient = false,
   removeExisting = true,
+  forceReactivity,
 }: {
   schema: GraphQLSchema;
   outputPath: string;
@@ -23,6 +24,7 @@ export async function generateFromSchema({
   apiUrl?: string;
   useExternalUrqlClient?: boolean | string;
   removeExisting?: boolean;
+  forceReactivity?: boolean;
 }) {
   if (removeExisting) {
     try {
@@ -68,6 +70,7 @@ export type ${key} = ${rep};
     availableSubscriptions: new Set(
       Object.keys(schema.getSubscriptionType()?.getFields() || {}),
     ),
+    forceReactivity,
   });
 
   imports.push(...c.imports);

@@ -19,11 +19,13 @@ export function makeGraphQLQueryRequest({
   input,
   client,
   enableSubscription = false,
+  forceReactivity,
 }: {
   queryName: string;
   input?: Record<string, any>;
   client: Client;
   enableSubscription?: boolean;
+  forceReactivity?: boolean;
 }) {
   const otwQueryName = `${capitalize(queryName)}Query`;
   const argsString = stringifyArgumentObjectToGraphqlList(
@@ -52,7 +54,12 @@ export function makeGraphQLQueryRequest({
     }),
     // keep the returned object reference updated with new data
     onPush((data) => {
-      if (typeof data === "object" && data !== null) {
+      if (
+        typeof data === "object" &&
+        data !== null &&
+        typeof forceReactivity === "boolean" &&
+        forceReactivity
+      ) {
         Object.assign(awaitedReturnValueReference, data);
       }
     }),
@@ -64,9 +71,14 @@ export function makeGraphQLQueryRequest({
       source,
       take(1),
       map((data) => {
-        if (typeof data === "object" && data !== null) {
+        Object.assign(awaitedReturnValueReference, observable);
+        if (
+          typeof data === "object" &&
+          data !== null &&
+          typeof forceReactivity === "boolean" &&
+          forceReactivity
+        ) {
           Object.assign(awaitedReturnValueReference, data);
-          Object.assign(awaitedReturnValueReference, observable);
           return awaitedReturnValueReference;
         }
 
@@ -83,10 +95,12 @@ export function makeGraphQLMutationRequest({
   mutationName,
   input,
   client,
+  forceReactivity,
 }: {
   mutationName: string;
   input: Record<string, any>;
   client: Client;
+  forceReactivity?: boolean;
 }) {
   const otwMutationName = `${capitalize(mutationName)}Mutation`;
 
@@ -118,10 +132,12 @@ export function makeGraphQLSubscriptionRequest({
   subscriptionName,
   input,
   client,
+  forceReactivity,
 }: {
   subscriptionName: string;
   input: Record<string, any>;
   client: Client;
+  forceReactivity?: boolean;
 }) {
   const otwSubscriptionName = `${capitalize(subscriptionName)}Subscription`;
   const argsString = stringifyArgumentObjectToGraphqlList(input[argsKey] ?? {});

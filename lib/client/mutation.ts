@@ -2,10 +2,15 @@ import type { Client } from "@urql/core";
 import { makeGraphQLMutationRequest } from "./request";
 import type { QueryableObjectFromGeneratedTypes } from "./types";
 
-export function makeMutation<Mutation extends Record<string, any>>({
+export function makeMutation<
+  Mutation extends Record<string, any>,
+  ForceReactivity extends boolean,
+>({
   urqlClient,
+  forceReactivity,
 }: {
   urqlClient: Client;
+  forceReactivity?: ForceReactivity;
 }) {
   return new Proxy(
     {},
@@ -16,9 +21,10 @@ export function makeMutation<Mutation extends Record<string, any>>({
             mutationName: prop as string,
             input,
             client: urqlClient,
+            forceReactivity,
           });
         };
       },
     },
-  ) as QueryableObjectFromGeneratedTypes<Mutation>;
+  ) as QueryableObjectFromGeneratedTypes<Mutation, ForceReactivity>;
 }

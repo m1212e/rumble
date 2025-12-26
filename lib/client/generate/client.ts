@@ -4,12 +4,14 @@ export function generateClient({
   useExternalUrqlClient,
   availableSubscriptions,
   schemaPath,
+  forceReactivity,
 }: {
   rumbleImportPath: string;
   useExternalUrqlClient: string | boolean;
   apiUrl?: string;
   availableSubscriptions: Set<string>;
   schemaPath: string;
+  forceReactivity?: boolean;
 }) {
   const imports: string[] = [];
   let code: string = "";
@@ -26,6 +28,13 @@ export function generateClient({
   imports.push(
     `import { makeLiveQuery, makeMutation, makeSubscription, makeQuery } from '${rumbleImportPath}';`,
   );
+
+  const forceReactivityValueString =
+    typeof forceReactivity === "boolean" && forceReactivity ? "true" : "";
+  const forceReactivityFieldString =
+    forceReactivityValueString !== ""
+      ? `forceReactivity: ${forceReactivityValueString}`
+      : "";
 
   code += `
 export const defaultOptions: ConstructorParameters<Client>[0] = {
@@ -53,31 +62,35 @@ export const client = {
    * Assumes that the query and subscription return the same fields as per default when using the rumble query helpers.
    * If no subscription with the same name exists, this will just be a query.
    */
-  liveQuery: makeLiveQuery<Query>({
+  liveQuery: makeLiveQuery<Query${`, ${forceReactivityValueString}`}>({
 	  urqlClient,
 	  availableSubscriptions: new Set([${availableSubscriptions
       .values()
       .toArray()
       .map((value) => `"${value}"`)
       .join(", ")}]),
+		${forceReactivityFieldString}
   }),
   /**
    * A mutation that can be used to e.g. create, update or delete data.
    */
-  mutate: makeMutation<Mutation>({
+  mutate: makeMutation<Mutation${`, ${forceReactivityValueString}`}>({
 	  urqlClient,
+		${forceReactivityFieldString}
   }),
   /**
    * A continuous stream of results that updates when the server sends new data.
    */
-  subscribe: makeSubscription<Subscription>({
+  subscribe: makeSubscription<Subscription${`, ${forceReactivityValueString}`}>({
 	  urqlClient,
+		${forceReactivityFieldString}
   }),
   /**
    * A one-time fetch of data.
    */
-  query: makeQuery<Query>({
+  query: makeQuery<Query${`, ${forceReactivityValueString}`}>({
 	  urqlClient,
+		${forceReactivityValueString !== "" ? `forceReactivity: ${forceReactivityValueString}` : ""}
   }),
 }`;
 

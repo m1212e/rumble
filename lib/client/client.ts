@@ -30,6 +30,7 @@ export const clientCreatorImplementer = <
     rumbleImportPath,
     useExternalUrqlClient,
     removeExisting,
+    forceReactivity,
   }: {
     /**
      * Path to the output directory where the client files will be generated.
@@ -53,6 +54,11 @@ export const clientCreatorImplementer = <
      * Whether to remove existing generated files in the output directory before generating new ones.
      */
     removeExisting?: boolean;
+    /**
+     * Whether to force reactivity for generated queries and mutations. This will prevent the actual response fields of the awaited response from being populated
+     * and requires you to subscribe to the response to access the data. Useful to prevent forgetting to subscribe to the response to utilize reactive data.
+     */
+    forceReactivity?: boolean;
   }) => {
     if (process.env.NODE_ENV !== "development") {
       console.warn(
@@ -67,6 +73,7 @@ export const clientCreatorImplementer = <
       apiUrl,
       useExternalUrqlClient,
       removeExisting,
+      forceReactivity,
     });
   };
 

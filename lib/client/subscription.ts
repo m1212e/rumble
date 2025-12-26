@@ -7,10 +7,15 @@ import type {
 } from "./types";
 import type { UnArray } from "./utilTypes";
 
-export function makeSubscription<Subscription extends Record<string, any>>({
+export function makeSubscription<
+  Subscription extends Record<string, any>,
+  ForceReactivity extends boolean,
+>({
   urqlClient,
+  forceReactivity,
 }: {
   urqlClient: Client;
+  forceReactivity?: ForceReactivity;
 }) {
   return new Proxy(
     {},
@@ -21,6 +26,7 @@ export function makeSubscription<Subscription extends Record<string, any>>({
             subscriptionName: prop as string,
             input,
             client: urqlClient,
+            forceReactivity,
           });
         };
       },

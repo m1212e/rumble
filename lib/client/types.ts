@@ -5,12 +5,14 @@ import type {
   ExtractGQLTypeFromField,
   RequireAtLeastOneFieldSet,
   UnArray,
-  UnFunc,
 } from "./utilTypes";
 
 //TODO: Find out how to sanely refactor these types
 
-export type QueryableObjectFromGeneratedTypes<Q> = {
+export type QueryableObjectFromGeneratedTypes<
+  Q,
+  ForceReactivity extends boolean,
+> = {
   // do we have a simple type or a function that returns a type?
   [Key in keyof Q]: Q[Key] extends (p: infer QueryArgs) => infer QueryResponse
     ? <
@@ -34,11 +36,12 @@ export type QueryableObjectFromGeneratedTypes<Q> = {
             QueryResponse,
             // apply the selection to get the final type
             ApplySelection<ExtractGQLTypeFromField<QueryResponse>, Selected>
-          >
+          >,
+          ForceReactivity
         >
       >
     : // if it's a simple type, we just return the type wrapped in a response
-      () => Response<Q[Key]>;
+      () => Response<Q[Key], ForceReactivity>;
 };
 
 /**
@@ -76,7 +79,12 @@ export type Subscribeable<Data> = {
   subscribe: (subscription: (value: Data) => void) => () => void;
 };
 
-type Response<Data> = Data extends object
-  ? Promise<Subscribeable<Data> & Data> & Subscribeable<Data | undefined>
-  : // if this is a primitive type, we can't merge the Subscribeable with the Data type
-    Promise<Data> & Subscribeable<Data | undefined>;
+type Response<
+  Data,
+  ForceReactivity extends boolean,
+> = ForceReactivity extends true
+  ? Promise<Subscribeable<Data>> & Subscribeable<Data | undefined>
+  : // if this is a primitive type, we can't merge the Subscribeable with the Data type, therefore check for object type
+    Data extends object
+    ? Promise<Subscribeable<Data> & Data> & Subscribeable<Data | undefined>
+    : Promise<Subscribeable<Data>> & Subscribeable<Data | undefined>;

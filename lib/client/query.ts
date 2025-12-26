@@ -2,10 +2,15 @@ import type { Client } from "@urql/core";
 import { makeGraphQLQueryRequest } from "./request";
 import type { QueryableObjectFromGeneratedTypes } from "./types";
 
-export function makeQuery<Query extends Record<string, any>>({
+export function makeQuery<
+  Query extends Record<string, any>,
+  ForceReactivity extends boolean,
+>({
   urqlClient,
+  forceReactivity,
 }: {
   urqlClient: Client;
+  forceReactivity?: ForceReactivity;
 }) {
   return new Proxy(
     {},
@@ -17,9 +22,10 @@ export function makeQuery<Query extends Record<string, any>>({
             input,
             client: urqlClient,
             enableSubscription: false,
+            forceReactivity,
           });
         };
       },
     },
-  ) as QueryableObjectFromGeneratedTypes<Query>;
+  ) as QueryableObjectFromGeneratedTypes<Query, ForceReactivity>;
 }
