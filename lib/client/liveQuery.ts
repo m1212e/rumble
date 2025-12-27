@@ -1,4 +1,5 @@
 import type { Client } from "@urql/core";
+import type { IntrospectionQuery } from "graphql";
 import { makeGraphQLQueryRequest } from "./request";
 import type { QueryableObjectFromGeneratedTypes } from "./types";
 
@@ -9,8 +10,10 @@ export function makeLiveQuery<
   urqlClient,
   availableSubscriptions,
   forceReactivity,
+  schema,
 }: {
   urqlClient: Client;
+  schema: IntrospectionQuery;
   availableSubscriptions: Set<string>;
   forceReactivity?: ForceReactivity;
 }) {
@@ -25,6 +28,7 @@ export function makeLiveQuery<
             client: urqlClient,
             enableSubscription: availableSubscriptions.has(prop as string),
             forceReactivity,
+            schema,
           });
         };
       },

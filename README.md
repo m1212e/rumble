@@ -314,6 +314,9 @@ await clientCreator({
 
 This way of generating code is especially helpful in monorepos, where it is convenient to output client code when running the server during development. If you do not use a monorepo and want to decouple the generation process, see below.
 
+> The generated client contains metadata about the schema to function properly. Depending on the project and schema, this might be quite large and will increase bundle size. Additionally, this can provide sensitive information about the structure of your system. If you are concerned about this, it is recommended to use a different client.
+
+
 An example usage might look like this:
 ```ts
 import { client } from "./generated-client/client";

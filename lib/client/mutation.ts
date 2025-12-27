@@ -1,4 +1,5 @@
 import type { Client } from "@urql/core";
+import type { IntrospectionQuery } from "graphql";
 import { makeGraphQLMutationRequest } from "./request";
 import type { QueryableObjectFromGeneratedTypes } from "./types";
 
@@ -8,9 +9,11 @@ export function makeMutation<
 >({
   urqlClient,
   forceReactivity,
+  schema,
 }: {
   urqlClient: Client;
   forceReactivity?: ForceReactivity;
+  schema: IntrospectionQuery;
 }) {
   return new Proxy(
     {},
@@ -22,6 +25,7 @@ export function makeMutation<
             input,
             client: urqlClient,
             forceReactivity,
+            schema,
           });
         };
       },

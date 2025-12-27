@@ -1,5 +1,10 @@
 import type { Client } from "@urql/core";
 import { capitalize } from "es-toolkit";
+import type {
+  IntrospectionField,
+  IntrospectionQuery,
+  IntrospectionType,
+} from "graphql";
 import {
   empty,
   map,
@@ -20,17 +25,24 @@ export function makeGraphQLQueryRequest({
   client,
   enableSubscription = false,
   forceReactivity,
+  schema,
 }: {
   queryName: string;
   input?: Record<string, any>;
   client: Client;
   enableSubscription?: boolean;
   forceReactivity?: boolean;
+  schema: IntrospectionQuery;
 }) {
   const otwQueryName = `${capitalize(queryName)}Query`;
-  const argsString = stringifyArgumentObjectToGraphqlList(
-    input?.[argsKey] ?? {},
-  );
+  const argsString = stringifyArgumentObjectToGraphqlList({
+    args: input?.[argsKey] ?? {},
+    field: schema.__schema.types
+      .filter((t) => t.kind === "OBJECT")
+      .find((t) => t.name === schema.__schema.queryType!.name)!
+      .fields.find((f) => f.name === queryName)!,
+    types: schema.__schema.types,
+  });
   const operationString = (operationVerb: "query" | "subscription") =>
     `${operationVerb} ${otwQueryName} { ${queryName}${argsString} ${input ? `{ ${stringifySelection(input)} }` : ""}}`;
 
@@ -96,16 +108,23 @@ export function makeGraphQLMutationRequest({
   input,
   client,
   forceReactivity,
+  schema,
 }: {
   mutationName: string;
   input: Record<string, any>;
   client: Client;
   forceReactivity?: boolean;
+  schema: IntrospectionQuery;
 }) {
   const otwMutationName = `${capitalize(mutationName)}Mutation`;
-
-  const argsString = stringifyArgumentObjectToGraphqlList(input[argsKey] ?? {});
-
+  const argsString = stringifyArgumentObjectToGraphqlList({
+    args: input[argsKey] ?? {},
+    field: schema.__schema.types
+      .filter((t) => t.kind === "OBJECT")
+      .find((t) => t.name === schema.__schema.mutationType!.name)!
+      .fields.find((f) => f.name === mutationName)!,
+    types: schema.__schema.types,
+  });
   const operationString = `mutation ${otwMutationName} { ${mutationName}${argsString} { ${stringifySelection(input)} }}`;
 
   const response = pipe(
@@ -132,14 +151,23 @@ export function makeGraphQLSubscriptionRequest({
   input,
   client,
   forceReactivity,
+  schema,
 }: {
   subscriptionName: string;
   input: Record<string, any>;
   client: Client;
   forceReactivity?: boolean;
+  schema: IntrospectionQuery;
 }) {
   const otwSubscriptionName = `${capitalize(subscriptionName)}Subscription`;
-  const argsString = stringifyArgumentObjectToGraphqlList(input[argsKey] ?? {});
+  const argsString = stringifyArgumentObjectToGraphqlList({
+    args: input[argsKey] ?? {},
+    field: schema.__schema.types
+      .filter((t) => t.kind === "OBJECT")
+      .find((t) => t.name === schema.__schema.subscriptionType!.name)!
+      .fields.find((f) => f.name === subscriptionName)!,
+    types: schema.__schema.types,
+  });
 
   const operationString = `subscription ${otwSubscriptionName} { ${subscriptionName}${argsString} { ${stringifySelection(input)} }}`;
 
@@ -163,9 +191,9 @@ function stringifySelection(selection: Record<string, any>) {
     .reduce((acc, [key, value]) => {
       if (typeof value === "object") {
         if (value[argsKey]) {
-          const argsString = stringifyArgumentObjectToGraphqlList(
-            value[argsKey],
-          );
+          const argsString = stringifyArgumentObjectToGraphqlList({
+            args: value[argsKey],
+          });
           acc += `${key}${argsString} { ${stringifySelection(value)} }
 `;
           return acc;
@@ -182,7 +210,15 @@ ${stringifySelection(value)} }
     }, "");
 }
 
-function stringifyArgumentObjectToGraphqlList(args: Record<any, any>) {
+function stringifyArgumentObjectToGraphqlList({
+  args,
+  field,
+  types,
+}: {
+  args: Record<any, any>;
+  field: IntrospectionField;
+  types: readonly IntrospectionType[];
+}) {
   const entries = Object.entries(args);
   if (Array.isArray(args)) {
     return `(${stringifyArgumentValue(args)})`;
@@ -196,7 +232,15 @@ function stringifyArgumentObjectToGraphqlList(args: Record<any, any>) {
   return "";
 }
 
-function stringifyArgumentValue(arg: any): string {
+function stringifyArgumentValue({
+  arg,
+  field,
+  types,
+}: {
+  arg: any;
+  field: IntrospectionField;
+  types: IntrospectionType[];
+}): string {
   if (arg === null) {
     return "null";
   }
@@ -220,7 +264,10 @@ function stringifyArgumentValue(arg: any): string {
       return "null";
     case "object":
       return `{ ${Object.entries(arg)
-        .map(([key, value]) => `${key}: ${stringifyArgumentValue(value)}`)
+        .map(
+          ([key, value]) =>
+            `${key}: ${stringifyArgumentValue({ arg: value, field, types })}`,
+        )
         .join(", ")} }`;
     case "function":
       throw new Error("Cannot stringify a function to send as gql arg");

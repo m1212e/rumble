@@ -69,6 +69,7 @@ export const client = {
       .toArray()
       .map((value) => `"${value}"`)
       .join(", ")}]),
+		schema,
 		${forceReactivityFieldString}
   }),
   /**
@@ -76,6 +77,7 @@ export const client = {
    */
   mutate: makeMutation<Mutation${`, ${forceReactivityValueString}`}>({
 	  urqlClient,
+		schema,
 		${forceReactivityFieldString}
   }),
   /**
@@ -83,6 +85,7 @@ export const client = {
    */
   subscribe: makeSubscription<Subscription${`, ${forceReactivityValueString}`}>({
 	  urqlClient,
+		schema,
 		${forceReactivityFieldString}
   }),
   /**
@@ -90,7 +93,8 @@ export const client = {
    */
   query: makeQuery<Query${`, ${forceReactivityValueString}`}>({
 	  urqlClient,
-		${forceReactivityValueString !== "" ? `forceReactivity: ${forceReactivityValueString}` : ""}
+		schema,
+		${forceReactivityFieldString}
   }),
 }`;
 

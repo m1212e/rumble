@@ -1,4 +1,5 @@
 import type { Client } from "@urql/core";
+import type { IntrospectionQuery } from "graphql";
 import { argsKey, makeGraphQLSubscriptionRequest } from "./request";
 import type {
   ApplySelection,
@@ -13,9 +14,11 @@ export function makeSubscription<
 >({
   urqlClient,
   forceReactivity,
+  schema,
 }: {
   urqlClient: Client;
   forceReactivity?: ForceReactivity;
+  schema: IntrospectionQuery;
 }) {
   return new Proxy(
     {},
@@ -27,6 +30,7 @@ export function makeSubscription<
             input,
             client: urqlClient,
             forceReactivity,
+            schema,
           });
         };
       },

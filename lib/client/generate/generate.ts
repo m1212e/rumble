@@ -81,7 +81,7 @@ export type ${key} = ${rep};
     writeFile(
       join(outputPath, `${schemaFileName}.ts`),
       `// @ts-ignore
-export const schema = ${uneval(minifyIntrospectionQuery(getIntrospectedSchema(schema)))}`,
+export const schema = ${uneval(getIntrospectedSchema(schema))}`,
     ),
   ]);
 }
