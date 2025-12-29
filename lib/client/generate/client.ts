@@ -31,7 +31,7 @@ export function generateClient({
 
   const forceReactivityFieldString =
     typeof forceReactivity === "boolean" && forceReactivity
-      ? `\nforceReactivity: true`
+      ? `\n    forceReactivity: true`
       : "";
   const forceReactivityTypeString =
     typeof forceReactivity === "boolean" && forceReactivity ? ", true" : "";
