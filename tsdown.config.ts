@@ -2,7 +2,11 @@ import { defineConfig } from "tsdown";
 import packagejson from "./package.json" with { type: "json" };
 
 export default defineConfig({
-  entry: "lib/index.ts",
+  entry: {
+    index: "lib/index.ts",
+    client: "lib/client/index.ts",
+    "client/generate": "lib/client/generate/index.ts",
+  },
   dts: {
     sourcemap: true,
     parallel: false,

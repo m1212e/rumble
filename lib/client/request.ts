@@ -2,6 +2,7 @@ import type { Client } from "@urql/core";
 import { capitalize } from "es-toolkit";
 import type {
   IntrospectionField,
+  IntrospectionInputValue,
   IntrospectionQuery,
   IntrospectionType,
 } from "graphql";
@@ -19,40 +20,78 @@ import {
 
 export const argsKey = "__args";
 
+function makeOperationString({
+  operationVerb,
+  queryName,
+  schema,
+  input,
+}: {
+  operationVerb: "query" | "subscription" | "mutation";
+  queryName: string;
+  schema: IntrospectionQuery;
+  input?: Record<string, any>;
+}) {
+  const otwQueryName = `${capitalize(queryName)}${capitalize(operationVerb)}`;
+  const field = schema.__schema.types
+    .filter((t) => t.kind === "OBJECT")
+    .find((t) => t.name === schema.__schema[`${operationVerb}Type`]!.name)!
+    .fields.find((f) => f.name === queryName)!;
+  const types = schema.__schema.types;
+
+  const selectionString = input
+    ? stringifySelection({ field, selection: input, types })
+    : "";
+
+  const argumentString = input?.[argsKey]
+    ? stringifyArgumentObjectToGraphqlList({
+        args: input[argsKey],
+        fieldArgs: field.args,
+        types,
+      })
+    : "";
+
+  const ret = `${operationVerb} ${otwQueryName} { ${queryName}${argumentString} ${selectionString}}`;
+  return ret;
+}
+
 export function makeGraphQLQueryRequest({
   queryName,
+  schema,
   input,
   client,
   enableSubscription = false,
   forceReactivity,
-  schema,
 }: {
   queryName: string;
+  schema: IntrospectionQuery;
   input?: Record<string, any>;
   client: Client;
   enableSubscription?: boolean;
   forceReactivity?: boolean;
-  schema: IntrospectionQuery;
 }) {
-  const otwQueryName = `${capitalize(queryName)}Query`;
-  const argsString = stringifyArgumentObjectToGraphqlList({
-    args: input?.[argsKey] ?? {},
-    field: schema.__schema.types
-      .filter((t) => t.kind === "OBJECT")
-      .find((t) => t.name === schema.__schema.queryType!.name)!
-      .fields.find((f) => f.name === queryName)!,
-    types: schema.__schema.types,
-  });
-  const operationString = (operationVerb: "query" | "subscription") =>
-    `${operationVerb} ${otwQueryName} { ${queryName}${argsString} ${input ? `{ ${stringifySelection(input)} }` : ""}}`;
-
   const awaitedReturnValueReference = {};
 
   const source = pipe(
     merge([
-      client.query(operationString("query"), {}),
+      client.query(
+        makeOperationString({
+          operationVerb: "query",
+          queryName,
+          input,
+          schema,
+        }),
+        {},
+      ),
       enableSubscription
-        ? client.subscription(operationString("subscription"), {})
+        ? client.subscription(
+            makeOperationString({
+              operationVerb: "subscription",
+              queryName,
+              input,
+              schema,
+            }),
+            {},
+          )
         : empty,
     ]),
     share,
@@ -107,28 +146,23 @@ export function makeGraphQLMutationRequest({
   mutationName,
   input,
   client,
-  forceReactivity,
   schema,
 }: {
   mutationName: string;
   input: Record<string, any>;
   client: Client;
-  forceReactivity?: boolean;
   schema: IntrospectionQuery;
 }) {
-  const otwMutationName = `${capitalize(mutationName)}Mutation`;
-  const argsString = stringifyArgumentObjectToGraphqlList({
-    args: input[argsKey] ?? {},
-    field: schema.__schema.types
-      .filter((t) => t.kind === "OBJECT")
-      .find((t) => t.name === schema.__schema.mutationType!.name)!
-      .fields.find((f) => f.name === mutationName)!,
-    types: schema.__schema.types,
-  });
-  const operationString = `mutation ${otwMutationName} { ${mutationName}${argsString} { ${stringifySelection(input)} }}`;
-
   const response = pipe(
-    client.mutation(operationString, {}),
+    client.mutation(
+      makeOperationString({
+        operationVerb: "mutation",
+        queryName: mutationName,
+        input,
+        schema,
+      }),
+      {},
+    ),
     map((v) => {
       const data = v.data?.[mutationName];
       if (!data && v.error) {
@@ -150,29 +184,23 @@ export function makeGraphQLSubscriptionRequest({
   subscriptionName,
   input,
   client,
-  forceReactivity,
   schema,
 }: {
   subscriptionName: string;
   input: Record<string, any>;
   client: Client;
-  forceReactivity?: boolean;
   schema: IntrospectionQuery;
 }) {
-  const otwSubscriptionName = `${capitalize(subscriptionName)}Subscription`;
-  const argsString = stringifyArgumentObjectToGraphqlList({
-    args: input[argsKey] ?? {},
-    field: schema.__schema.types
-      .filter((t) => t.kind === "OBJECT")
-      .find((t) => t.name === schema.__schema.subscriptionType!.name)!
-      .fields.find((f) => f.name === subscriptionName)!,
-    types: schema.__schema.types,
-  });
-
-  const operationString = `subscription ${otwSubscriptionName} { ${subscriptionName}${argsString} { ${stringifySelection(input)} }}`;
-
   return pipe(
-    client.subscription(operationString, {}),
+    client.subscription(
+      makeOperationString({
+        operationVerb: "subscription",
+        queryName: subscriptionName,
+        input,
+        schema,
+      }),
+      {},
+    ),
     map((v) => {
       const data = v.data?.[subscriptionName];
       if (!data && v.error) {
@@ -185,48 +213,67 @@ export function makeGraphQLSubscriptionRequest({
   ) as any;
 }
 
-function stringifySelection(selection: Record<string, any>) {
-  return Object.entries(selection)
+function stringifySelection({
+  field,
+  selection,
+  types,
+}: {
+  selection: Record<string, any>;
+  field: IntrospectionField;
+  types: readonly IntrospectionType[];
+}) {
+  const ret = Object.entries(selection)
     .filter(([key]) => key !== argsKey)
     .reduce((acc, [key, value]) => {
       if (typeof value === "object") {
+        let argsString = "";
         if (value[argsKey]) {
-          const argsString = stringifyArgumentObjectToGraphqlList({
+          //TODO: we probably need to resolve this to be the input object of the field we are processing
+
+          argsString = stringifyArgumentObjectToGraphqlList({
             args: value[argsKey],
+            types,
+            fieldArgs: field.args,
           });
-          acc += `${key}${argsString} { ${stringifySelection(value)} }
-`;
-          return acc;
         }
 
-        acc += `${key} {
-${stringifySelection(value)} }
+        acc += `${key}${argsString} ${stringifySelection({
+          field,
+          selection: value,
+          types,
+        })}
 `;
       } else {
-        acc += `${key}
+        if (typeof value === "boolean" && value) {
+          acc += `${key}
 `;
+        }
       }
       return acc;
     }, "");
+
+  return `{
+${ret} }`;
 }
 
 function stringifyArgumentObjectToGraphqlList({
   args,
-  field,
+  fieldArgs,
   types,
 }: {
   args: Record<any, any>;
-  field: IntrospectionField;
+  fieldArgs: readonly IntrospectionInputValue[];
   types: readonly IntrospectionType[];
 }) {
   const entries = Object.entries(args);
-  if (Array.isArray(args)) {
-    return `(${stringifyArgumentValue(args)})`;
-  }
 
   if (entries.length > 0) {
-    // Object without the {} brackets since we don't want them at the top level arguments
-    return `(${entries.map(([key, value]) => `${key}: ${stringifyArgumentValue(value)}`).join(", ")})`;
+    return `(${entries
+      .map(([key, value]) => {
+        const gqlArg = fieldArgs.find((a) => a.name === key)!;
+        return `${key}: ${stringifyArgumentValue({ arg: value, gqlArg, types })}`;
+      })
+      .join(", ")})`;
   }
 
   return "";
@@ -234,24 +281,79 @@ function stringifyArgumentObjectToGraphqlList({
 
 function stringifyArgumentValue({
   arg,
-  field,
+  gqlArg,
   types,
 }: {
   arg: any;
-  field: IntrospectionField;
-  types: IntrospectionType[];
+  gqlArg: IntrospectionInputValue;
+  types: readonly IntrospectionType[];
 }): string {
   if (arg === null) {
     return "null";
   }
 
   if (Array.isArray(arg)) {
-    return `[${arg.map(stringifyArgumentValue).join(", ")}]`;
+    return `[${arg
+      .map((v) => {
+        return stringifyArgumentValue({
+          arg: v,
+          types,
+          gqlArg,
+        });
+      })
+      .join(", ")}]`;
+  }
+
+  const argtype = typeof arg;
+
+  if (argtype === "object") {
+    let type = gqlArg.type;
+
+    if (type.kind === "NON_NULL") {
+      type = type.ofType;
+    }
+    if (type.kind === "LIST") {
+      type = type.ofType;
+    }
+    if (type.kind === "NON_NULL") {
+      type = type.ofType;
+    }
+
+    // if (type.kind !== "INPUT_OBJECT") {
+    //   throw new Error("Expected an INPUT_OBJECT type");
+    // }
+
+    const referenceInputObject = types.find((t) => t.name === type.name);
+
+    if (!referenceInputObject) {
+      throw new Error(
+        `Expected an INPUT_OBJECT hit in named based lookup for name ${type.name} with arg ${JSON.stringify(arg)}`,
+      );
+    }
+
+    if (referenceInputObject.kind !== "INPUT_OBJECT") {
+      throw new Error("Expected an INPUT_OBJECT hit in named based lookup");
+    }
+
+    return `{ ${Object.entries(arg)
+      .map(([key, value]) => {
+        const subArgType = referenceInputObject.inputFields.find(
+          (t) => t.name === key,
+        )!;
+        return `${key}: ${stringifyArgumentValue({ arg: value, types, gqlArg: subArgType })}`;
+      })
+      .join(", ")} }`;
+  }
+
+  let type = gqlArg.type;
+
+  if (type.kind === "NON_NULL") {
+    type = type.ofType;
   }
 
   switch (typeof arg) {
     case "string":
-      return `"${arg}"`;
+      return type.kind === "ENUM" ? arg : `"${arg}"`;
     case "number":
       return `${arg}`;
     case "bigint":
@@ -262,14 +364,9 @@ function stringifyArgumentValue({
       throw new Error("Cannot stringify a symbol to send as gql arg");
     case "undefined":
       return "null";
-    case "object":
-      return `{ ${Object.entries(arg)
-        .map(
-          ([key, value]) =>
-            `${key}: ${stringifyArgumentValue({ arg: value, field, types })}`,
-        )
-        .join(", ")} }`;
     case "function":
       throw new Error("Cannot stringify a function to send as gql arg");
   }
+
+  throw new Error("Cannot stringify an unknown type");
 }

@@ -20,7 +20,7 @@ export function generateClient({
     imports.push(`import { urqlClient } from "${useExternalUrqlClient}";`);
   }
 
-  imports.push(`import { Client, fetchExchange } from '@urql/core';`);
+  imports.push(`import { type Client, fetchExchange } from '@urql/core';`);
   imports.push(`import { cacheExchange } from '@urql/exchange-graphcache';`);
   imports.push(`import { nativeDateExchange } from '${rumbleImportPath}';`);
   imports.push(`import { schema } from '${schemaPath}';`);

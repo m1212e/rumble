@@ -59,6 +59,14 @@
       "import": "./out/index.mjs",
       "require": "./out/index.cjs"
     },
+    "./client": {
+      "import": "./out/client.mjs",
+      "require": "./out/client.cjs"
+    },
+    "./client/generate": {
+      "import": "./out/client/generate.mjs",
+      "require": "./out/client/generate.cjs"
+    },
     "./package.json": "./package.json"
   }
 }

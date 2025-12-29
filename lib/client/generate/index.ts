@@ -1,0 +1,1 @@
+export { generateFromSchema } from "./generate";

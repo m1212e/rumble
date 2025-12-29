@@ -348,7 +348,7 @@ console.log(users.firstName)
 ### Alternative decoupled client generation
 As an alternative to use the client generator with a fully instanciated rumble instance, you can also import the `generateFromSchema` function from rumble and pass it a standard `GraphQLSchema` object to generate the client:
 ```ts
-import { generateFromSchema } from "@m1212e/rumble";
+import { generateFromSchema } from "@m1212e/rumble/client/generate";
 
 await generateFromSchema({
   // a schema object: https://github.com/graphql/graphql-js/blob/60ae6c48b9c78332bf3d6036e7d931a3617d0674/src/type/schema.ts#L130

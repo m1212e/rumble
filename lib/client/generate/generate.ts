@@ -1,9 +1,6 @@
 import { access, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import {
-  getIntrospectedSchema,
-  minifyIntrospectionQuery,
-} from "@urql/introspection";
+import { getIntrospectedSchema } from "@urql/introspection";
 import { uneval } from "devalue";
 import type { GraphQLSchema } from "graphql";
 import { generateClient } from "./client";
@@ -12,7 +9,7 @@ import { makeTSRepresentation } from "./tsRepresentation";
 export async function generateFromSchema({
   outputPath,
   schema,
-  rumbleImportPath = "@m1212e/rumble",
+  rumbleImportPath = "@m1212e/rumble/client",
   apiUrl,
   useExternalUrqlClient = false,
   removeExisting = true,
