@@ -241,9 +241,9 @@ function stringifySelection({
             type = type.ofType;
           }
 
-          const referenceObject = types
-            .find((t) => t.name === type.name)
-            .fields.find((f) => f.name === key);
+          const referenceObject = (types as any)
+            .find((t: any) => t.name === (type as any).name)
+            .fields.find((f: any) => f.name === key);
 
           argsString = stringifyArgumentObjectToGraphql({
             args: value[argsKey],
@@ -345,11 +345,13 @@ function stringifyArgumentValue({
     //   throw new Error("Expected an INPUT_OBJECT type");
     // }
 
-    const referenceInputObject = types.find((t) => t.name === type.name);
+    const referenceInputObject = types.find(
+      (t) => t.name === (type as any).name,
+    );
 
     if (!referenceInputObject) {
       throw new Error(
-        `Expected an INPUT_OBJECT hit in name based lookup for name ${type.name} with arg ${JSON.stringify(arg)}`,
+        `Expected an INPUT_OBJECT hit in name based lookup for name ${(type as any).name} with arg ${JSON.stringify(arg)}`,
       );
     }
 
