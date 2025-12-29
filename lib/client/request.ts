@@ -8,10 +8,12 @@ import type {
 } from "graphql";
 import {
   empty,
+  fromValue,
   map,
   merge,
   onPush,
   pipe,
+  type Source,
   share,
   take,
   toObservable,
@@ -72,75 +74,87 @@ export function makeGraphQLQueryRequest({
   enableSubscription?: boolean;
   forceReactivity?: boolean;
 }) {
-  let awaitedReturnValueReference = {};
+  let awaitedReturnValueReference: any;
 
-  const source = pipe(
-    merge([
-      client.query(
-        makeOperationString({
-          operationVerb: "query",
-          queryName,
-          input,
-          schema,
-        }),
-        {},
-      ),
-      enableSubscription
-        ? client.subscription(
-            makeOperationString({
-              operationVerb: "subscription",
-              queryName,
-              input,
-              schema,
-            }),
-            {},
-          )
-        : empty,
-    ]),
-    // share,
-    map((v) => {
-      const data = v.data?.[queryName];
-      if (!data && v.error) {
-        throw v.error;
-      }
+  function makeStream(sources: Source<any>[]) {
+    return pipe(
+      merge(sources),
+      share,
+      map((v: any) => {
+        const data = v.data?.[queryName];
+        if (!data && v.error) {
+          throw v.error;
+        }
 
-      return data;
-    }),
-    // keep the returned object reference updated with new data
-    onPush((data) => {
-      if (
-        typeof data === "object" &&
-        data !== null &&
-        typeof forceReactivity === "boolean" &&
-        forceReactivity
-      ) {
-        // TODO: Object assign calls should not overwrite store or promise fields
-        Object.assign(awaitedReturnValueReference, data);
-      }
-    }),
-  );
-
-  const observable = toObservable(source);
-  const promise = toPromise(
-    pipe(
-      source,
-      take(1),
-      map((data) => {
+        return data;
+      }),
+      // keep the returned object reference updated with new data
+      onPush((data) => {
         if (
           typeof data === "object" &&
           data !== null &&
           typeof forceReactivity === "boolean" &&
           forceReactivity
         ) {
-          awaitedReturnValueReference = data;
-          Object.assign(awaitedReturnValueReference, observable);
-          return awaitedReturnValueReference;
+          if (awaitedReturnValueReference) {
+            // TODO: Object assign calls should not overwrite store or promise fields
+            Object.assign(awaitedReturnValueReference, data);
+          } else {
+            awaitedReturnValueReference = data;
+          }
         }
-        return observable;
+      }),
+    );
+  }
+
+  const querySource = client.query(
+    makeOperationString({
+      operationVerb: "query",
+      queryName,
+      input,
+      schema,
+    }),
+    {},
+  );
+
+  const subscriptionSource = enableSubscription
+    ? client.subscription(
+        makeOperationString({
+          operationVerb: "subscription",
+          queryName,
+          input,
+          schema,
+        }),
+        {},
+      )
+    : empty;
+
+  const promise = toPromise(
+    pipe(
+      makeStream([querySource]),
+      take(1),
+      map((data) => {
+        const observable = toObservable(
+          makeStream([fromValue(data), querySource, subscriptionSource]),
+        );
+        if (
+          typeof data === "object" &&
+          data !== null &&
+          typeof forceReactivity === "boolean" &&
+          forceReactivity
+        ) {
+          return observable;
+        }
+        awaitedReturnValueReference = data;
+        Object.assign(awaitedReturnValueReference, observable);
+        return awaitedReturnValueReference;
       }),
     ),
   );
-  Object.assign(promise, observable);
+  Object.assign(
+    promise,
+    toObservable(makeStream([querySource, subscriptionSource])),
+  );
 
   return promise;
 }

@@ -445,7 +445,7 @@ await clientCreator({
 
 // a.subscribe((s) => console.log(s.at(0)));
 
-// // awaiting this allows us to use the data directly, without subscribing
+// awaiting this allows us to use the data directly, without subscribing
 // const r3 = await client.liveQuery.users({
 // 	id: true,
 // 	name: true,
