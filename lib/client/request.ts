@@ -72,7 +72,7 @@ export function makeGraphQLQueryRequest({
   enableSubscription?: boolean;
   forceReactivity?: boolean;
 }) {
-  const awaitedReturnValueReference = {};
+  let awaitedReturnValueReference = {};
 
   const source = pipe(
     merge([
@@ -126,18 +126,9 @@ export function makeGraphQLQueryRequest({
       source,
       take(1),
       map((data) => {
+        awaitedReturnValueReference = data;
         Object.assign(awaitedReturnValueReference, observable);
-        if (
-          typeof data === "object" &&
-          data !== null &&
-          typeof forceReactivity === "boolean" &&
-          forceReactivity
-        ) {
-          Object.assign(awaitedReturnValueReference, data);
-          return awaitedReturnValueReference;
-        }
-
-        return data;
+        return awaitedReturnValueReference;
       }),
     ),
   );
