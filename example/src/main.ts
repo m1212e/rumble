@@ -288,7 +288,7 @@ query({
 
   Finally, we want to implement the mutations so we can actually edit some data.
   We can use the schemaBuilder to do that.
- 
+
 */
 
 // OPTIONAL: If you want to use graphql subscriptions, you can use the pubsub helper
@@ -421,7 +421,7 @@ server.listen(3000, () => {
 // api consumption. Make sure to call this after registering
 // all objects, queries and mutations and only in dev mode
 await clientCreator({
-  rumbleImportPath: "../../../lib/index",
+  rumbleImportPath: "../../../lib/client",
   outputPath: "./example/src/generated-client",
   apiUrl: "http://localhost:3000/graphql",
 });
@@ -429,28 +429,20 @@ await clientCreator({
 // it will write a typesafe client to the specified output path on your filesystem
 // which then can be used like this:
 
-/*
 import { client } from "./generated-client/client";
 
-const r1 = client.liveQuery.users({
-	id: true,
-	name: true,
+const r1 = await client.liveQuery.users({
+  id: true,
+  posts: {
+    id: true,
+    author: {
+      id: true,
+      comments: {
+        __args: { limit: 10, where: { id: { eq: 1 }, text: { eq: "Hello" } } },
+        id: true,
+      },
+    },
+  },
 });
 
-r1.subscribe((s) => console.log(s?.at(0)));
-
-const a = client.subscribe.users({
-	id: true,
-	name: true,
-});
-
-a.subscribe((s) => console.log(s.at(0)));
-
-// awaiting this allows us to use the data directly, without subscribing
-const r3 = await client.liveQuery.users({
-	id: true,
-	name: true,
-});
-
-console.log(r3.at(0));
-*/
+console.log(JSON.stringify(r1, null, 2));

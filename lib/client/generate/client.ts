@@ -20,7 +20,7 @@ export function generateClient({
     imports.push(`import { urqlClient } from "${useExternalUrqlClient}";`);
   }
 
-  imports.push(`import { type Client, fetchExchange } from '@urql/core';`);
+  imports.push(`import { Client, fetchExchange } from '@urql/core';`);
   imports.push(`import { cacheExchange } from '@urql/exchange-graphcache';`);
   imports.push(`import { nativeDateExchange } from '${rumbleImportPath}';`);
   imports.push(`import { schema } from '${schemaPath}';`);
@@ -30,10 +30,10 @@ export function generateClient({
   );
 
   const forceReactivityValueString =
-    typeof forceReactivity === "boolean" && forceReactivity ? "true" : "";
+    typeof forceReactivity === "boolean" && forceReactivity ? ", true" : "";
   const forceReactivityFieldString =
     forceReactivityValueString !== ""
-      ? `forceReactivity: ${forceReactivityValueString}`
+      ? `\nforceReactivity: ${forceReactivityValueString}`
       : "";
 
   code += `
@@ -62,39 +62,35 @@ export const client = {
    * Assumes that the query and subscription return the same fields as per default when using the rumble query helpers.
    * If no subscription with the same name exists, this will just be a query.
    */
-  liveQuery: makeLiveQuery<Query${`, ${forceReactivityValueString}`}>({
+  liveQuery: makeLiveQuery<Query${forceReactivityValueString}>({
 	  urqlClient,
 	  availableSubscriptions: new Set([${availableSubscriptions
       .values()
       .toArray()
       .map((value) => `"${value}"`)
       .join(", ")}]),
-		schema,
-		${forceReactivityFieldString}
+		schema,${forceReactivityFieldString}
   }),
   /**
    * A mutation that can be used to e.g. create, update or delete data.
    */
-  mutate: makeMutation<Mutation${`, ${forceReactivityValueString}`}>({
+  mutate: makeMutation<Mutation>({
 	  urqlClient,
 		schema,
-		${forceReactivityFieldString}
   }),
   /**
    * A continuous stream of results that updates when the server sends new data.
    */
-  subscribe: makeSubscription<Subscription${`, ${forceReactivityValueString}`}>({
+  subscribe: makeSubscription<Subscription>({
 	  urqlClient,
 		schema,
-		${forceReactivityFieldString}
   }),
   /**
    * A one-time fetch of data.
    */
-  query: makeQuery<Query${`, ${forceReactivityValueString}`}>({
+  query: makeQuery<Query${forceReactivityValueString}>({
 	  urqlClient,
-		schema,
-		${forceReactivityFieldString}
+		schema,${forceReactivityFieldString}
   }),
 }`;
 

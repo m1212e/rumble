@@ -5,7 +5,7 @@ import type { QueryableObjectFromGeneratedTypes } from "./types";
 
 export function makeQuery<
   Query extends Record<string, any>,
-  ForceReactivity extends boolean,
+  ForceReactivity extends boolean = false,
 >({
   urqlClient,
   forceReactivity,

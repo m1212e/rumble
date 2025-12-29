@@ -3,16 +3,11 @@ import type { IntrospectionQuery } from "graphql";
 import { makeGraphQLMutationRequest } from "./request";
 import type { QueryableObjectFromGeneratedTypes } from "./types";
 
-export function makeMutation<
-  Mutation extends Record<string, any>,
-  ForceReactivity extends boolean,
->({
+export function makeMutation<Mutation extends Record<string, any>>({
   urqlClient,
-  forceReactivity,
   schema,
 }: {
   urqlClient: Client;
-  forceReactivity?: ForceReactivity;
   schema: IntrospectionQuery;
 }) {
   return new Proxy(
@@ -24,11 +19,10 @@ export function makeMutation<
             mutationName: prop as string,
             input,
             client: urqlClient,
-            forceReactivity,
             schema,
           });
         };
       },
     },
-  ) as QueryableObjectFromGeneratedTypes<Mutation, ForceReactivity>;
+  ) as QueryableObjectFromGeneratedTypes<Mutation, false>;
 }

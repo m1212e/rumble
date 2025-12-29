@@ -1,6 +1,9 @@
 import { access, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { getIntrospectedSchema } from "@urql/introspection";
+import {
+  getIntrospectedSchema,
+  minifyIntrospectionQuery,
+} from "@urql/introspection";
 import { uneval } from "devalue";
 import type { GraphQLSchema } from "graphql";
 import { generateClient } from "./client";
@@ -77,8 +80,9 @@ export type ${key} = ${rep};
     writeFile(join(outputPath, "client.ts"), `${imports.join("\n")}\n${code}`),
     writeFile(
       join(outputPath, `${schemaFileName}.ts`),
-      `// @ts-ignore
-export const schema = ${uneval(getIntrospectedSchema(schema))}`,
+      `
+import type { IntrospectionQuery } from "graphql";
+export const schema = ${uneval(minifyIntrospectionQuery(getIntrospectedSchema(schema), { includeEnums: true, includeScalars: true, includeInputs: true }))} as IntrospectionQuery`,
     ),
   ]);
 }

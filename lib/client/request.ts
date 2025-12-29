@@ -43,7 +43,7 @@ function makeOperationString({
     : "";
 
   const argumentString = input?.[argsKey]
-    ? stringifyArgumentObjectToGraphqlList({
+    ? stringifyArgumentObjectToGraphql({
         args: input[argsKey],
         fieldArgs: field.args,
         types,
@@ -111,6 +111,7 @@ export function makeGraphQLQueryRequest({
         typeof forceReactivity === "boolean" &&
         forceReactivity
       ) {
+        // TODO: Object assign calls should not overwrite store or promise fields
         Object.assign(awaitedReturnValueReference, data);
       }
     }),
@@ -228,12 +229,26 @@ function stringifySelection({
       if (typeof value === "object") {
         let argsString = "";
         if (value[argsKey]) {
-          //TODO: we probably need to resolve this to be the input object of the field we are processing
+          let type = field.type;
 
-          argsString = stringifyArgumentObjectToGraphqlList({
+          if (type.kind === "NON_NULL") {
+            type = type.ofType;
+          }
+          if (type.kind === "LIST") {
+            type = type.ofType;
+          }
+          if (type.kind === "NON_NULL") {
+            type = type.ofType;
+          }
+
+          const referenceObject = types
+            .find((t) => t.name === type.name)
+            .fields.find((f) => f.name === key);
+
+          argsString = stringifyArgumentObjectToGraphql({
             args: value[argsKey],
             types,
-            fieldArgs: field.args,
+            fieldArgs: referenceObject.args,
           });
         }
 
@@ -256,7 +271,7 @@ function stringifySelection({
 ${ret} }`;
 }
 
-function stringifyArgumentObjectToGraphqlList({
+function stringifyArgumentObjectToGraphql({
   args,
   fieldArgs,
   types,
@@ -270,7 +285,14 @@ function stringifyArgumentObjectToGraphqlList({
   if (entries.length > 0) {
     return `(${entries
       .map(([key, value]) => {
-        const gqlArg = fieldArgs.find((a) => a.name === key)!;
+        const gqlArg = fieldArgs.find((a) => a.name === key);
+
+        if (!gqlArg) {
+          throw new Error(
+            `Argument ${key} not found in field args list ${JSON.stringify(fieldArgs.map((a) => a.name))}`,
+          );
+        }
+
         return `${key}: ${stringifyArgumentValue({ arg: value, gqlArg, types })}`;
       })
       .join(", ")})`;
@@ -327,7 +349,7 @@ function stringifyArgumentValue({
 
     if (!referenceInputObject) {
       throw new Error(
-        `Expected an INPUT_OBJECT hit in named based lookup for name ${type.name} with arg ${JSON.stringify(arg)}`,
+        `Expected an INPUT_OBJECT hit in name based lookup for name ${type.name} with arg ${JSON.stringify(arg)}`,
       );
     }
 
@@ -339,7 +361,14 @@ function stringifyArgumentValue({
       .map(([key, value]) => {
         const subArgType = referenceInputObject.inputFields.find(
           (t) => t.name === key,
-        )!;
+        );
+
+        if (!subArgType) {
+          throw new Error(
+            `Expected an INPUT_OBJECT hit in named based lookup for name ${key} with arg ${referenceInputObject.inputFields.map((f) => f.name).join(", ")}`,
+          );
+        }
+
         return `${key}: ${stringifyArgumentValue({ arg: value, types, gqlArg: subArgType })}`;
       })
       .join(", ")} }`;
