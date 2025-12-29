@@ -29,12 +29,12 @@ export function generateClient({
     `import { makeLiveQuery, makeMutation, makeSubscription, makeQuery } from '${rumbleImportPath}';`,
   );
 
-  const forceReactivityValueString =
-    typeof forceReactivity === "boolean" && forceReactivity ? ", true" : "";
   const forceReactivityFieldString =
-    forceReactivityValueString !== ""
-      ? `\nforceReactivity: ${forceReactivityValueString}`
+    typeof forceReactivity === "boolean" && forceReactivity
+      ? `\nforceReactivity: true`
       : "";
+  const forceReactivityTypeString =
+    typeof forceReactivity === "boolean" && forceReactivity ? ", true" : "";
 
   code += `
 export const defaultOptions: ConstructorParameters<Client>[0] = {
@@ -62,7 +62,7 @@ export const client = {
    * Assumes that the query and subscription return the same fields as per default when using the rumble query helpers.
    * If no subscription with the same name exists, this will just be a query.
    */
-  liveQuery: makeLiveQuery<Query${forceReactivityValueString}>({
+  liveQuery: makeLiveQuery<Query${forceReactivityTypeString}>({
 	  urqlClient,
 	  availableSubscriptions: new Set([${availableSubscriptions
       .values()
@@ -88,7 +88,7 @@ export const client = {
   /**
    * A one-time fetch of data.
    */
-  query: makeQuery<Query${forceReactivityValueString}>({
+  query: makeQuery<Query${forceReactivityTypeString}>({
 	  urqlClient,
 		schema,${forceReactivityFieldString}
   }),

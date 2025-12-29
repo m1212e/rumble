@@ -18,7 +18,8 @@ import {
   toPromise,
 } from "wonka";
 
-//TODO: this could use some refactoring and less type check disable (remove uses of any)
+// TODO: this could use some refactoring and less type check disable (remove uses of any)
+// TODO: the client needs tests
 
 export const argsKey = "__args";
 
