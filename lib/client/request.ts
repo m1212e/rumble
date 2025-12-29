@@ -18,6 +18,8 @@ import {
   toPromise,
 } from "wonka";
 
+//TODO: this could use some refactoring and less type check disable (remove uses of any)
+
 export const argsKey = "__args";
 
 function makeOperationString({
