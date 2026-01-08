@@ -97,7 +97,7 @@ export function makeGraphQLQueryRequest({
           )
         : empty,
     ]),
-    share,
+    // share,
     map((v) => {
       const data = v.data?.[queryName];
       if (!data && v.error) {
@@ -126,9 +126,17 @@ export function makeGraphQLQueryRequest({
       source,
       take(1),
       map((data) => {
-        awaitedReturnValueReference = data;
-        Object.assign(awaitedReturnValueReference, observable);
-        return awaitedReturnValueReference;
+        if (
+          typeof data === "object" &&
+          data !== null &&
+          typeof forceReactivity === "boolean" &&
+          forceReactivity
+        ) {
+          awaitedReturnValueReference = data;
+          Object.assign(awaitedReturnValueReference, observable);
+          return awaitedReturnValueReference;
+        }
+        return observable;
       }),
     ),
   );
