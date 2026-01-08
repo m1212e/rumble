@@ -220,7 +220,7 @@ export const createObjectImplementer = <
         const userAdjustments =
           adjust?.(
             new Proxy(t, {
-              get: (target, prop) => {
+              get: (target, prop, receiver) => {
                 if (
                   // we only care for field/relation functions
                   typeof (target as any)[prop] !== "function" ||

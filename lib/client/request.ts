@@ -6,6 +6,7 @@ import type {
   IntrospectionQuery,
   IntrospectionType,
 } from "graphql";
+import { createSubscriber } from "svelte/reactivity";
 import {
   empty,
   fromValue,
@@ -74,7 +75,12 @@ export function makeGraphQLQueryRequest({
   enableSubscription?: boolean;
   forceReactivity?: boolean;
 }) {
-  let awaitedReturnValueReference: any;
+  const svelteSubscriber = createSubscriber((update) => {
+    const unsub = observable.subscribe((d) => {
+      update();
+    });
+    return () => unsub.unsubscribe();
+  });
 
   const stream = pipe(
     merge([
@@ -106,23 +112,16 @@ export function makeGraphQLQueryRequest({
         throw v.error;
       }
 
-      return data;
-    }),
-    // keep the returned object reference updated with new data
-    onPush((data) => {
-      if (
-        typeof data === "object" &&
-        data !== null &&
-        typeof forceReactivity === "boolean" &&
-        forceReactivity
-      ) {
-        if (awaitedReturnValueReference) {
-          // TODO: Object assign calls should not overwrite store or promise fields
-          Object.assign(awaitedReturnValueReference, data);
-        } else {
-          awaitedReturnValueReference = data;
-        }
+      if (typeof data === "object" && data !== null) {
+        return new Proxy(data, {
+          get(target, prop, receiver) {
+            svelteSubscriber();
+            return Reflect.get(target, prop, receiver);
+          },
+        });
       }
+
+      return data;
     }),
   );
 
@@ -136,9 +135,8 @@ export function makeGraphQLQueryRequest({
           if (typeof forceReactivity === "boolean" && forceReactivity) {
             return observable;
           }
-          awaitedReturnValueReference = data;
-          Object.assign(awaitedReturnValueReference, observable);
-          return awaitedReturnValueReference;
+          Object.assign(data, observable);
+          return data;
         }
       }),
     ),
