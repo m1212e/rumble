@@ -421,7 +421,7 @@ server.listen(3000, () => {
 // api consumption. Make sure to call this after registering
 // all objects, queries and mutations and only in dev mode
 await clientCreator({
-  rumbleImportPath: "../../../lib/index",
+  rumbleImportPath: "../../../lib/client",
   outputPath: "./example/src/generated-client",
   apiUrl: "http://localhost:3000/graphql",
 });
@@ -429,28 +429,26 @@ await clientCreator({
 // it will write a typesafe client to the specified output path on your filesystem
 // which then can be used like this:
 
-/*
-import { client } from "./generated-client/client";
+// import { client } from "./generated-client/client";
 
-const r1 = client.liveQuery.users({
-	id: true,
-	name: true,
-});
+// const r1 = client.liveQuery.users({
+// 	id: true,
+// 	name: true,
+// });
 
-r1.subscribe((s) => console.log(s?.at(0)));
+// r1.subscribe((s) => console.log(s?.at(0)));
 
-const a = client.subscribe.users({
-	id: true,
-	name: true,
-});
+// const a = client.subscribe.users({
+// 	id: true,
+// 	name: true,
+// });
 
-a.subscribe((s) => console.log(s.at(0)));
+// a.subscribe((s) => console.log(s.at(0)));
 
-// awaiting this allows us to use the data directly, without subscribing
-const r3 = await client.liveQuery.users({
-	id: true,
-	name: true,
-});
+// // awaiting this allows us to use the data directly, without subscribing
+// const r3 = await client.liveQuery.users({
+// 	id: true,
+// 	name: true,
+// });
 
-console.log(r3.at(0));
-*/
+// console.log(r3.at(0));
