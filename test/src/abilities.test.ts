@@ -26,7 +26,7 @@ describe("test rumble abilities", async () => {
     const r = await executor({
       document: parse(/* GraphQL */ `
         query {
-          user(id: "3e0bb3d0-2074-4a1e-6263-d13dd10cb0cf") {
+          user(id: "${data.users[0].id}") {
             id
             firstName
           }
@@ -375,7 +375,7 @@ describe("test rumble abilities", async () => {
     const r = await executor({
       document: parse(/* GraphQL */ `
         query {
-          user(id: "3e0bb3d0-2074-4a1e-6263-d13dd10cb0cf") {
+          user(id: "91eedc87-dd86-4473-997b-0c0bff3db1ba") {
             id
             firstName
             email
@@ -409,7 +409,7 @@ describe("test rumble abilities", async () => {
     const r = await executor({
       document: parse(/* GraphQL */ `
         query {
-          user(id: "3e0bb3d0-2074-4a1e-6263-d13dd10cb0cf") {
+          user(id: "91eedc87-dd86-4473-997b-0c0bff3db1ba") {
             id
             firstName
             email
