@@ -9,7 +9,7 @@ rumble is a combined ability and graphql builder built around [drizzle](https://
 
 > Comes with a fully TS based client to consume any GraphQL API. See the client docs at the end to learn about usage with rumble and independent usage with any GraphQL API.
 
-## Getting startedv0.16.12
+## Getting started
 The following example is an excerpt from the example setup you can find [here](./example). If you are interested in a real world app thats using rumble (and is still work in progress) please see [CHASE](https://github.com/DeutscheModelUnitedNations/munify-chase).
 
 First, install rumble into your project:
