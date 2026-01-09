@@ -1,14 +1,14 @@
 import { RumbleErrorSafe } from "../types/rumbleError";
 
 /**
- * 
+ *
  * Helper function to map a drizzle findFirst query result,
  * which may be optional, to a correct drizzle type.
- * 
+ *
  * @throws RumbleError
- * 
+ *
  * @example
- * 
+ *
  * ```ts
  * schemaBuilder.queryFields((t) => {
    return {
@@ -31,20 +31,21 @@ import { RumbleErrorSafe } from "../types/rumbleError";
  * ```
  */
 export const assertFindFirstExists = <T>(value: T | undefined): T => {
-  if (!value)
+  if (!value) {
     throw new RumbleErrorSafe("Value not found but required (findFirst)");
+  }
   return value;
 };
 
 /**
- * 
+ *
  * Helper function to map a drizzle findFirst query result,
  * which may be optional, to a correct drizzle type.
- * 
+ *
  * @throws RumbleError
- * 
+ *
  * @example
- * 
+ *
  * ```ts
   schemaBuilder.mutationFields((t) => {
     return {
