@@ -9,7 +9,7 @@ rumble is a combined ability and graphql builder built around [drizzle](https://
 
 > Comes with a fully TS based client to consume any GraphQL API. See the client docs at the end to learn about usage with rumble and independent usage with any GraphQL API.
 
-## Getting started
+## Getting startedv0.16.12
 The following example is an excerpt from the example setup you can find [here](./example). If you are interested in a real world app thats using rumble (and is still work in progress) please see [CHASE](https://github.com/DeutscheModelUnitedNations/munify-chase).
 
 First, install rumble into your project:
@@ -347,6 +347,7 @@ users.subscribe((s) => s?.at(0));
 // you can directly access the values of an awaited result
 console.log(users.firstName)
 ```
+> As of `v0.16.12` the client has special support for the svelte reactive state system (runes). If you run a live query which deploys a subscription inside a svelte effect context, you will get reactivity without subscribing to anything right out of the box. Please see [here](https://github.com/DeutscheModelUnitedNations/munify-chase/blob/f70c4484a92551b564c70603ebfd48d5b8cac637/src/lib/api/customClient.ts#L12) and [here](https://github.com/DeutscheModelUnitedNations/munify-chase/blob/f70c4484a92551b564c70603ebfd48d5b8cac637/src/routes/app/(launcher)/%2Bpage.svelte#L9C9-L9C23) for real world examples.
 ### Alternative decoupled client generation
 As an alternative to use the client generator with a fully instanciated rumble instance, you can also import the `generateFromSchema` function from rumble and pass it a standard `GraphQLSchema` object to generate the client:
 ```ts
