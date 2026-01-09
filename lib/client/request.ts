@@ -9,17 +9,15 @@ import type {
 import { createSubscriber } from "svelte/reactivity";
 import {
   empty,
-  fromValue,
   map,
   merge,
-  onPush,
   pipe,
-  type Source,
   share,
   take,
   toObservable,
   toPromise,
 } from "wonka";
+import { lazy } from "../helpers/lazy";
 
 // TODO: this could use some refactoring and less type check disable (remove uses of any)
 // TODO: the client needs tests
@@ -56,8 +54,7 @@ function makeOperationString({
       })
     : "";
 
-  const ret = `${operationVerb} ${otwQueryName} { ${queryName}${argumentString} ${selectionString}}`;
-  return ret;
+  return `${operationVerb} ${otwQueryName} { ${queryName}${argumentString} ${selectionString}}`;
 }
 
 export function makeGraphQLQueryRequest({
@@ -75,6 +72,17 @@ export function makeGraphQLQueryRequest({
   enableSubscription?: boolean;
   forceReactivity?: boolean;
 }) {
+  let currentData: any;
+  const dataProxy = lazy(
+    () =>
+      new Proxy(currentData, {
+        get(target, prop, receiver) {
+          svelteSubscriber();
+          return Reflect.get(currentData, prop, receiver);
+        },
+      }),
+  );
+
   const svelteSubscriber = createSubscriber((update) => {
     const unsub = observable.subscribe((d) => {
       update();
@@ -111,14 +119,10 @@ export function makeGraphQLQueryRequest({
       if (!data && v.error) {
         throw v.error;
       }
+      currentData = data;
 
       if (typeof data === "object" && data !== null) {
-        return new Proxy(data, {
-          get(target, prop, receiver) {
-            svelteSubscriber();
-            return Reflect.get(target, prop, receiver);
-          },
-        });
+        return dataProxy();
       }
 
       return data;
