@@ -73,7 +73,7 @@ abilityBuilder.users.filter("read").by(({ context, entities }) => {
 	// const allowed = await queryExternalAuthorizationService(context.user, entities);
 
 	// we could filter the list to only return the entities the user is allowed to see
-	// event mapping to prevent leakage of certain fields is possible
+	// even mapping to prevent leakage of certain fields is possible
 	return entities;
 });
 ```
