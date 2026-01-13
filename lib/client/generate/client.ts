@@ -61,6 +61,8 @@ export const client = {
    * Combines the results of both, so the result is first the query result and then live updates from the subscription.
    * Assumes that the query and subscription return the same fields as per default when using the rumble query helpers.
    * If no subscription with the same name exists, this will just be a query.
+   *
+   * Internally, this does some magic to make the data reactive with Svelte's reactivity system. But it can be used with other frameworks as well.
    */
   liveQuery: makeLiveQuery<Query${forceReactivityTypeString}>({
 	  urqlClient,

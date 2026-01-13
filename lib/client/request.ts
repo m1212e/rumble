@@ -6,19 +6,18 @@ import type {
   IntrospectionQuery,
   IntrospectionType,
 } from "graphql";
+import { createSubscriber } from "svelte/reactivity";
 import {
   empty,
-  fromValue,
   map,
   merge,
-  onPush,
   pipe,
-  type Source,
   share,
   take,
   toObservable,
   toPromise,
 } from "wonka";
+import { lazy } from "../helpers/lazy";
 
 // TODO: this could use some refactoring and less type check disable (remove uses of any)
 // TODO: the client needs tests
@@ -55,8 +54,7 @@ function makeOperationString({
       })
     : "";
 
-  const ret = `${operationVerb} ${otwQueryName} { ${queryName}${argumentString} ${selectionString}}`;
-  return ret;
+  return `${operationVerb} ${otwQueryName} { ${queryName}${argumentString} ${selectionString}}`;
 }
 
 export function makeGraphQLQueryRequest({
@@ -74,88 +72,81 @@ export function makeGraphQLQueryRequest({
   enableSubscription?: boolean;
   forceReactivity?: boolean;
 }) {
-  let awaitedReturnValueReference: any;
-
-  function makeStream(sources: Source<any>[]) {
-    return pipe(
-      merge(sources),
-      share,
-      map((v: any) => {
-        const data = v.data?.[queryName];
-        if (!data && v.error) {
-          throw v.error;
-        }
-
-        return data;
+  let currentData: any;
+  const dataProxy = lazy(
+    () =>
+      new Proxy(currentData, {
+        get(target, prop, receiver) {
+          svelteSubscriber();
+          return Reflect.get(currentData, prop, receiver);
+        },
       }),
-      // keep the returned object reference updated with new data
-      onPush((data) => {
-        if (
-          typeof data === "object" &&
-          data !== null &&
-          typeof forceReactivity === "boolean" &&
-          forceReactivity
-        ) {
-          if (awaitedReturnValueReference) {
-            // TODO: Object assign calls should not overwrite store or promise fields
-            Object.assign(awaitedReturnValueReference, data);
-          } else {
-            awaitedReturnValueReference = data;
-          }
-        }
-      }),
-    );
-  }
-
-  const querySource = client.query(
-    makeOperationString({
-      operationVerb: "query",
-      queryName,
-      input,
-      schema,
-    }),
-    {},
   );
 
-  const subscriptionSource = enableSubscription
-    ? client.subscription(
+  const svelteSubscriber = createSubscriber((update) => {
+    const unsub = observable.subscribe((d) => {
+      update();
+    });
+    return () => unsub.unsubscribe();
+  });
+
+  const stream = pipe(
+    merge([
+      client.query(
         makeOperationString({
-          operationVerb: "subscription",
+          operationVerb: "query",
           queryName,
           input,
           schema,
         }),
         {},
-      )
-    : empty;
+      ),
+      enableSubscription
+        ? client.subscription(
+            makeOperationString({
+              operationVerb: "subscription",
+              queryName,
+              input,
+              schema,
+            }),
+            {},
+          )
+        : empty,
+    ]),
+    share,
+    map((v: any) => {
+      const data = v.data?.[queryName];
+      if (!data && v.error) {
+        throw v.error;
+      }
+      currentData = data;
 
+      if (typeof data === "object" && data !== null) {
+        return dataProxy();
+      }
+
+      return data;
+    }),
+  );
+
+  const observable = toObservable(stream);
   const promise = toPromise(
     pipe(
-      makeStream([querySource]),
+      stream,
       take(1),
       map((data) => {
-        const observable = toObservable(
-          makeStream([fromValue(data), querySource, subscriptionSource]),
-        );
-        if (
-          typeof data === "object" &&
-          data !== null &&
-          typeof forceReactivity === "boolean" &&
-          forceReactivity
-        ) {
-          return observable;
+        if (typeof data === "object" && data !== null) {
+          if (typeof forceReactivity === "boolean" && forceReactivity) {
+            return observable;
+          }
+          Object.assign(data, observable);
+          return data;
         }
-        awaitedReturnValueReference = data;
-        Object.assign(awaitedReturnValueReference, observable);
-        return awaitedReturnValueReference;
       }),
     ),
   );
-  Object.assign(
-    promise,
-    toObservable(makeStream([querySource, subscriptionSource])),
-  );
 
+  Object.assign(promise, observable);
   return promise;
 }
 

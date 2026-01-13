@@ -73,7 +73,7 @@ abilityBuilder.users.filter("read").by(({ context, entities }) => {
 	// const allowed = await queryExternalAuthorizationService(context.user, entities);
 
 	// we could filter the list to only return the entities the user is allowed to see
-	// event mapping to prevent leakage of certain fields is possible
+	// even mapping to prevent leakage of certain fields is possible
 	return entities;
 });
 ```
@@ -347,6 +347,7 @@ users.subscribe((s) => s?.at(0));
 // you can directly access the values of an awaited result
 console.log(users.firstName)
 ```
+> As of `v0.16.12` the client has special support for the svelte reactive state system (runes). If you run a live query which deploys a subscription inside a svelte effect context, you will get reactivity without subscribing to anything right out of the box. Please see [here](https://github.com/DeutscheModelUnitedNations/munify-chase/blob/f70c4484a92551b564c70603ebfd48d5b8cac637/src/lib/api/customClient.ts#L12) and [here](https://github.com/DeutscheModelUnitedNations/munify-chase/blob/f70c4484a92551b564c70603ebfd48d5b8cac637/src/routes/app/(launcher)/%2Bpage.svelte#L9C9-L9C23) for real world examples.
 ### Alternative decoupled client generation
 As an alternative to use the client generator with a fully instanciated rumble instance, you can also import the `generateFromSchema` function from rumble and pass it a standard `GraphQLSchema` object to generate the client:
 ```ts
