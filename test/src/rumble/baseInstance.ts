@@ -1,5 +1,9 @@
 import { buildHTTPExecutor } from "@graphql-tools/executor-http";
-import { assertFirstEntryExists, rumble } from "../../../lib";
+import {
+  assertFindFirstExists,
+  assertFirstEntryExists,
+  rumble,
+} from "../../../lib";
 import type { DB } from "../db/db";
 import * as schema from "../db/schema";
 
@@ -56,7 +60,7 @@ export function makeRumbleSeedInstance(
           userId: t.arg.string({ required: true }),
           firstName: t.arg.string({ required: true }),
         },
-        resolve: async (_query, _root, args, ctx, _info) => {
+        resolve: async (query, _root, args, ctx, _info) => {
           const r = await db
             .update(schema.users)
             .set({
@@ -76,7 +80,15 @@ export function makeRumbleSeedInstance(
             .then(assertFirstEntryExists);
 
           updatedUser(args.userId);
-          return r;
+          return db.query.users
+            .findFirst(
+              query(
+                ctx.abilities.users.filter("read").merge({
+                  where: { id: r.id },
+                }).query.single,
+              ),
+            )
+            .then(assertFindFirstExists);
         },
       }),
     };

@@ -38,7 +38,7 @@ describe("test rumble basics", async () => {
   });
 
   test("allow simple write without any conditions", async () => {
-    rumble.abilityBuilder.users.allow(["update"]);
+    rumble.abilityBuilder.users.allow(["update", "read"]);
 
     const newName = "NewFirstName";
 
