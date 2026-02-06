@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.11",
+    "@biomejs/biome": "^2.3.14",
     "@graphql-tools/executor-http": "^3.1.0",
     "@types/bun": "latest",
     "@types/pg": "^8.16.0",
@@ -28,7 +28,7 @@
     "drizzle-seed": "^1.0.0-beta.15-859cf75",
     "lefthook": "^2.1.0",
     "pg": "^8.18.0",
-    "tsdown": "^0.18.4"
+    "tsdown": "^0.20.3"
   },
   "peerDependencies": {
     "typescript": "^5",
@@ -38,10 +38,10 @@
     "@escape.tech/graphql-armor": "^3.2.0",
     "@graphql-yoga/plugin-disable-introspection": "^2.19.0",
     "@pothos/core": "^4.12.0",
-    "@pothos/plugin-drizzle": "^0.16.2",
+    "@pothos/plugin-drizzle": "^0.17.0",
     "@pothos/plugin-smart-subscriptions": "^4.1.4",
     "@urql/core": "^6.0.1",
-    "@urql/exchange-graphcache": "^8.1.0",
+    "@urql/exchange-graphcache": "^9.0.0",
     "@urql/introspection": "^1.2.1",
     "devalue": "^5.6.2",
     "es-toolkit": "^1.44.0",
