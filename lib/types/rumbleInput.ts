@@ -68,6 +68,14 @@ export type RumbleInput<
          * Defaults to 0.3. Lower values will return more results.
          */
         threshold?: number;
+        /**
+         * Will perform a local
+         * SET cpu_operator_cost = x;
+         * for search queries. This can help to make the planner
+         * use a potential index scan instead of a sequential scan.
+         * This will not affect queries that are not using the search feature.
+         */
+        cpu_operator_cost?: number;
       }
     | undefined;
 };

@@ -1,7 +1,9 @@
+import { sql } from "drizzle-orm";
 import pluralize from "pluralize";
 import type { OrderArgImplementerType } from "./args/orderArg";
 import type { WhereArgImplementerType } from "./args/whereArg";
 import { assertFindFirstExists } from "./helpers/asserts";
+import { isPostgresDB } from "./helpers/determineDialectFromSchema";
 import { mapNullFieldsToUndefined } from "./helpers/mapNullFieldsToUndefined";
 import { deepSetProto } from "./helpers/protoMapper";
 import { tableHelper } from "./helpers/tableHelpers";
@@ -157,6 +159,21 @@ export const createQueryImplementer = <
 
             if ((filter as any).columns) {
               queryInstance.columns = (filter as any).columns;
+            }
+
+            if (search?.cpu_operator_cost) {
+              return db.transaction(async (tx) => {
+                if (isPostgresDB(tx)) {
+                  await tx.execute(
+                    sql`SET LOCAL cpu_operator_cost = ${search.cpu_operator_cost};`,
+                  );
+                } else {
+                  console.info(
+                    "Database dialect is not postgresql, cannot set cpu_operator_cost.",
+                  );
+                }
+                return (tx.query as any)[table].findMany(queryInstance);
+              });
             }
 
             return (db.query as any)[table].findMany(queryInstance);
