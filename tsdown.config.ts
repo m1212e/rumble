@@ -13,6 +13,7 @@ export default defineConfig({
   },
   format: ["cjs", "esm"],
   outDir: "out",
+  inlineOnly: false,
   external: [
     // enforce also devDependencies are not bundled
     ...Object.keys(packagejson.devDependencies),
