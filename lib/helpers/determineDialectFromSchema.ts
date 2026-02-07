@@ -1,6 +1,6 @@
 import type { MySqlDatabase } from "drizzle-orm/mysql-core";
 import { MySqlTable } from "drizzle-orm/mysql-core";
-import type { PgDatabase } from "drizzle-orm/pg-core";
+import type { PgAsyncDatabase } from "drizzle-orm/pg-core";
 import { PgTable } from "drizzle-orm/pg-core";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { SQLiteTable } from "drizzle-orm/sqlite-core";
@@ -41,7 +41,7 @@ export function determineDBDialectFromSchema<DB extends DrizzleInstance>(
 }
 
 export function isPostgresDB<
-  Narrowed extends PgDatabase<any, any> = PgDatabase<any, any>,
+  Narrowed extends PgAsyncDatabase<any, any> = PgAsyncDatabase<any, any>,
 >(db: any): db is Narrowed {
   const dialect = determineDBDialectFromSchema(db._.relations);
 

@@ -1,10 +1,10 @@
 import type { MySqlDatabase } from "drizzle-orm/mysql-core";
-import type { PgDatabase } from "drizzle-orm/pg-core";
+import type { PgAsyncDatabase } from "drizzle-orm/pg-core";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { ObjectValues } from "./objectFieldType";
 
 export type DrizzleInstance =
-  | PgDatabase<any, any, any, any>
+  | PgAsyncDatabase<any, any, any, any>
   | BaseSQLiteDatabase<any, any, any, any>
   | MySqlDatabase<any, any, any, any>;
 
