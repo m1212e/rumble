@@ -36,6 +36,16 @@ export async function initSearchIfApplicable(
       ),
     );
   }
+
+  if (input.search?.cpu_operator_cost) {
+    if (typeof input.search.cpu_operator_cost !== "number") {
+      throw new Error(`CPU operator cost must be a number`);
+    }
+
+    if (input.search.cpu_operator_cost <= 0) {
+      throw new Error(`CPU operator cost must be a positive number`);
+    }
+  }
 }
 
 /**

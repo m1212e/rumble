@@ -161,11 +161,18 @@ export const createQueryImplementer = <
               queryInstance.columns = (filter as any).columns;
             }
 
-            if (search?.cpu_operator_cost) {
+            if (
+              search?.enabled &&
+              args.search &&
+              args.search.length > 0 &&
+              search?.cpu_operator_cost
+            ) {
               return db.transaction(async (tx) => {
                 if (isPostgresDB(tx)) {
                   await tx.execute(
-                    sql`SET LOCAL cpu_operator_cost = ${search.cpu_operator_cost};`,
+                    sql.raw(
+                      `SET cpu_operator_cost = ${search.cpu_operator_cost};`,
+                    ),
                   );
                 } else {
                   console.info(
