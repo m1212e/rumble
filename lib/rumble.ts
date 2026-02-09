@@ -334,15 +334,16 @@ export const db = drizzle(
     createYoga,
     /**
      * Creates a sofa instance to offer a REST API.
-    ```ts
-    import express from 'express';
-
-    const app = express();
-    const sofa = createSofa(...);
-
-    app.use('/api', useSofa({ schema }));
-    ```
-    * https://the-guild.dev/graphql/sofa-api/docs#usage
+     *
+     * ```ts
+     * import express from "express";
+     *
+     * const app = express();
+     * const sofa = createSofa(...);
+     *
+     * app.use("/api", useSofa({ schema }));
+     * ```
+     * https://the-guild.dev/graphql/sofa-api/docs#usage
      */
     createSofa,
     /**
