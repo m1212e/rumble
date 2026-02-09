@@ -104,6 +104,7 @@ export const createSchemaBuilder = <
         ? (resolver, options) => createSpan(resolver, options)
         : (resolver) => resolver,
     },
+    otelTracer: otel?.tracer,
   });
 
   schemaBuilder.addScalarType("JSON", JSONResolver);
