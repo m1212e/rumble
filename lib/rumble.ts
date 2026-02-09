@@ -241,7 +241,7 @@ export const db = drizzle(
                     {
                       attributes: {
                         [AttributeNames.OPERATION_NAME]:
-                          options.operationName ?? undefined,
+                          options.operationName ?? "anonymous",
                         // TODO
                         // [AttributeNames.SOURCE]: print(options.document),
                       },
@@ -317,20 +317,19 @@ export const db = drizzle(
      */
     schemaBuilder,
     /**
-       * Creates the native yoga instance. Can be used to run an actual HTTP server.
-       *
-       * @example
-       *
-       * ```ts
+     * Creates the native yoga instance. Can be used to run an actual HTTP server.
      *
-        import { createServer } from "node:http";
-    * const server = createServer(createYoga());
-    server.listen(3000, () => {
-            console.info("Visit http://localhost:3000/graphql");
-      });
-      * ```
+     * @example
+     *
+     * ```ts
+     * import { createServer } from "node:http";
+     * const server = createServer(createYoga());
+     * server.listen(3000, () => {
+     *   console.info("Visit http://localhost:3000/graphql");
+     * });
+     * ```
      * https://the-guild.dev/graphql/yoga-server/docs#server
-       */
+     */
     createYoga,
     /**
      * Creates a sofa instance to offer a REST API.

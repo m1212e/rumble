@@ -38,6 +38,7 @@
     "@escape.tech/graphql-armor": "^3.2.0",
     "@graphql-yoga/plugin-disable-introspection": "^2.19.0",
     "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/semantic-conventions": "^1.39.0",
     "@pothos/core": "^4.12.0",
     "@pothos/plugin-drizzle": "^0.17.0",
     "@pothos/plugin-smart-subscriptions": "^4.1.4",

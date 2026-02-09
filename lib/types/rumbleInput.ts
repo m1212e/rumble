@@ -81,7 +81,7 @@ export type RumbleInput<
       }
     | undefined;
   /**
-   * rumble can setup otel tracing if you want to. This will provide details of execution time and outcome to the provided tracer. See https://pothos-graphql.dev/docs/plugins/tracing#install for more information.
+   * rumble can set up otel tracing if you want to. This will provide details of execution time and outcome to the provided tracer. See https://pothos-graphql.dev/docs/plugins/tracing#install for more information.
    */
   otel?: {
     /**

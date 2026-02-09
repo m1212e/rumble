@@ -1,4 +1,4 @@
-import { type Span, trace } from "@opentelemetry/api";
+import type { Span } from "@opentelemetry/api";
 import { relationsFilterToSQL } from "drizzle-orm";
 import { debounce } from "es-toolkit";
 import { lazy } from "./helpers/lazy";
@@ -556,9 +556,7 @@ export const createAbilityBuilder = <
                     // in case we have a wildcard ability, skip the rest and return no filters at all
                     if (filters === "unrestricted") {
                       span?.setAttribute("abilities.status", "unrestricted");
-                      const r = transformToResponse();
-                      span?.end();
-                      return r;
+                      return transformToResponse();
                     }
 
                     // if nothing has been allowed, block everything
@@ -571,9 +569,7 @@ export const createAbilityBuilder = <
                         tableName.toString(),
                         action,
                       );
-                      const r = transformToResponse(blockEverythingFilter);
-                      span?.end();
-                      return r;
+                      return transformToResponse(blockEverythingFilter);
                     }
 
                     // run all dynamic filters
@@ -590,9 +586,7 @@ export const createAbilityBuilder = <
                       const result = func(userContext);
                       // if one of the dynamic filters returns "allow", we want to allow everything
                       if (result === "allow") {
-                        const r = transformToResponse();
-                        span?.end();
-                        return r;
+                        return transformToResponse();
                       }
                       // if nothing is returned, nothing is allowed by this filter
                       if (result === undefined) continue;
@@ -627,9 +621,7 @@ export const createAbilityBuilder = <
                         "blocked_everything",
                       );
 
-                      const r = transformToResponse(blockEverythingFilter);
-                      span?.end();
-                      return r;
+                      return transformToResponse(blockEverythingFilter);
                     }
 
                     const mergedFilters =
@@ -640,15 +632,19 @@ export const createAbilityBuilder = <
                           }, {});
 
                     span?.setAttribute("abilities.status", "applied");
-                    const r = transformToResponse(mergedFilters as any);
-                    span?.end();
-                    return r;
+                    return transformToResponse(mergedFilters as any);
                   };
 
                   if (otel?.tracer) {
                     return otel.tracer.startActiveSpan(
                       `prepare_query_abilities_${action}`,
-                      assembleAbilities,
+                      (span) => {
+                        try {
+                          return assembleAbilities(span);
+                        } finally {
+                          span.end();
+                        }
+                      },
                     );
                   } else {
                     return assembleAbilities();

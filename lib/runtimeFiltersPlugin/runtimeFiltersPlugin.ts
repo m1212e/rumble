@@ -39,7 +39,6 @@ export class RuntimeFiltersPlugin<
 
         if (!filters || !Array.isArray(filters) || filters.length === 0) {
           span?.setAttribute("filters.status", "unrestricted");
-          span?.end();
           // if no filter should be applied, just continue
           return resolver(parent, args, context, info);
         }
@@ -60,11 +59,9 @@ export class RuntimeFiltersPlugin<
 
         // if the original value was an array, return an array
         if (Array.isArray(resolved)) {
-          span?.end();
           return allowed;
         }
 
-        span?.end();
         // if the original value was a single value, return the first allowed
         // or null if not allowed
         return allowed[0] ?? null;
@@ -73,7 +70,13 @@ export class RuntimeFiltersPlugin<
       if (this.tracer) {
         return this.tracer.startActiveSpan(
           `apply_filters_${fieldConfig.name}`,
-          runFilters,
+          (span) => {
+            try {
+              return runFilters();
+            } finally {
+              span.end();
+            }
+          },
         );
       } else {
         return runFilters();
