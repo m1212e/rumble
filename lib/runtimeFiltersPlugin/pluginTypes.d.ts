@@ -1,4 +1,5 @@
 import type { SchemaTypes } from "@pothos/core";
+import type { Tracer } from "@opentelemetry/api";
 import type { pluginName } from "./filterTypes";
 import type {
   applyFiltersKey,
@@ -11,10 +12,9 @@ declare global {
       [pluginName]: RuntimeFiltersPlugin<Types>;
     }
 
-    // export interface SchemaBuilderOptions<Types extends SchemaTypes> {
-    //   optionInRootOfConfig?: boolean;
-    //   nestedOptionsObject?: ExamplePluginOptions;
-    // }
+    export interface SchemaBuilderOptions<Types extends SchemaTypes> {
+      otelTracer?: Tracer;
+    }
 
     // export interface BuildSchemaOptions<Types extends SchemaTypes> {
     //   customBuildTimeOptions?: boolean;

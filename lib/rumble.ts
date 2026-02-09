@@ -1,8 +1,10 @@
 import { EnvelopArmorPlugin } from "@escape.tech/graphql-armor";
 import { useDisableIntrospection } from "@graphql-yoga/plugin-disable-introspection";
+import { AttributeNames, SpanNames } from "@pothos/tracing-opentelemetry";
 import { merge } from "es-toolkit";
 import {
   createYoga as nativeCreateYoga,
+  type Plugin,
   type YogaServerOptions,
 } from "graphql-yoga";
 import { useSofa } from "sofa-api";
@@ -61,7 +63,7 @@ export const db = drizzle(
   "postgres://postgres:postgres@localhost:5432/postgres",
   {
     relations, // <--- add this line
-    schema,   
+    schema,
   },
 );
 
@@ -230,6 +232,37 @@ export const db = drizzle(
         ...(enableApiDocs
           ? []
           : [useDisableIntrospection(), EnvelopArmorPlugin()]),
+        rumbleInput.otel?.tracer
+          ? ({
+              onExecute: ({ setExecuteFn, executeFn }) => {
+                setExecuteFn((options) =>
+                  rumbleInput.otel!.tracer.startActiveSpan(
+                    SpanNames.EXECUTE,
+                    {
+                      attributes: {
+                        [AttributeNames.OPERATION_NAME]:
+                          options.operationName ?? "anonymous",
+                        // TODO
+                        // [AttributeNames.SOURCE]: print(options.document),
+                      },
+                    },
+                    async (span) => {
+                      try {
+                        const result = await executeFn(options);
+
+                        return result;
+                      } catch (error) {
+                        span.recordException(error as Error);
+                        throw error;
+                      } finally {
+                        span.end();
+                      }
+                    },
+                  ),
+                );
+              },
+            } as Plugin)
+          : false,
       ].filter(Boolean),
       schema: builtSchema(),
       context,
@@ -264,18 +297,18 @@ export const db = drizzle(
   return {
     /**
        * The ability builder. Use it to declare whats allowed for each entity in your DB.
-       * 
+       *
        * @example
-       * 
+       *
        * ```ts
        * // users can edit themselves
        abilityBuilder.users
          .allow(["read", "update", "delete"])
          .when(({ userId }) => ({ where: eq(schema.users.id, userId) }));
-       
+
        // everyone can read posts
        abilityBuilder.posts.allow("read");
-       * 
+       *
        * ```
        */
     abilityBuilder,
@@ -284,33 +317,33 @@ export const db = drizzle(
      */
     schemaBuilder,
     /**
-       * Creates the native yoga instance. Can be used to run an actual HTTP server.
-       * 
-       * @example
-       * 
-       * ```ts
-	   * 
-        import { createServer } from "node:http";
-		* const server = createServer(createYoga());
-		server.listen(3000, () => {
-            console.info("Visit http://localhost:3000/graphql");
-			});
-			* ```
-	   * https://the-guild.dev/graphql/yoga-server/docs#server
-       */
+     * Creates the native yoga instance. Can be used to run an actual HTTP server.
+     *
+     * @example
+     *
+     * ```ts
+     * import { createServer } from "node:http";
+     * const server = createServer(createYoga());
+     * server.listen(3000, () => {
+     *   console.info("Visit http://localhost:3000/graphql");
+     * });
+     * ```
+     * https://the-guild.dev/graphql/yoga-server/docs#server
+     */
     createYoga,
     /**
-		 * Creates a sofa instance to offer a REST API.
-		```ts
-		import express from 'express';
-		
-		const app = express();
-		const sofa = createSofa(...);
-		
-		app.use('/api', useSofa({ schema }));
-		```
-		* https://the-guild.dev/graphql/sofa-api/docs#usage
-		 */
+     * Creates a sofa instance to offer a REST API.
+     *
+     * ```ts
+     * import express from "express";
+     *
+     * const app = express();
+     * const sofa = createSofa(...);
+     *
+     * app.use("/api", useSofa({ schema }));
+     * ```
+     * https://the-guild.dev/graphql/sofa-api/docs#usage
+     */
     createSofa,
     /**
      * A function for creating default objects for your schema

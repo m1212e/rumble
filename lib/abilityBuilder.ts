@@ -1,3 +1,4 @@
+import type { Span } from "@opentelemetry/api";
 import { relationsFilterToSQL } from "drizzle-orm";
 import { debounce } from "es-toolkit";
 import { lazy } from "./helpers/lazy";
@@ -115,6 +116,7 @@ export const createAbilityBuilder = <
   db,
   actions,
   defaultLimit,
+  otel,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>) => {
   type TableNames = keyof DrizzleQueryFunction<DB>;
 
@@ -548,59 +550,105 @@ export const createAbilityBuilder = <
             withContext: (userContext: UserContext) => {
               return {
                 filter: (action: Action) => {
-                  const filters = queryFilters.get(action);
+                  const assembleAbilities = (span?: Span) => {
+                    const filters = queryFilters.get(action);
 
-                  // in case we have a wildcard ability, skip the rest and return no filters at all
-                  if (filters === "unrestricted") {
-                    return transformToResponse();
-                  }
-
-                  // if nothing has been allowed, block everything
-                  if (!filters) {
-                    nothingRegisteredWarningLogger(
-                      tableName.toString(),
-                      action,
-                    );
-                    return transformToResponse(blockEverythingFilter);
-                  }
-
-                  // run all dynamic filters
-                  const dynamicResults = new Array<
-                    DrizzleQueryFunctionInput<DB, TableName>
-                  >(dynamicQueryFilters[action].length);
-                  let filtersReturned = 0;
-                  for (let i = 0; i < dynamicQueryFilters[action].length; i++) {
-                    const func = dynamicQueryFilters[action][i];
-                    const result = func(userContext);
-                    // if one of the dynamic filters returns "allow", we want to allow everything
-                    if (result === "allow") {
+                    // in case we have a wildcard ability, skip the rest and return no filters at all
+                    if (filters === "unrestricted") {
+                      span?.setAttribute("abilities.status", "unrestricted");
                       return transformToResponse();
                     }
-                    // if nothing is returned, nothing is allowed by this filter
-                    if (result === undefined) continue;
 
-                    dynamicResults[filtersReturned++] = result;
+                    // if nothing has been allowed, block everything
+                    if (!filters) {
+                      span?.setAttribute(
+                        "abilities.status",
+                        "blocked_everything",
+                      );
+                      nothingRegisteredWarningLogger(
+                        tableName.toString(),
+                        action,
+                      );
+                      return transformToResponse(blockEverythingFilter);
+                    }
+
+                    // run all dynamic filters
+                    const dynamicResults = new Array<
+                      DrizzleQueryFunctionInput<DB, TableName>
+                    >(dynamicQueryFilters[action].length);
+                    let filtersReturned = 0;
+                    for (
+                      let i = 0;
+                      i < dynamicQueryFilters[action].length;
+                      i++
+                    ) {
+                      const func = dynamicQueryFilters[action][i];
+                      const result = func(userContext);
+                      // if one of the dynamic filters returns "allow", we want to allow everything
+                      if (result === "allow") {
+                        return transformToResponse();
+                      }
+                      // if nothing is returned, nothing is allowed by this filter
+                      if (result === undefined) continue;
+
+                      dynamicResults[filtersReturned++] = result;
+                    }
+                    dynamicResults.length = filtersReturned;
+
+                    span?.setAttribute(
+                      "abilities.dynamic",
+                      dynamicResults.length,
+                    );
+                    span?.setAttribute(
+                      "abilities.static",
+                      simpleQueryFilters[action].length,
+                    );
+
+                    const allQueryFilters = [
+                      ...simpleQueryFilters[action],
+                      ...dynamicResults,
+                    ];
+
+                    span?.setAttribute(
+                      "abilities.total",
+                      allQueryFilters.length,
+                    );
+
+                    // if we don't have any permitted filters then block everything
+                    if (allQueryFilters.length === 0) {
+                      span?.setAttribute(
+                        "abilities.status",
+                        "blocked_everything",
+                      );
+
+                      return transformToResponse(blockEverythingFilter);
+                    }
+
+                    const mergedFilters =
+                      allQueryFilters.length === 1
+                        ? allQueryFilters[0]
+                        : allQueryFilters.reduce((a, b) => {
+                            return mergeFilters(a, b);
+                          }, {});
+
+                    span?.setAttribute("abilities.status", "applied");
+                    return transformToResponse(mergedFilters as any);
+                  };
+
+                  if (otel?.tracer) {
+                    return otel.tracer.startActiveSpan(
+                      `prepare_query_abilities_${action}`,
+                      (span) => {
+                        try {
+                          return assembleAbilities(span);
+                        } finally {
+                          span.end();
+                        }
+                      },
+                    );
+                  } else {
+                    return assembleAbilities();
                   }
-                  dynamicResults.length = filtersReturned;
-
-                  const allQueryFilters = [
-                    ...simpleQueryFilters[action],
-                    ...dynamicResults,
-                  ];
-
-                  // if we don't have any permitted filters then block everything
-                  if (allQueryFilters.length === 0) {
-                    return transformToResponse(blockEverythingFilter);
-                  }
-
-                  const mergedFilters =
-                    allQueryFilters.length === 1
-                      ? allQueryFilters[0]
-                      : allQueryFilters.reduce((a, b) => {
-                          return mergeFilters(a, b);
-                        }, {});
-
-                  return transformToResponse(mergedFilters as any);
                 },
               };
             },

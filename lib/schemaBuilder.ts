@@ -3,6 +3,8 @@ import DrizzlePlugin from "@pothos/plugin-drizzle";
 import SmartSubscriptionsPlugin, {
   subscribeOptionsFromIterator,
 } from "@pothos/plugin-smart-subscriptions";
+import TracingPlugin, { isRootField } from "@pothos/plugin-tracing";
+import { createOpenTelemetryWrapper } from "@pothos/tracing-opentelemetry";
 import {
   DateResolver,
   DateTimeISOResolver,
@@ -35,9 +37,14 @@ export const createSchemaBuilder = <
   disableDefaultObjects,
   pubsub,
   pothosConfig,
+  otel,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
   pubsub: ReturnType<typeof createPubSub>;
 }) => {
+  const createSpan = otel?.tracer
+    ? createOpenTelemetryWrapper(otel.tracer, otel.options)
+    : undefined;
+
   registerRuntimeFiltersPlugin();
   const schemaBuilder = new SchemaBuilder<{
     Context: ContextType<UserContext, DB, RequestEvent, Action, PothosConfig>;
@@ -69,6 +76,7 @@ export const createSchemaBuilder = <
       pluginName,
       DrizzlePlugin,
       SmartSubscriptionsPlugin,
+      TracingPlugin,
       ...(pothosConfig?.plugins ?? []),
     ],
     drizzle: {
@@ -90,6 +98,13 @@ export const createSchemaBuilder = <
       }),
     },
     defaultFieldNullability: false,
+    tracing: {
+      default: otel?.tracer ? (config) => isRootField(config) : () => false,
+      wrap: createSpan
+        ? (resolver, options) => createSpan(resolver, options)
+        : (resolver) => resolver,
+    },
+    otelTracer: otel?.tracer,
   });
 
   schemaBuilder.addScalarType("JSON", JSONResolver);

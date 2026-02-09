@@ -1,4 +1,6 @@
+import type { Tracer } from "@opentelemetry/api";
 import type SchemaBuilder from "@pothos/core";
+import type { TracingWrapperOptions } from "@pothos/tracing-opentelemetry";
 import type { createPubSub } from "graphql-yoga";
 import type { DrizzleInstance } from "./drizzleInstanceType";
 
@@ -78,4 +80,17 @@ export type RumbleInput<
         cpu_operator_cost?: number;
       }
     | undefined;
+  /**
+   * rumble can set up otel tracing if you want to. This will provide details of execution time and outcome to the provided tracer. See https://pothos-graphql.dev/docs/plugins/tracing#install for more information.
+   */
+  otel?: {
+    /**
+     * The tracer to use
+     */
+    tracer: Tracer;
+    /**
+     * You can pass options to the tracing wrapper
+     */
+    options?: TracingWrapperOptions<unknown>;
+  };
 };
