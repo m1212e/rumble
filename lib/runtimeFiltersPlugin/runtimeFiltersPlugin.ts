@@ -70,9 +70,9 @@ export class RuntimeFiltersPlugin<
       if (this.tracer) {
         return this.tracer.startActiveSpan(
           `apply_filters_${fieldConfig.name}`,
-          (span) => {
+          async (span) => {
             try {
-              return runFilters();
+              return await runFilters();
             } finally {
               span.end();
             }
