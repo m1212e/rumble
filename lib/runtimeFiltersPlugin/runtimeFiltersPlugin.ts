@@ -28,24 +28,23 @@ export class RuntimeFiltersPlugin<
     fieldConfig: PothosOutputFieldConfig<Types>,
   ): GraphQLFieldResolver<unknown, Types["Context"], object> {
     return async (parent, args, context, info) => {
+      //TODO: https://github.com/hayes/pothos/discussions/1431#discussioncomment-12974130
+      let filters: ApplyFiltersField<Types["Context"], any> | undefined;
+      const fieldType = fieldConfig?.type as any;
+
+      if (fieldType.kind === "List") {
+        filters =
+          fieldType.type?.ref.currentConfig.pothosOptions[applyFiltersKey];
+      } else if (fieldType.kind === "Object") {
+        filters = fieldType.ref.currentConfig.pothosOptions[applyFiltersKey];
+      }
+
+      if (!filters || !Array.isArray(filters) || filters.length === 0) {
+        // if no filter should be applied, just continue
+        return resolver(parent, args, context, info);
+      }
+
       const runFilters = async (span?: Span) => {
-        //TODO: https://github.com/hayes/pothos/discussions/1431#discussioncomment-12974130
-        let filters: ApplyFiltersField<Types["Context"], any> | undefined;
-        const fieldType = fieldConfig?.type as any;
-
-        if (fieldType.kind === "List") {
-          filters =
-            fieldType.type?.ref.currentConfig.pothosOptions[applyFiltersKey];
-        } else if (fieldType.kind === "Object") {
-          filters = fieldType.ref.currentConfig.pothosOptions[applyFiltersKey];
-        }
-
-        if (!filters || !Array.isArray(filters) || filters.length === 0) {
-          span?.setAttribute("filters.status", "unrestricted");
-          // if no filter should be applied, just continue
-          return resolver(parent, args, context, info);
-        }
-
         const resolved = await resolver(parent, args, context, info);
         const allResolvedValues = Array.isArray(resolved)
           ? resolved
