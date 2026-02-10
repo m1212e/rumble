@@ -1,5 +1,6 @@
 import { EnvelopArmorPlugin } from "@escape.tech/graphql-armor";
 import { useDisableIntrospection } from "@graphql-yoga/plugin-disable-introspection";
+import { trace } from "@opentelemetry/api";
 import { AttributeNames, SpanNames } from "@pothos/tracing-opentelemetry";
 import { merge } from "es-toolkit";
 import {
@@ -8,6 +9,7 @@ import {
   type YogaServerOptions,
 } from "graphql-yoga";
 import { useSofa } from "sofa-api";
+import packagejson from "../package.json";
 import { createAbilityBuilder } from "./abilityBuilder";
 import { createOrderArgImplementer } from "./args/orderArg";
 import { createWhereArgImplementer } from "./args/whereArg";
@@ -81,6 +83,10 @@ export const db = drizzle(
 
   if (rumbleInput.search?.enabled) {
     initSearchIfApplicable(rumbleInput);
+  }
+
+  if (rumbleInput.otel?.enabled && !rumbleInput.otel.tracer) {
+    trace.getTracer("@m1212e/rumble", packagejson.version);
   }
 
   const abilityBuilder = createAbilityBuilder<
@@ -232,11 +238,11 @@ export const db = drizzle(
         ...(enableApiDocs
           ? []
           : [useDisableIntrospection(), EnvelopArmorPlugin()]),
-        rumbleInput.otel?.tracer
+        rumbleInput.otel?.enabled
           ? ({
               onExecute: ({ setExecuteFn, executeFn }) => {
                 setExecuteFn((options) =>
-                  rumbleInput.otel!.tracer.startActiveSpan(
+                  rumbleInput.otel!.tracer!.startActiveSpan(
                     SpanNames.EXECUTE,
                     {
                       attributes: {

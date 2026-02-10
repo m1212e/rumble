@@ -635,7 +635,7 @@ export const createAbilityBuilder = <
                     return transformToResponse(mergedFilters as any);
                   };
 
-                  if (otel?.tracer) {
+                  if (otel?.enabled && otel.tracer) {
                     return otel.tracer.startActiveSpan(
                       `prepare_query_abilities_${action}`,
                       (span) => {

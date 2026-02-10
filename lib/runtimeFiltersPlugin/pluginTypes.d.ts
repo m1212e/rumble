@@ -13,7 +13,10 @@ declare global {
     }
 
     export interface SchemaBuilderOptions<Types extends SchemaTypes> {
-      otelTracer?: Tracer;
+      otel?: {
+        enabled?: boolean;
+        tracer?: Tracer;
+      };
     }
 
     // export interface BuildSchemaOptions<Types extends SchemaTypes> {

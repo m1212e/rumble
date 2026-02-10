@@ -15,8 +15,11 @@ export class RuntimeFiltersPlugin<
   Types extends SchemaTypes,
 > extends BasePlugin<Types> {
   private tracer?: Tracer;
+  private tracerEnabled?: boolean;
+
   override onTypeConfig(typeConfig: PothosTypeConfig) {
-    this.tracer = this.builder.options.otelTracer;
+    this.tracer = this.builder.options.otel?.tracer;
+    this.tracerEnabled = this.builder.options.otel?.enabled;
     return typeConfig;
   }
 
@@ -67,7 +70,7 @@ export class RuntimeFiltersPlugin<
         return allowed[0] ?? null;
       };
 
-      if (this.tracer) {
+      if (this.tracer && this.tracerEnabled) {
         return this.tracer.startActiveSpan(
           `apply_filters_${fieldConfig.name}`,
           async (span) => {

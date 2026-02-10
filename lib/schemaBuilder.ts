@@ -41,9 +41,10 @@ export const createSchemaBuilder = <
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
   pubsub: ReturnType<typeof createPubSub>;
 }) => {
-  const createSpan = otel?.tracer
-    ? createOpenTelemetryWrapper(otel.tracer, otel.options)
-    : undefined;
+  const createSpan =
+    otel?.enabled && otel.tracer
+      ? createOpenTelemetryWrapper(otel.tracer, otel.options)
+      : undefined;
 
   registerRuntimeFiltersPlugin();
   const schemaBuilder = new SchemaBuilder<{
@@ -99,12 +100,12 @@ export const createSchemaBuilder = <
     },
     defaultFieldNullability: false,
     tracing: {
-      default: otel?.tracer ? (config) => isRootField(config) : () => false,
+      default: otel?.enabled ? (config) => isRootField(config) : () => false,
       wrap: createSpan
         ? (resolver, options) => createSpan(resolver, options)
         : (resolver) => resolver,
     },
-    otelTracer: otel?.tracer,
+    otel,
   });
 
   schemaBuilder.addScalarType("JSON", JSONResolver);

@@ -85,9 +85,13 @@ export type RumbleInput<
    */
   otel?: {
     /**
-     * The tracer to use
+     * Whether otel tracing should be enabled. This will create a tracer if none is provided.
      */
-    tracer: Tracer;
+    enabled?: boolean;
+    /**
+     * The tracer to use. If enabled is true and no tracer is provided, a tracer will be created.
+     */
+    tracer?: Tracer;
     /**
      * You can pass options to the tracing wrapper
      */
