@@ -86,7 +86,10 @@ export const db = drizzle(
   }
 
   if (rumbleInput.otel?.enabled && !rumbleInput.otel.tracer) {
-    trace.getTracer("@m1212e/rumble", packagejson.version);
+    rumbleInput.otel.tracer = trace.getTracer(
+      "@m1212e/rumble",
+      packagejson.version,
+    );
   }
 
   const abilityBuilder = createAbilityBuilder<

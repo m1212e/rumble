@@ -75,7 +75,7 @@ export class RuntimeFiltersPlugin<
           `apply_filters_${fieldConfig.name}`,
           async (span) => {
             try {
-              return await runFilters();
+              return await runFilters(span);
             } finally {
               span.end();
             }
