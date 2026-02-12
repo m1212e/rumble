@@ -285,6 +285,82 @@ export const db = drizzle(
                   ),
                 );
               },
+              onParse: ({ setParseFn, parseFn }) => {
+                setParseFn((...args) =>
+                  rumbleInput.otel!.tracer!.startActiveSpan(
+                    SpanNames.PARSE,
+                    (span) => {
+                      try {
+                        const result = parseFn(...args);
+                        return result;
+                      } catch (error) {
+                        if (error instanceof Error) {
+                          span.recordException(error);
+                        }
+                        span.setStatus({ code: SpanStatusCode.ERROR });
+                        throw error;
+                      } finally {
+                        span.end();
+                      }
+                    },
+                  ),
+                );
+              },
+              onValidate: ({ setValidationFn, validateFn }) => {
+                setValidationFn((...args) =>
+                  rumbleInput.otel!.tracer!.startActiveSpan(
+                    SpanNames.VALIDATE,
+                    (span) => {
+                      try {
+                        const errors = validateFn(...args);
+                        if (errors.length > 0) {
+                          for (const error of errors) {
+                            span.recordException(error);
+                          }
+                          span.setStatus({ code: SpanStatusCode.ERROR });
+                        }
+                        return errors;
+                      } catch (error) {
+                        if (error instanceof Error) {
+                          span.recordException(error);
+                        }
+                        span.setStatus({ code: SpanStatusCode.ERROR });
+                        throw error;
+                      } finally {
+                        span.end();
+                      }
+                    },
+                  ),
+                );
+              },
+              onSubscribe: ({ setSubscribeFn, subscribeFn }) => {
+                setSubscribeFn((options) =>
+                  rumbleInput.otel!.tracer!.startActiveSpan(
+                    "graphql.subscribe",
+                    {
+                      attributes: {
+                        [AttributeNames.OPERATION_NAME]:
+                          options.operationName ?? "anonymous",
+                        [AttributeNames.SOURCE]: options.document,
+                      },
+                    },
+                    async (span) => {
+                      try {
+                        const result = await subscribeFn(options);
+                        return result;
+                      } catch (error) {
+                        if (error instanceof Error) {
+                          span.recordException(error);
+                        }
+                        span.setStatus({ code: SpanStatusCode.ERROR });
+                        throw error;
+                      } finally {
+                        span.end();
+                      }
+                    },
+                  ),
+                );
+              },
             } as Plugin)
           : false,
       ].filter(Boolean),
