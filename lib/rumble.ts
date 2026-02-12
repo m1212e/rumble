@@ -236,6 +236,8 @@ export const db = drizzle(
     return nativeCreateYoga<RequestEvent>({
       ...args,
       graphiql: enableApiDocs,
+      schema: builtSchema(),
+      context,
       plugins: [
         ...(args?.plugins ?? []),
         ...(enableApiDocs
@@ -251,13 +253,23 @@ export const db = drizzle(
                       attributes: {
                         [AttributeNames.OPERATION_NAME]:
                           options.operationName ?? "anonymous",
-                        // TODO
-                        // [AttributeNames.SOURCE]: print(options.document),
+                        [AttributeNames.SOURCE]: options.document,
                       },
                     },
                     async (span) => {
                       try {
                         const result = await executeFn(options);
+
+                        if (
+                          result &&
+                          "errors" in result &&
+                          result.errors?.length
+                        ) {
+                          for (const error of result.errors) {
+                            span.recordException(error);
+                          }
+                          span.setStatus({ code: SpanStatusCode.ERROR });
+                        }
 
                         return result;
                       } catch (error) {
@@ -276,8 +288,6 @@ export const db = drizzle(
             } as Plugin)
           : false,
       ].filter(Boolean),
-      schema: builtSchema(),
-      context,
     });
   };
 
@@ -287,10 +297,34 @@ export const db = drizzle(
     if (args.openAPI) {
       merge(args.openAPI, sofaOpenAPIWebhookDocs);
     }
+    if (args.errorHandler) {
+      const originalHandler = args.errorHandler;
+      args.errorHandler = (errors) => {
+        const span = trace.getActiveSpan();
+
+        for (const error of errors) {
+          span?.recordException(error);
+        }
+        span?.setStatus({ code: SpanStatusCode.ERROR });
+        return originalHandler(errors);
+      };
+    }
     return useSofa({
       ...args,
       schema: builtSchema(),
       context,
+      errorHandler(errors) {
+        const span = trace.getActiveSpan();
+
+        for (const error of errors) {
+          span?.recordException(error);
+        }
+        span?.setStatus({ code: SpanStatusCode.ERROR });
+
+        return new Response(errors[0].message, {
+          status: 500,
+        }) as any;
+      },
     });
   };
 
