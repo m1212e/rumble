@@ -1,6 +1,6 @@
 import { EnvelopArmorPlugin } from "@escape.tech/graphql-armor";
 import { useDisableIntrospection } from "@graphql-yoga/plugin-disable-introspection";
-import { trace } from "@opentelemetry/api";
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { AttributeNames, SpanNames } from "@pothos/tracing-opentelemetry";
 import { merge } from "es-toolkit";
 import {
@@ -261,7 +261,10 @@ export const db = drizzle(
 
                         return result;
                       } catch (error) {
-                        span.recordException(error as Error);
+                        if (error instanceof Error) {
+                          span.recordException(error);
+                        }
+                        span.setStatus({ code: SpanStatusCode.ERROR });
                         throw error;
                       } finally {
                         span.end();
