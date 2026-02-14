@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { parse } from "graphql";
 import { makeSeededDBInstanceForTest } from "./db/db";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
@@ -230,12 +230,14 @@ describe("test rumble abilities and filters", async () => {
 
   test("filter out some on multiple application level filters with duplicates", async () => {
     rumble.abilityBuilder.users.allow(["read"]);
-    rumble.abilityBuilder.users.filter("read").by(({ entities }) => {
+    const f1 = mock(({ entities }) => {
       return entities.slice(0, 10);
     });
-    rumble.abilityBuilder.users.filter("read").by(({ entities }) => {
+    const f2 = mock(({ entities }) => {
       return entities.slice(0, 10);
     });
+    rumble.abilityBuilder.users.filter("read").by(f1);
+    rumble.abilityBuilder.users.filter("read").by(f2);
 
     const { executor, yogaInstance: _yogaInstance } = build();
     const r = await executor({
@@ -247,6 +249,43 @@ describe("test rumble abilities and filters", async () => {
         }
       `),
     });
+
+    expect(f1).toHaveBeenCalled();
+    expect(f2).toHaveBeenCalled();
+
+    // all users should be readable
+    expect((r as any).data.users.length).toEqual(10);
+  });
+
+  test("filter out with prefetch", async () => {
+    rumble.abilityBuilder.users.allow(["read"]);
+    let ctxRef: any;
+    let prefetchResultRef: any;
+    const filter = mock(async ({ entities, context, prefetched }) => {
+      expect(ctxRef).toBe(context);
+      expect(prefetchResultRef).toBe(prefetched);
+      return entities.slice(0, 10);
+    });
+    const prefetch = mock(async ({ context }) => {
+      ctxRef = context;
+      prefetchResultRef = { some: "data" };
+      return prefetchResultRef;
+    });
+    rumble.abilityBuilder.users.filter("read").prefetch(prefetch).by(filter);
+
+    const { executor, yogaInstance: _yogaInstance } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          users {
+            id
+          }
+        }
+      `),
+    });
+
+    expect(filter).toHaveBeenCalled();
+    expect(prefetch).toHaveBeenCalled();
 
     // all users should be readable
     expect((r as any).data.users.length).toEqual(10);

@@ -5,7 +5,11 @@ import { lazy } from "./helpers/lazy";
 import { mergeFilters } from "./helpers/mergeFilters";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
 import { tableHelper } from "./helpers/tableHelpers";
-import type { Filter } from "./runtimeFiltersPlugin/filterTypes";
+import type {
+  Filter,
+  FilterPrefetchCombo,
+  Prefetch,
+} from "./runtimeFiltersPlugin/filterTypes";
 import type {
   DrizzleInstance,
   DrizzleQueryFunction,
@@ -137,7 +141,7 @@ export const createAbilityBuilder = <
     const runtimeFilters = new Map<
       Action,
       //TODO add a run all helper
-      Filter<UserContext, any>[]
+      FilterPrefetchCombo<UserContext, any, any>[]
     >();
 
     // we want to init all possible runtime filters since we want to ensure
@@ -209,6 +213,41 @@ export const createAbilityBuilder = <
         const actions = Array.isArray(action) ? action : [action];
         return {
           /**
+           * Allows to register an application level prefetch to fetch some data
+           * which could be useful for later filtering the results. The prefetch
+           * function will be called with the user context but unlike the actual
+           * filter function, it will not have access to the result of the query
+           * and therefore can be run in parallel with underlying query resolver.
+           * A typical use case is to fetch some data which is not directly
+           * related to the query but to the context only. So e.g. fetching the
+           * user's permissions from an external system and then later applying
+           * the filter based on those permissions.
+           */
+          prefetch: <PrefetchReturnType>(
+            prefetch: Prefetch<UserContext, PrefetchReturnType>,
+          ) => {
+            return {
+              /**
+               * The actual filter function to apply. Returns the allowed values
+               */
+              by: (
+                explicitFilter: Filter<
+                  UserContext,
+                  DrizzleTableValueType<DB, TableName>,
+                  PrefetchReturnType
+                >,
+              ) => {
+                for (const action of actions) {
+                  // we initialized all possible actions when creating the builder
+                  runtimeFilters.get(action)!.push({
+                    filter: explicitFilter,
+                    prefetch: prefetch,
+                  });
+                }
+              },
+            };
+          },
+          /**
            * The actual filter function to apply. Returns the allowed values
            */
           by: (
@@ -219,7 +258,9 @@ export const createAbilityBuilder = <
           ) => {
             for (const action of actions) {
               // we initialized all possible actions when creating the builder
-              runtimeFilters.get(action)!.push(explicitFilter);
+              runtimeFilters.get(action)!.push({
+                filter: explicitFilter as Filter<UserContext, any, any>,
+              });
             }
           },
         };

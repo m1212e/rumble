@@ -6,7 +6,6 @@ import SchemaBuilder, {
   type SchemaTypes,
 } from "@pothos/core";
 import type { GraphQLFieldResolver } from "graphql";
-import { applyFilters } from "../helpers/applyFilters";
 import { type ApplyFiltersField, pluginName } from "./filterTypes";
 
 export const applyFiltersKey = "applyFilters";
@@ -45,18 +44,57 @@ export class RuntimeFiltersPlugin<
       }
 
       const runFilters = async (span?: Span) => {
-        const resolved = await resolver(parent, args, context, info);
-        const allResolvedValues = Array.isArray(resolved)
-          ? resolved
-          : [resolved];
         const allFilters = Array.isArray(filters) ? filters : [filters];
         span?.setAttribute("filters.total", allFilters.length);
 
-        const allowed = await applyFilters({
-          filters: allFilters,
-          entities: allResolvedValues,
-          context,
-        });
+        const prefetchedFiltersPromises = Promise.all(
+          allFilters.map(async (filter) => {
+            if (filter.prefetch) {
+              const prefetched = await filter.prefetch({ context });
+              return ({
+                context,
+                entities,
+              }: {
+                context: Types["Context"];
+                entities: any;
+              }) => filter.filter({ context, entities, prefetched });
+            }
+            return ({
+              context,
+              entities,
+            }: {
+              context: Types["Context"];
+              entities: any;
+            }) => filter.filter({ context, entities } as any);
+          }),
+        );
+
+        const [resolved, prefetchedFilters] = await Promise.all([
+          resolver(parent, args, context, info),
+          prefetchedFiltersPromises,
+        ]);
+
+        const allowed = Array.from(
+          (
+            await Promise.all(
+              prefetchedFilters.map((f) =>
+                f({
+                  context,
+                  entities: Array.isArray(resolved)
+                    ? resolved
+                    : ([resolved] as any),
+                }),
+              ),
+            )
+          ).reduce((acc, val) => {
+            for (const element of val) {
+              acc.add(element);
+            }
+            return acc;
+            // since multiple helpers might return the same entity we use a set to deduplicate
+          }, new Set()),
+        );
+
         span?.setAttribute("filters.allowed", allowed.length);
 
         // if the original value was an array, return an array

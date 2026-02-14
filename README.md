@@ -113,7 +113,6 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 	fields: (t) => ({
 ...
 ```
-To apply filters in a custom handler implementation, like e.g. your mutations, you can use the `applyFilters` helper exported by rumble to easily filter a list of entities.
 
 ## Context & Configuration
 The `rumble` initiator offers various configuration options which you can pass. Most importantly, the `context` provider function which creates the request context that is passed to your abilities and resolvers.

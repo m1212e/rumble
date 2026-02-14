@@ -126,6 +126,22 @@ abilityBuilder.posts.filter("read").by(({ context: _context, entities }) => {
   return entities;
 });
 
+// sometimes you might wish to start some async work the instance the resolve begins. E.g. if you
+// want to fetch some permissions from an external service, which are only based on the user's context
+// and not on the actual data being queried. Prefetch allows to parallelize the async work with the query resolve
+// of the data.
+abilityBuilder.posts
+  .filter("read")
+  // the prefetch function is called in parallel with the query resolve and thus does not have access to the entities
+  // returned by the query. This allows to parallelize the async work with the query resolve of the data.
+  .prefetch(async ({ context }) => {
+    return { somePrefetch: "data" };
+  })
+  // the prefetched data is available in the actual filter function
+  .by(({ context: _context, entities, prefetched }) => {
+    return entities;
+  });
+
 /*
 
   Next we need to define the objects shape which will be returned by our queries and mutations.
@@ -288,7 +304,7 @@ query({
 
   Finally, we want to implement the mutations so we can actually edit some data.
   We can use the schemaBuilder to do that.
- 
+
 */
 
 // OPTIONAL: If you want to use graphql subscriptions, you can use the pubsub helper
