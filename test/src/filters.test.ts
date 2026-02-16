@@ -56,9 +56,9 @@ describe("test rumble abilities and filters", async () => {
       document: parse(/* GraphQL */ `
         query {
           user(id: "3e0bb3d0-2074-4a1e-6263-d13dd10cb0cf") {
-				id
-				firstName
-			  }
+            id
+            firstName
+          }
         }
       `),
     });
@@ -289,5 +289,53 @@ describe("test rumble abilities and filters", async () => {
 
     // all users should be readable
     expect((r as any).data.users.length).toEqual(10);
+  });
+
+  test("filter function throw", async () => {
+    rumble.abilityBuilder.users.allow(["read"]);
+    const filter = mock(async () => {
+      throw new Error("Filter error");
+    });
+    rumble.abilityBuilder.users.filter("read").by(filter);
+
+    const { executor, yogaInstance: _yogaInstance } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          users {
+            id
+          }
+        }
+      `),
+    });
+
+    expect(filter).toHaveBeenCalled();
+    expect((r as any).errors.length).toEqual(1);
+  });
+
+  test("prefetch throw", async () => {
+    rumble.abilityBuilder.users.allow(["read"]);
+    const filter = mock(async () => {
+      throw new Error("Filter error");
+    });
+    const prefetch = mock(async () => {
+      throw new Error("Filter error");
+    });
+    rumble.abilityBuilder.users.filter("read").prefetch(prefetch).by(filter);
+
+    const { executor, yogaInstance: _yogaInstance } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          users {
+            id
+          }
+        }
+      `),
+    });
+
+    expect(filter).toBeCalledTimes(0);
+    expect(prefetch).toHaveBeenCalled();
+    expect((r as any).errors.length).toEqual(1);
   });
 });
