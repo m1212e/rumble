@@ -21,7 +21,7 @@ jobs:
       - name: Run typecheck
         run: bun run typecheck
       - name: Run Trivy scanner on fs
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
