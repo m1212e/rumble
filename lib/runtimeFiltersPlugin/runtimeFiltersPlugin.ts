@@ -47,6 +47,7 @@ export class RuntimeFiltersPlugin<
         const allFilters = Array.isArray(filters) ? filters : [filters];
         span?.setAttribute("filters.total", allFilters.length);
 
+        // TODO: find out if the aggrefagation across relation and then parallel execution is possible
         const prefetchedFiltersPromises = Promise.all(
           allFilters.map(async (filter) => {
             if (filter.prefetch) {
