@@ -422,6 +422,63 @@ describe("test rumble abilities", async () => {
     expect((r as any).errors.at(0).path).toEqual(["user", "id"]);
   });
 
+  test("permissive columns with overlapping abilities", async () => {
+    rumble.abilityBuilder.users.allow(["read"]).when({
+      columns: {
+        id: false,
+        firstName: true,
+      },
+    });
+
+    rumble.abilityBuilder.users.allow(["read"]).when({
+      columns: {
+        id: true,
+        firstName: false,
+      },
+    });
+
+    const { executor, yogaInstance: _yogaInstance } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          user(id: "91eedc87-dd86-4473-997b-0c0bff3db1ba") {
+            id
+            firstName
+          }
+        }
+      `),
+    });
+
+    expect((r as any).errors).toBeUndefined();
+  });
+
+  test("permissive columns with permissive abilities", async () => {
+    rumble.abilityBuilder.users.allow(["read"]).when({
+      columns: {
+        id: false,
+        firstName: true,
+      },
+    });
+
+    rumble.abilityBuilder.users.allow(["read"]).when(() => {
+      return "allow";
+    });
+
+    const { executor, yogaInstance: _yogaInstance } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          user(id: "91eedc87-dd86-4473-997b-0c0bff3db1ba") {
+            id
+            firstName
+          }
+        }
+      `),
+    });
+
+    expect((r as any).errors).toBeUndefined();
+  });
+
   test("deny read with stacked wildcard permission", async () => {
     rumble.abilityBuilder.comments.allow("read").when({
       where: {
@@ -520,7 +577,7 @@ describe("test rumble abilities", async () => {
     const r = await executor({
       document: parse(/* GraphQL */ `
         query {
-          usersCount 
+          usersCount
         }
       `),
     });
@@ -533,7 +590,7 @@ describe("test rumble abilities", async () => {
     const r = await executor({
       document: parse(/* GraphQL */ `
         query {
-          usersCount 
+          usersCount
         }
       `),
     });
