@@ -1,5 +1,6 @@
 import type { Span } from "@opentelemetry/api";
 import { relationsFilterToSQL } from "drizzle-orm";
+import { CasingCache } from "drizzle-orm/casing";
 import { debounce } from "es-toolkit";
 import { lazy } from "./helpers/lazy";
 import { mergeFilters } from "./helpers/mergeFilters";
@@ -408,10 +409,16 @@ export const createAbilityBuilder = <
               });
 
               const sqlTransformedWhere = lazy(() => {
+                const casing =
+                  (db._ as any).session.dialect?.casing ?? new CasingCache();
+
                 return filters?.where
                   ? relationsFilterToSQL(
                       tableSchema.foundRelation.table,
                       filters.where,
+                      tableSchema.relations,
+                      db._.relations,
+                      casing,
                     )
                   : undefined;
               });
