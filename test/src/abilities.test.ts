@@ -3,6 +3,8 @@ import { parse } from "graphql";
 import { makeSeededDBInstanceForTest } from "./db/db";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
+// TODO: add test for relationally allowed write
+
 describe("test rumble abilities", async () => {
   let { db, data, schema: _schema } = await makeSeededDBInstanceForTest();
   // @ts-expect-error
