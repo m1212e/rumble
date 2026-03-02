@@ -10,8 +10,8 @@ jobs:
     name: Build and publish
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: oven-sh/setup-bun@v1
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
       - name: Install dependencies
         run: bun i
       - name: Run tests
@@ -21,7 +21,7 @@ jobs:
       - name: Run typecheck
         run: bun run typecheck
       - name: Run Trivy scanner on fs
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.34.2
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -35,7 +35,7 @@ jobs:
         env:
           REF_NAME: ${{ github.ref_name }}
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: client-build-output
           path: |
@@ -64,7 +64,7 @@ jobs:
     needs: [test_and_build]
     steps:
     - name: Download build output
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: client-build-output
         path: .
@@ -78,7 +78,7 @@ jobs:
         if [[ "${{ matrix.registry-url }}" == "https://registry.npmjs.org" ]]; then
           echo "token=${{ secrets.NPM_TOKEN }}" >> $GITHUB_OUTPUT
         fi
-    - uses: actions/setup-node@v5
+    - uses: actions/setup-node@v6
       with:
         node-version: "24"
         registry-url: ${{ matrix.registry-url }}
