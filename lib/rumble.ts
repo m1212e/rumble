@@ -245,6 +245,8 @@ export const db = drizzle(
           : [useDisableIntrospection(), EnvelopArmorPlugin()]),
         rumbleInput.otel?.enabled
           ? ({
+              // TODO: add trace header per default in http response
+              // TODO: Automatic Persisted Queries
               onExecute: ({ setExecuteFn, executeFn }) => {
                 setExecuteFn((options) =>
                   rumbleInput.otel!.tracer!.startActiveSpan(

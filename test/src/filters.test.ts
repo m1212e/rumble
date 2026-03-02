@@ -338,4 +338,36 @@ describe("test rumble abilities and filters", async () => {
     expect(prefetch).toHaveBeenCalled();
     expect((r as any).errors.length).toEqual(1);
   });
+
+  test("nested prefetching", async () => {
+    rumble.abilityBuilder.users.allow(["read"]);
+    const prefetch = mock(async () => {
+      return {};
+    });
+    rumble.abilityBuilder.users
+      .filter(["read"])
+      .prefetch(prefetch)
+      .by(({ entities }) => entities);
+    rumble.abilityBuilder.posts
+      .filter(["read"])
+      .prefetch(prefetch)
+      .by(({ entities }) => entities);
+
+    const { executor, yogaInstance: _yogaInstance } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+			query {
+			  user(id: "${data.users[0].id}") {
+				id
+				firstName
+				posts {
+				  id
+				}
+			  }
+			}
+		  `),
+    });
+
+    expect(prefetch).toBeCalledTimes(2);
+  });
 });
