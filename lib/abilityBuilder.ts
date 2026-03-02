@@ -410,7 +410,7 @@ export const createAbilityBuilder = <
 
               const sqlTransformedWhere = lazy(() => {
                 const casing =
-                  (db._ as any).session.dialect?.casing ?? new CasingCache();
+                  (db._ as any).session?.dialect?.casing ?? new CasingCache();
 
                 return filters?.where
                   ? relationsFilterToSQL(
