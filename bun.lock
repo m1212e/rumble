@@ -25,7 +25,7 @@
         "pluralize": "^8.0.0",
         "sofa-api": "^0.18.10",
         "svelte": "^5.55.1",
-        "wonka": "^6.3.6",
+        "wonka": "^6.3.2",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.4.10",
@@ -669,7 +669,7 @@
 
     "uuid": ["uuid@8.3.2", "", { "bin": "dist/bin/uuid" }, "sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg=="],
 
-    "wonka": ["wonka@6.3.6", "", {}, "sha512-MXH+6mDHAZ2GuMpgKS055FR6v0xVP3XwquxIMYXgiW+FejHQlMGlvVRZT4qMCxR+bEo/FCtIdKxwej9WV3YQag=="],
+    "wonka": ["wonka@6.3.2", "", {}, ""],
 
     "wsl-utils": ["wsl-utils@0.1.0", "", { "dependencies": { "is-wsl": "^3.1.0" } }, "sha512-h3Fbisa2nKGPxCpm89Hk33lBLsnaGBvctQopaBSOW/uIs6FTe1ATyAnKFJrzVs9vpGdsTe73WF3V4lIsk4Gacw=="],
 
@@ -712,10 +712,6 @@
     "@jridgewell/gen-mapping/@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.4", "", {}, ""],
 
     "@jridgewell/trace-mapping/@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.4", "", {}, ""],
-
-    "@urql/core/wonka": ["wonka@6.3.5", "", {}, ""],
-
-    "@urql/exchange-graphcache/wonka": ["wonka@6.3.5", "", {}, ""],
 
     "@whatwg-node/server/@whatwg-node/fetch": ["@whatwg-node/fetch@0.10.12", "", { "dependencies": { "@whatwg-node/node-fetch": "^0.8.2", "urlpattern-polyfill": "^10.0.0" } }, ""],
 
