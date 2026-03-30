@@ -279,13 +279,23 @@ export const createObjectImplementer = <
               return acc;
             }
 
+            let isArray = false;
+            if ((column as any).dimensions > 0) {
+              if ((column as any).dimensions !== 1) {
+                throw new RumbleError(
+                  "Only one-dimensional arrays are supported for default object implementation",
+                );
+              }
+              isArray = true;
+            }
+
             if (isEnumSchema(column)) {
               const enumImpl = enumImplementer({
                 enumColumn: column,
               });
 
               acc[key] = t.field({
-                type: enumImpl,
+                type: isArray ? [enumImpl] : enumImpl,
                 resolve: (element) => (element as any)[key],
                 nullable: !column.notNull,
               });
@@ -295,6 +305,7 @@ export const createObjectImplementer = <
                 sqlType: column.getSQLType() as PossibleSQLType,
                 fieldName: key,
                 nullable: !column.notNull,
+                isArray,
               });
             }
             return acc;

@@ -10,11 +10,13 @@ export function buildPothosResponseTypeFromGraphQLType<
   sqlType,
   fieldName,
   nullable,
+  isArray,
 }: {
   builder: Builder;
   sqlType: PossibleSQLType;
   fieldName: string;
   nullable: boolean;
+  isArray: boolean;
 }) {
   const gqlType = mapSQLTypeToGraphQLType({
     sqlType,
@@ -22,30 +24,40 @@ export function buildPothosResponseTypeFromGraphQLType<
   });
   switch (gqlType) {
     case "Int":
-      return builder.exposeInt(fieldName, { nullable });
+      return isArray
+        ? builder.exposeIntList(fieldName, { nullable: nullable as any })
+        : builder.exposeInt(fieldName, { nullable });
     case "String":
-      return builder.exposeString(fieldName, { nullable });
+      return isArray
+        ? builder.exposeStringList(fieldName, { nullable: nullable as any })
+        : builder.exposeString(fieldName, { nullable });
     case "Boolean":
-      return builder.exposeBoolean(fieldName, { nullable });
+      return isArray
+        ? builder.exposeBooleanList(fieldName, { nullable: nullable as any })
+        : builder.exposeBoolean(fieldName, { nullable });
     case "Date":
       return builder.field({
-        type: "Date",
+        type: isArray ? ["Date"] : "Date",
         resolve: (element: any) => element[fieldName],
         nullable,
       });
     case "DateTime":
       return builder.field({
-        type: "DateTime",
+        type: isArray ? ["DateTime"] : "DateTime",
         resolve: (element: any) => element[fieldName],
         nullable,
       });
     case "Float":
-      return builder.exposeFloat(fieldName, { nullable });
+      return isArray
+        ? builder.exposeFloatList(fieldName, { nullable: nullable as any })
+        : builder.exposeFloat(fieldName, { nullable });
     case "ID":
-      return builder.exposeID(fieldName, { nullable });
+      return isArray
+        ? builder.exposeIDList(fieldName, { nullable: nullable as any })
+        : builder.exposeID(fieldName, { nullable });
     case "JSON":
       return builder.field({
-        type: "JSON",
+        type: isArray ? ["JSON"] : "JSON",
         resolve: (element: any) => element[fieldName],
         nullable,
       });
