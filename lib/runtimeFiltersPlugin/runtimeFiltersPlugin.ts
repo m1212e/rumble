@@ -70,10 +70,32 @@ export class RuntimeFiltersPlugin<
           }),
         );
 
-        const [resolved, prefetchedFilters] = await Promise.all([
-          resolver(parent, args, context, info),
-          prefetchedFiltersPromises,
-        ]);
+        let resolved: any, prefetchedFilters: any;
+
+        if (this.tracer && this.tracerEnabled) {
+          const o = await this.tracer.startActiveSpan(
+            `apply_filters`,
+            async (span) => {
+              try {
+                return await Promise.all([
+                  resolver(parent, args, context, info),
+                  prefetchedFiltersPromises,
+                ]);
+              } finally {
+                span.end();
+              }
+            },
+          );
+          resolved = o[0];
+          prefetchedFilters = o[1];
+        } else {
+          const o = await Promise.all([
+            resolver(parent, args, context, info),
+            prefetchedFiltersPromises,
+          ]);
+          resolved = o[0];
+          prefetchedFilters = o[1];
+        }
 
         const allowed = Array.from(
           (
@@ -110,7 +132,7 @@ export class RuntimeFiltersPlugin<
 
       if (this.tracer && this.tracerEnabled) {
         return this.tracer.startActiveSpan(
-          `apply_filters_${fieldConfig.name}`,
+          `filter_${fieldConfig.name}`,
           async (span) => {
             try {
               return await runFilters(span);
