@@ -1,7 +1,7 @@
 {
   "name": "@m1212e/rumble",
   "module": "./out/index.mjs",
-  "version": "0.16.27",
+  "version": "0.16.31",
   "type": "module",
   "repository": "https://github.com/m1212e/rumble",
   "engines": {
@@ -18,27 +18,27 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.14",
-    "@graphql-tools/executor-http": "^3.1.0",
+    "@biomejs/biome": "^2.4.10",
+    "@graphql-tools/executor-http": "^3.1.3",
     "@types/bun": "latest",
-    "@types/pg": "^8.16.0",
+    "@types/pg": "^8.20.0",
     "@types/pluralize": "^0.0.33",
-    "drizzle-kit": "^1.0.0-beta.15-859cf75",
-    "drizzle-orm": "^1.0.0-beta.15-859cf75",
-    "drizzle-seed": "^1.0.0-beta.15-859cf75",
-    "lefthook": "^2.1.0",
-    "pg": "^8.18.0",
-    "tsdown": "^0.20.3"
+    "drizzle-kit": "^1.0.0-beta.9-e89174b",
+    "drizzle-orm": "^1.0.0-beta.9-e89174b",
+    "drizzle-seed": "^1.0.0-beta.9-e89174b",
+    "lefthook": "^2.1.4",
+    "pg": "^8.20.0",
+    "tsdown": "^0.21.7"
   },
   "peerDependencies": {
-    "typescript": "^5",
+    "typescript": "^6.0.2",
     "drizzle-orm": "^1"
   },
   "dependencies": {
     "@escape.tech/graphql-armor": "^3.2.0",
-    "@graphql-yoga/plugin-disable-introspection": "^2.19.0",
-    "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/semantic-conventions": "^1.39.0",
+    "@graphql-yoga/plugin-disable-introspection": "^2.19.1",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/semantic-conventions": "^1.40.0",
     "@pothos/core": "^4.12.0",
     "@pothos/plugin-drizzle": "^0.17.0",
     "@pothos/plugin-smart-subscriptions": "^4.1.4",
@@ -47,15 +47,15 @@
     "@urql/core": "^6.0.1",
     "@urql/exchange-graphcache": "^9.0.0",
     "@urql/introspection": "^1.2.1",
-    "devalue": "^5.6.2",
-    "es-toolkit": "^1.44.0",
-    "graphql": "^16.12.0",
+    "devalue": "^5.6.4",
+    "es-toolkit": "^1.45.1",
+    "graphql": "^16.13.2",
     "graphql-scalars": "^1.25.0",
-    "graphql-yoga": "^5.18.0",
+    "graphql-yoga": "^5.18.1",
     "pluralize": "^8.0.0",
-    "sofa-api": "^0.18.8",
-    "svelte": "^5.50.0",
-    "wonka": "^6.3.5"
+    "sofa-api": "^0.18.10",
+    "svelte": "^5.55.1",
+    "wonka": "^6.3.2"
   },
   "main": "./out/index.cjs",
   "types": "./out/index.d.cts",
@@ -73,5 +73,14 @@
       "require": "./out/client/generate.cjs"
     },
     "./package.json": "./package.json"
+  },
+  "inlinedDependencies": {
+    "@whatwg-node/fetch": "0.10.8",
+    "@whatwg-node/promise-helpers": "1.3.2",
+    "@whatwg-node/server": "0.10.10",
+    "fets": "0.8.5",
+    "hotscript": "1.0.13",
+    "json-schema-to-ts": "3.1.1",
+    "ts-algebra": "2.0.0"
   }
 }

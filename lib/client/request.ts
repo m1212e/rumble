@@ -6,6 +6,7 @@ import type {
   IntrospectionQuery,
   IntrospectionType,
 } from "graphql";
+import { DateResolver, DateTimeISOResolver } from "graphql-scalars";
 import { createSubscriber } from "svelte/reactivity";
 import {
   empty,
@@ -142,6 +143,7 @@ export function makeGraphQLQueryRequest({
           Object.assign(data, observable);
           return data;
         }
+        return data;
       }),
     ),
   );
@@ -335,7 +337,7 @@ function stringifyArgumentValue({
 
   const argtype = typeof arg;
 
-  if (argtype === "object") {
+  if (argtype === "object" && !(arg instanceof Date)) {
     let type = gqlArg.type;
 
     if (type.kind === "NON_NULL") {
@@ -387,6 +389,24 @@ function stringifyArgumentValue({
 
   if (type.kind === "NON_NULL") {
     type = type.ofType;
+  }
+
+  if (arg instanceof Date) {
+    const name = (type as any).name;
+    let value: string;
+    switch (name) {
+      case "Date":
+        value = DateResolver.serialize(arg);
+        break;
+      case "DateTime":
+        value = DateTimeISOResolver.serialize(arg);
+        break;
+      default:
+        throw new Error(
+          `Unrecognized date type ${name}, expected Date or DateTime`,
+        );
+    }
+    return `"${value}"`;
   }
 
   switch (typeof arg) {
