@@ -5,6 +5,7 @@ export function generateClient({
   availableSubscriptions,
   schemaPath,
   forceReactivity,
+  autoIncludeId,
 }: {
   rumbleImportPath: string;
   useExternalUrqlClient: string | boolean;
@@ -12,9 +13,17 @@ export function generateClient({
   availableSubscriptions: Set<string>;
   schemaPath: string;
   forceReactivity?: boolean;
+  autoIncludeId?: string | boolean;
 }) {
   const imports: string[] = [];
   let code: string = "";
+
+  const idInclude =
+    typeof autoIncludeId === "string"
+      ? `\n    autoIncludeIdField: '${autoIncludeId}'`
+      : autoIncludeId === true
+        ? `\n    autoIncludeIdField: 'id'`
+        : "";
 
   if (typeof useExternalUrqlClient === "string") {
     imports.push(`import { urqlClient } from "${useExternalUrqlClient}";`);
@@ -71,28 +80,28 @@ export const client = {
       .toArray()
       .map((value) => `"${value}"`)
       .join(", ")}]),
-		schema,${forceReactivityFieldString}
+		schema,${forceReactivityFieldString}${idInclude}
   }),
   /**
    * A mutation that can be used to e.g. create, update or delete data.
    */
   mutate: makeMutation<Mutation>({
 	  urqlClient,
-		schema,
+		schema,${idInclude}
   }),
   /**
    * A continuous stream of results that updates when the server sends new data.
    */
   subscribe: makeSubscription<Subscription>({
 	  urqlClient,
-		schema,
+		schema,${idInclude}
   }),
   /**
    * A one-time fetch of data.
    */
   query: makeQuery<Query${forceReactivityTypeString}>({
 	  urqlClient,
-		schema,${forceReactivityFieldString}
+		schema,${forceReactivityFieldString}${idInclude}
   }),
 }`;
 

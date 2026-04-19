@@ -11,11 +11,13 @@ export function makeLiveQuery<
   availableSubscriptions,
   forceReactivity,
   schema,
+  autoIncludeIdField,
 }: {
   urqlClient: Client;
   schema: IntrospectionQuery;
   availableSubscriptions: Set<string>;
   forceReactivity?: ForceReactivity;
+  autoIncludeIdField?: string;
 }) {
   return new Proxy(
     {},
@@ -29,6 +31,7 @@ export function makeLiveQuery<
             enableSubscription: availableSubscriptions.has(prop as string),
             forceReactivity,
             schema,
+            autoIncludeIdField,
           });
         };
       },

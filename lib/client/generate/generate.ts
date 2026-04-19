@@ -17,6 +17,7 @@ export async function generateFromSchema({
   useExternalUrqlClient = false,
   removeExisting = true,
   forceReactivity,
+  autoIncludeIdField,
 }: {
   schema: GraphQLSchema;
   outputPath: string;
@@ -25,6 +26,7 @@ export async function generateFromSchema({
   useExternalUrqlClient?: boolean | string;
   removeExisting?: boolean;
   forceReactivity?: boolean;
+  autoIncludeIdField?: string | boolean;
 }) {
   if (removeExisting) {
     try {
@@ -71,6 +73,7 @@ export type ${key} = ${rep};
       Object.keys(schema.getSubscriptionType()?.getFields() || {}),
     ),
     forceReactivity,
+    autoIncludeId: autoIncludeIdField,
   });
 
   imports.push(...c.imports);

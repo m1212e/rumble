@@ -30,11 +30,13 @@ function makeOperationString({
   queryName,
   schema,
   input,
+  autoIncludeIdField,
 }: {
   operationVerb: "query" | "subscription" | "mutation";
   queryName: string;
   schema: IntrospectionQuery;
   input?: Record<string, any>;
+  autoIncludeIdField?: string;
 }) {
   const otwQueryName = `${capitalize(queryName)}${capitalize(operationVerb)}`;
   const field = schema.__schema.types
@@ -44,7 +46,7 @@ function makeOperationString({
   const types = schema.__schema.types;
 
   const selectionString = input
-    ? stringifySelection({ field, selection: input, types })
+    ? stringifySelection({ field, selection: input, types, autoIncludeIdField })
     : "";
 
   const argumentString = input?.[argsKey]
@@ -65,6 +67,7 @@ export function makeGraphQLQueryRequest({
   client,
   enableSubscription = false,
   forceReactivity,
+  autoIncludeIdField,
 }: {
   queryName: string;
   schema: IntrospectionQuery;
@@ -72,6 +75,7 @@ export function makeGraphQLQueryRequest({
   client: Client;
   enableSubscription?: boolean;
   forceReactivity?: boolean;
+  autoIncludeIdField?: string;
 }) {
   let currentData: any;
   const dataProxy = lazy(
@@ -103,6 +107,7 @@ export function makeGraphQLQueryRequest({
           queryName,
           input,
           schema,
+          autoIncludeIdField,
         }),
         {},
       ),
@@ -113,6 +118,7 @@ export function makeGraphQLQueryRequest({
               queryName,
               input,
               schema,
+              autoIncludeIdField,
             }),
             {},
           )
@@ -161,11 +167,13 @@ export function makeGraphQLMutationRequest({
   input,
   client,
   schema,
+  autoIncludeIdField,
 }: {
   mutationName: string;
   input: Record<string, any>;
   client: Client;
   schema: IntrospectionQuery;
+  autoIncludeIdField?: string;
 }) {
   const response = pipe(
     client.mutation(
@@ -174,6 +182,7 @@ export function makeGraphQLMutationRequest({
         queryName: mutationName,
         input,
         schema,
+        autoIncludeIdField,
       }),
       {},
     ),
@@ -199,11 +208,13 @@ export function makeGraphQLSubscriptionRequest({
   input,
   client,
   schema,
+  autoIncludeIdField,
 }: {
   subscriptionName: string;
   input: Record<string, any>;
   client: Client;
   schema: IntrospectionQuery;
+  autoIncludeIdField?: string;
 }) {
   return pipe(
     client.subscription(
@@ -212,6 +223,7 @@ export function makeGraphQLSubscriptionRequest({
         queryName: subscriptionName,
         input,
         schema,
+        autoIncludeIdField,
       }),
       {},
     ),
@@ -231,11 +243,20 @@ function stringifySelection({
   field,
   selection,
   types,
+  autoIncludeIdField,
 }: {
   selection: Record<string, any>;
   field: IntrospectionField;
   types: readonly IntrospectionType[];
+  autoIncludeIdField?: string;
 }) {
+  if (
+    autoIncludeIdField &&
+    typeof selection[autoIncludeIdField] === "undefined"
+  ) {
+    selection[autoIncludeIdField] = true;
+  }
+
   const ret = Object.entries(selection)
     .filter(([key]) => key !== argsKey)
     .reduce((acc, [key, value]) => {

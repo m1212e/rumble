@@ -11,9 +11,11 @@ import type { UnArray } from "./utilTypes";
 export function makeSubscription<Subscription extends Record<string, any>>({
   urqlClient,
   schema,
+  autoIncludeIdField,
 }: {
   urqlClient: Client;
   schema: IntrospectionQuery;
+  autoIncludeIdField?: string;
 }) {
   return new Proxy(
     {},
@@ -25,6 +27,7 @@ export function makeSubscription<Subscription extends Record<string, any>>({
             input,
             client: urqlClient,
             schema,
+            autoIncludeIdField,
           });
         };
       },

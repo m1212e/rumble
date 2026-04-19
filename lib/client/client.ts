@@ -31,6 +31,7 @@ export const clientCreatorImplementer = <
     useExternalUrqlClient,
     removeExisting,
     forceReactivity,
+    autoIncludeIdField = false,
   }: {
     /**
      * Path to the output directory where the client files will be generated.
@@ -59,6 +60,15 @@ export const clientCreatorImplementer = <
      * and requires you to subscribe to the response to access the data. Useful to prevent forgetting to subscribe to the response to utilize reactive data.
      */
     forceReactivity?: boolean;
+    /**
+     * Whether to automatically include the `id` field in generated queries and mutations.
+     * This might be helpful to ensure that caching works correctly since all object will always be identifiable by their `id`.
+     * Can be set to `true` to always include the `id` field, or to `false` to never include it.
+     * Can also be set to a string to include a custom named field as Id field in case you have a different naming convention like `_id`.
+     *
+     * @default false
+     */
+    autoIncludeIdField?: boolean | string;
   }) => {
     if (process.env.NODE_ENV !== "development") {
       console.warn(
@@ -82,6 +92,7 @@ export const clientCreatorImplementer = <
       useExternalUrqlClient,
       removeExisting,
       forceReactivity,
+      autoIncludeIdField,
     });
   };
 

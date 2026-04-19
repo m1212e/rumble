@@ -10,10 +10,12 @@ export function makeQuery<
   urqlClient,
   forceReactivity,
   schema,
+  autoIncludeIdField,
 }: {
   urqlClient: Client;
   forceReactivity?: ForceReactivity;
   schema: IntrospectionQuery;
+  autoIncludeIdField?: string;
 }) {
   return new Proxy(
     {},
@@ -27,6 +29,7 @@ export function makeQuery<
             enableSubscription: false,
             forceReactivity,
             schema,
+            autoIncludeIdField,
           });
         };
       },
