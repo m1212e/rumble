@@ -55,7 +55,7 @@
     "pluralize": "^8.0.0",
     "sofa-api": "^0.18.10",
     "svelte": "^5.55.4",
-    "wonka": "^6.3.6"
+    "wonka": "^6.3.2"
   },
   "main": "./out/index.cjs",
   "types": "./out/index.d.cts",
