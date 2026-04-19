@@ -100,7 +100,7 @@ export class RuntimeFiltersPlugin<
         const allowed = Array.from(
           (
             await Promise.all(
-              prefetchedFilters.map((f) =>
+              prefetchedFilters.map((f: any) =>
                 f({
                   context,
                   entities: Array.isArray(resolved)
