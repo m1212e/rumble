@@ -79,7 +79,11 @@ export function makeGraphQLQueryRequest({
       new Proxy(currentData, {
         get(target, prop, receiver) {
           svelteSubscriber();
-          return Reflect.get(currentData, prop, receiver);
+          const val = Reflect.get(currentData, prop, receiver);
+          if (typeof val === "function") {
+            return val.bind(currentData);
+          }
+          return val;
         },
       }),
   );
