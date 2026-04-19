@@ -127,8 +127,8 @@ export function makeGraphQLQueryRequest({
     share,
     map((v: any) => {
       const data = v.data?.[queryName];
-      if (!data && v.error) {
-        throw v.error;
+      if (!data && (v.error || v.errors)) {
+        throw v.error ?? v.errors.at(0);
       }
       currentData = data;
 
@@ -188,8 +188,8 @@ export function makeGraphQLMutationRequest({
     ),
     map((v) => {
       const data = v.data?.[mutationName];
-      if (!data && v.error) {
-        throw v.error;
+      if (!data && (v.error || (v as any).errors)) {
+        throw v.error ?? (v as any).errors.at(0);
       }
 
       return data;
