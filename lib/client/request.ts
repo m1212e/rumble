@@ -8,15 +8,16 @@ import type {
 } from "graphql";
 import { DateResolver, DateTimeISOResolver } from "graphql-scalars";
 import { createSubscriber } from "svelte/reactivity";
+
 import {
   empty,
   map,
   merge,
   pipe,
   share,
+  subscribe,
   take,
   toObservable,
-  toPromise,
 } from "wonka";
 import { lazy } from "../helpers/lazy";
 
@@ -99,7 +100,7 @@ export function makeGraphQLQueryRequest({
     return () => unsub.unsubscribe();
   });
 
-  const stream = pipe(
+  const sharedSource = pipe(
     merge([
       client.query(
         makeOperationString({
@@ -125,38 +126,55 @@ export function makeGraphQLQueryRequest({
         : empty,
     ]),
     share,
-    map((v: any) => {
-      const data = v.data?.[queryName];
-      if (!data && (v.error || v.errors)) {
-        throw v.error ?? v.errors.at(0);
-      }
-      currentData = data;
-
-      if (typeof data === "object" && data !== null) {
-        return dataProxy();
-      }
-
-      return data;
-    }),
   );
 
-  const observable = toObservable(stream);
-  const promise = toPromise(
+  const observable = toObservable(
     pipe(
-      stream,
-      take(1),
-      map((data) => {
+      sharedSource,
+      map((v: any) => {
+        if (v.error) {
+          throw v.error;
+        }
+
+        const data = v.data?.[queryName];
+        currentData = data;
         if (typeof data === "object" && data !== null) {
-          if (typeof forceReactivity === "boolean" && forceReactivity) {
-            return observable;
-          }
-          Object.assign(data, observable);
-          return data;
+          return dataProxy();
         }
         return data;
       }),
     ),
   );
+
+  const promise = new Promise<any>((resolve, reject) => {
+    pipe(
+      sharedSource,
+      take(1),
+      subscribe((v: any) => {
+        if (v.error) {
+          reject(v.error);
+          return;
+        }
+
+        const data = v.data?.[queryName];
+        currentData = data;
+        if (typeof data !== "object" || data === null) {
+          resolve(data);
+          return;
+        }
+        if (typeof forceReactivity === "boolean" && forceReactivity) {
+          resolve(observable);
+          return;
+        }
+        try {
+          Object.assign(data, observable);
+          resolve(data);
+        } catch (err) {
+          reject(err);
+        }
+      }),
+    );
+  });
 
   Object.assign(promise, observable);
   return promise;
@@ -175,7 +193,7 @@ export function makeGraphQLMutationRequest({
   schema: IntrospectionQuery;
   autoIncludeIdField?: string;
 }) {
-  const response = pipe(
+  const sharedSource = pipe(
     client.mutation(
       makeOperationString({
         operationVerb: "mutation",
@@ -186,20 +204,39 @@ export function makeGraphQLMutationRequest({
       }),
       {},
     ),
-    map((v) => {
-      const data = v.data?.[mutationName];
-      if (!data && (v.error || (v as any).errors)) {
-        throw v.error ?? (v as any).errors.at(0);
-      }
-
-      return data;
-    }),
+    share,
   );
 
-  const observable = toObservable(response);
-  const promise = toPromise(pipe(response, take(1)));
-  Object.assign(promise, observable);
+  const observable = toObservable(
+    pipe(
+      sharedSource,
+      map((v) => {
+        if (v.error) {
+          throw v.error;
+        }
 
+        const data = v.data?.[mutationName];
+        return data;
+      }),
+    ),
+  );
+
+  const promise = new Promise<any>((resolve, reject) => {
+    pipe(
+      sharedSource,
+      take(1),
+      subscribe((v: any) => {
+        if (v.error) {
+          reject(v.error);
+          return;
+        }
+
+        resolve(v.data?.[mutationName]);
+      }),
+    );
+  });
+
+  Object.assign(promise, observable);
   return promise;
 }
 
@@ -228,12 +265,11 @@ export function makeGraphQLSubscriptionRequest({
       {},
     ),
     map((v) => {
-      const data = v.data?.[subscriptionName];
-      if (!data && v.error) {
+      if (v.error) {
         throw v.error;
       }
 
-      return data;
+      return v.data?.[subscriptionName];
     }),
     toObservable,
   ) as any;
