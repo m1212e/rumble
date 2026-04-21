@@ -167,8 +167,9 @@ export function makeGraphQLQueryRequest({
           return;
         }
         try {
-          Object.assign(data, observable);
-          resolve(data);
+          const r = dataProxy();
+          Object.assign(r, observable);
+          resolve(r);
         } catch (err) {
           reject(err);
         }
