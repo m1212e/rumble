@@ -6,7 +6,7 @@ import {
 } from "@urql/introspection";
 import { uneval } from "devalue";
 import type { GraphQLSchema } from "graphql";
-import { generateClient } from "./client";
+import { autoGenerationPreamble, generateClient } from "./client";
 import { makeTSRepresentation } from "./tsRepresentation";
 
 export async function generateFromSchema({
@@ -83,7 +83,8 @@ export type ${key} = ${rep};
     writeFile(join(outputPath, "client.ts"), `${imports.join("\n")}\n${code}`),
     writeFile(
       join(outputPath, `${schemaFileName}.ts`),
-      `
+      autoGenerationPreamble +
+        `
 import type { IntrospectionQuery } from "graphql";
 export const schema = ${uneval(minifyIntrospectionQuery(getIntrospectedSchema(schema), { includeEnums: true, includeScalars: true, includeInputs: true }))} as IntrospectionQuery`,
     ),

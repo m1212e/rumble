@@ -1,3 +1,10 @@
+export const autoGenerationPreamble = `// This file is auto-generated. Do not edit manually.
+// @generated
+/* eslint-disable */
+// biome-ignore-all lint: This file is auto-generated
+// biome-ignore-all assist: This file is auto-generated
+// biome-ignore-all syntax: This file is auto-generated`;
+
 export function generateClient({
   apiUrl,
   rumbleImportPath,
@@ -16,7 +23,7 @@ export function generateClient({
   autoIncludeId?: string | boolean;
 }) {
   const imports: string[] = [];
-  let code: string = "";
+  let code: string = autoGenerationPreamble;
 
   const idInclude =
     typeof autoIncludeId === "string"
