@@ -252,11 +252,9 @@ export function makeGraphQLMutationRequest({
     autoIncludeIdField,
   });
 
-  const sharedSource = pipe(client.mutation(operationString, variables), share);
-
   const observable = toObservable(
     pipe(
-      sharedSource,
+      pipe(client.mutation(operationString, variables), share),
       map((v) => {
         if (v.error) {
           throw v.error;
@@ -270,7 +268,7 @@ export function makeGraphQLMutationRequest({
 
   const promise = new Promise<any>((resolve, reject) => {
     pipe(
-      sharedSource,
+      client.mutation(operationString, variables),
       take(1),
       subscribe((v: any) => {
         if (v.error) {
