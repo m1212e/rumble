@@ -158,21 +158,17 @@ export function makeGraphQLQueryRequest({
 
   const observableSources: Source<any>[] = [
     client.query(operationString, variables),
+    // client.read
   ];
   if (enableSubscription) {
-    observableSources.push(
-      (() => {
-        const { operationString: subOpString, variables: subVars } =
-          makeOperation({
-            operationVerb: "subscription",
-            queryName,
-            input,
-            schema,
-            autoIncludeIdField,
-          });
-        return client.subscription(subOpString, subVars);
-      })(),
-    );
+    const { operationString: subOpString, variables: subVars } = makeOperation({
+      operationVerb: "subscription",
+      queryName,
+      input,
+      schema,
+      autoIncludeIdField,
+    });
+    observableSources.push(client.subscription(subOpString, subVars));
   }
   const observable = toObservable(
     pipe(
