@@ -22,8 +22,14 @@ import {
   subscribe,
   take,
   toObservable,
+  make,
 } from "wonka";
 import { lazy } from "../helpers/lazy";
+
+const bc = new BroadcastChannel("RUMBLE_MUTATION_NOTIFIER");
+type BroadcastMessage = {
+  modifiedEntityIds: any[];
+};
 
 // TODO: this could use some refactoring and less type check disable (remove uses of any)
 // TODO: the client needs tests
@@ -156,9 +162,40 @@ export function makeGraphQLQueryRequest({
     autoIncludeIdField,
   });
 
+  const cacheUpdates = make(({ next, complete }) => {
+    const broadcastHandler = async (event: MessageEvent<BroadcastMessage>) => {
+      console.log("Received broadcast message", event.data);
+      await new Promise((r) => setTimeout(r, 100));
+      const cacheValue = client.readQuery(operationString, variables);
+      if (cacheValue) {
+        console.log({ cacheValue });
+        if (cacheValue.error) {
+          console.warn(
+            "Error reading from cache in broadcast handler",
+            cacheValue.error,
+          );
+          return;
+        }
+        const data = cacheValue.data?.[queryName];
+        console.log({ data });
+        if (typeof data === "object" && data !== null) {
+          currentData = data;
+          next(dataProxy());
+        }
+      } else {
+        console.log("no cache value :{");
+      }
+    };
+    bc.addEventListener("message", broadcastHandler);
+
+    return () => {
+      bc.removeEventListener("message", broadcastHandler);
+    };
+  });
+
   const observableSources: Source<any>[] = [
     client.query(operationString, variables),
-    // client.read
+    cacheUpdates,
   ];
   if (enableSubscription) {
     const { operationString: subOpString, variables: subVars } = makeOperation({
@@ -248,9 +285,25 @@ export function makeGraphQLMutationRequest({
     autoIncludeIdField,
   });
 
+  const mutation = pipe(
+    client.mutation(operationString, variables),
+    map((v) => {
+      if (v.error) {
+        return v;
+      }
+
+      const data = v.data?.[mutationName];
+      bc.postMessage({
+        modifiedEntityIds: [],
+      } as BroadcastMessage);
+      return v;
+    }),
+  );
+
   const observable = toObservable(
     pipe(
-      pipe(client.mutation(operationString, variables), share),
+      mutation,
+      share,
       map((v) => {
         if (v.error) {
           throw v.error;
@@ -264,7 +317,7 @@ export function makeGraphQLMutationRequest({
 
   const promise = new Promise<any>((resolve, reject) => {
     pipe(
-      client.mutation(operationString, variables),
+      mutation,
       take(1),
       subscribe((v: any) => {
         if (v.error) {
