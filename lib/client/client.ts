@@ -72,7 +72,7 @@ export const clientCreatorImplementer = <
   }) => {
     if (process.env.NODE_ENV !== "development") {
       console.warn(
-        `Running rumble client generation in non development mode. Are you sure this is correct? Called from ${__filename} with arguments: ${JSON.stringify(
+        `Running rumble client generation in non development mode. Are you sure this is correct? Called with arguments: ${JSON.stringify(
           {
             outputPath,
             apiUrl,
