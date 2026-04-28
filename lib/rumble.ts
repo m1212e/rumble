@@ -3,6 +3,7 @@ import { useDisableIntrospection } from "@graphql-yoga/plugin-disable-introspect
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { AttributeNames, SpanNames } from "@pothos/tracing-opentelemetry";
 import { merge } from "es-toolkit";
+import { useServer } from "graphql-ws/use/ws";
 import {
   createYoga as nativeCreateYoga,
   type Plugin,
@@ -512,5 +513,11 @@ export const db = drizzle(
      * A function for creating count queries for your tables
      */
     countQuery,
+    /**
+     * The generated GraphQL schema. You can use this for example to create a GraphQL server with a different library than Yoga or to generate types with codegen.
+     * When calling this function, the schema will be built for the first time and cached for later usage. So you can call this function multiple times without performance issues.
+     * After calling, you cannot adjust the schema via the schema builder
+     */
+    buildSchema: builtSchema,
   };
 };
