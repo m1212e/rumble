@@ -7,17 +7,17 @@ export default defineConfig({
     client: "lib/client/index.ts",
     "client/generate": "lib/client/generate/index.ts",
   },
-  dts: {
-    sourcemap: true,
-    parallel: false,
-  },
   format: ["cjs", "esm"],
   outDir: "out",
-  inlineOnly: false,
-  external: [
-    // enforce also devDependencies are not bundled
-    ...Object.keys(packagejson.devDependencies),
-  ],
   sourcemap: true,
+  dts: {
+    sourcemap: true,
+  },
   exports: true,
+  deps: {
+    neverBundle: [
+      "@whatwg-node/fetch",
+      ...Object.keys(packagejson.devDependencies),
+    ],
+  },
 });
