@@ -1,5 +1,5 @@
-import type { SchemaTypes } from "@pothos/core";
 import type { Tracer } from "@opentelemetry/api";
+import type { SchemaTypes } from "@pothos/core";
 import type { pluginName } from "./filterTypes";
 import type {
   applyFiltersKey,
