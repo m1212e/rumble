@@ -3,7 +3,6 @@ import { useDisableIntrospection } from "@graphql-yoga/plugin-disable-introspect
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { AttributeNames, SpanNames } from "@pothos/tracing-opentelemetry";
 import { merge } from "es-toolkit";
-import { useServer } from "graphql-ws/use/ws";
 import {
   createYoga as nativeCreateYoga,
   type Plugin,
