@@ -80,11 +80,13 @@ export type ${key} = ${rep};
   code += c.code;
 
   await Promise.all([
-    writeFile(join(outputPath, "client.ts"), `${imports.join("\n")}\n${code}`),
+    writeFile(
+      join(outputPath, "client.ts"),
+      `${autoGenerationPreamble}\n${imports.join("\n")}\n${code}`,
+    ),
     writeFile(
       join(outputPath, `${schemaFileName}.ts`),
-      autoGenerationPreamble +
-        `
+      `${autoGenerationPreamble}
 import type { IntrospectionQuery } from "graphql";
 export const schema = ${uneval(minifyIntrospectionQuery(getIntrospectedSchema(schema), { includeEnums: true, includeScalars: true, includeInputs: true }))} as IntrospectionQuery`,
     ),

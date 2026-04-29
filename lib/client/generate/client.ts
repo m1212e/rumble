@@ -23,7 +23,7 @@ export function generateClient({
   autoIncludeId?: string | boolean;
 }) {
   const imports: string[] = [];
-  let code: string = autoGenerationPreamble;
+  let code: string = "";
 
   const idInclude =
     typeof autoIncludeId === "string"
