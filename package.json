@@ -39,6 +39,17 @@
     "sofa-api": "^0.18",
     "svelte": "^5"
   },
+  "peerDependenciesMeta": {
+    "graphql-ws": {
+      "optional": true
+    },
+    "sofa-api": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    }
+  },
   "dependencies": {
     "@escape.tech/graphql-armor": "^3.2.0",
     "@graphql-yoga/plugin-disable-introspection": "^2.22.0",

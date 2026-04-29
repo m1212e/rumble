@@ -330,6 +330,7 @@ export const db = drizzle(
     });
   };
 
+  // TODO: give the typings of this some love
   const createWs = <T extends (options: any, ...rest: any[]) => any>(
     implementation: T,
     args: Omit<Parameters<T>[0], "schema" | "context">,
