@@ -287,89 +287,6 @@ export const db = drizzle(
                   ),
                 );
               },
-              // onParse: ({ setParseFn, parseFn }) => {
-              //   setParseFn((...args) =>
-              //     rumbleInput.otel!.tracer!.startActiveSpan(
-              //       SpanNames.PARSE,
-              //       (span) => {
-              //         try {
-              //           const result = parseFn(...args);
-              //           return result;
-              //         } catch (error) {
-              //           if (error instanceof Error) {
-              //             span.recordException(error);
-              //           }
-              //           span.setStatus({ code: SpanStatusCode.ERROR });
-              //           throw error;
-              //         } finally {
-              //           span.end();
-              //         }
-              //       },
-              //     ),
-              //   );
-              // },
-              //TODO
-              // onValidate: ({ setValidationFn, validateFn }) => {
-              //   setValidationFn(
-              //     (...args) => {
-              //       const span = trace.getActiveSpan();
-              //       const errors = validateFn(...args);
-
-              //       if (span && errors.length > 0) {
-              //         for (const error of errors) {
-              //           console.log({ span, error });
-              //           span.recordException(error);
-              //         }
-              //         span.setStatus({ code: SpanStatusCode.ERROR });
-              //         span.end();
-              //       }
-              //       return errors;
-              //     },
-              //     // rumbleInput.otel!.tracer!.startActiveSpan(
-              //     //   SpanNames.VALIDATE,
-              //     //   (span) => {
-              //     //     const errors = validateFn(...args);
-              //     //     if (errors.length > 0) {
-              //     //       for (const error of errors) {
-              //     //         console.log({ span, error });
-              //     //         span.recordException(error);
-              //     //       }
-              //     //       span.setStatus({ code: SpanStatusCode.ERROR });
-              //     //     }
-              //     //     span.end();
-              //     //     return errors;
-              //     //   },
-              //     // ),
-              //   );
-              // },
-              // onSubscribe: ({ setSubscribeFn, subscribeFn }) => {
-              //   setSubscribeFn((options) =>
-              //     rumbleInput.otel!.tracer!.startActiveSpan(
-              //       "graphql.subscribe",
-              //       {
-              //         attributes: {
-              //           [AttributeNames.OPERATION_NAME]:
-              //             options.operationName ?? "anonymous",
-              //           [AttributeNames.SOURCE]: options.document,
-              //         },
-              //       },
-              //       async (span) => {
-              //         try {
-              //           const result = await subscribeFn(options);
-              //           return result;
-              //         } catch (error) {
-              //           if (error instanceof Error) {
-              //             span.recordException(error);
-              //           }
-              //           span.setStatus({ code: SpanStatusCode.ERROR });
-              //           throw error;
-              //         } finally {
-              //           span.end();
-              //         }
-              //       },
-              //     ),
-              //   );
-              // },
             } as Plugin)
           : false,
       ].filter(Boolean),
@@ -411,6 +328,21 @@ export const db = drizzle(
         }) as any;
       },
     });
+  };
+
+  const createWs = <T extends (options: any, ...rest: any[]) => any>(
+    implementation: T,
+    args: Omit<Parameters<T>[0], "schema" | "context">,
+    ...rest: Parameters<T> extends [any, ...infer R] ? R : never
+  ): ReturnType<T> => {
+    return implementation(
+      {
+        ...args,
+        schema: builtSchema(),
+        context,
+      },
+      ...rest,
+    ) as ReturnType<T>;
   };
 
   const clientCreator = clientCreatorImplementer<
@@ -476,6 +408,26 @@ export const db = drizzle(
      * https://the-guild.dev/graphql/sofa-api/docs#usage
      */
     createSofa,
+    /**
+     * Creates a WebSocket server handler for GraphQL subscriptions.
+     * Pass the ws implementation function as the first argument and rumble will
+     * inject the schema and context automatically.
+     *
+     * @example
+     *
+     * ```ts
+     * // ws
+     * import { useServer } from "graphql-ws/use/ws";
+     * import { WebSocketServer } from "ws";
+     * const wss = new WebSocketServer({ port: 4000 });
+     * const disposable = createWs(useServer, { ... }, wss);
+     *
+     * // bun
+     * import { makeHandler } from "graphql-ws/use/bun";
+     * Bun.serve({ websocket: createWs(makeHandler, { ... }), ... });
+     * ```
+     */
+    createWs,
     /**
      * A function for creating default objects for your schema
      */
