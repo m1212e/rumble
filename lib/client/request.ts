@@ -7,7 +7,15 @@ import type {
   IntrospectionType,
 } from "graphql";
 import { DateResolver, DateTimeISOResolver } from "graphql-scalars";
-import { createSubscriber } from "svelte/reactivity";
+
+// since svelte is optional, dub this in case the import is not available, but if it is, use the real one
+let createSubscriber: typeof import("svelte/reactivity").createSubscriber =
+  () => () => {};
+import("svelte/reactivity")
+  .then((m) => {
+    createSubscriber = m.createSubscriber;
+  })
+  .catch(() => {});
 
 import {
   empty,

@@ -3,12 +3,13 @@ import { useDisableIntrospection } from "@graphql-yoga/plugin-disable-introspect
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { AttributeNames, SpanNames } from "@pothos/tracing-opentelemetry";
 import { merge } from "es-toolkit";
+import type { ServerOptions } from "graphql-ws";
 import {
   createYoga as nativeCreateYoga,
   type Plugin,
   type YogaServerOptions,
 } from "graphql-yoga";
-import { useSofa } from "sofa-api";
+import type { useSofa } from "sofa-api";
 import packagejson from "../package.json";
 import { createAbilityBuilder } from "./abilityBuilder";
 import { createOrderArgImplementer } from "./args/orderArg";
@@ -293,9 +294,10 @@ export const db = drizzle(
     });
   };
 
-  const createSofa = (
+  const createSofa = async (
     args: Omit<Parameters<typeof useSofa>[0], "schema" | "context">,
   ) => {
+    const { useSofa: useSofaFn } = await import("sofa-api");
     if (args.openAPI) {
       merge(args.openAPI, sofaOpenAPIWebhookDocs);
     }
@@ -311,7 +313,7 @@ export const db = drizzle(
         return originalHandler(errors);
       };
     }
-    return useSofa({
+    return useSofaFn({
       ...args,
       schema: builtSchema(),
       context,
@@ -330,20 +332,24 @@ export const db = drizzle(
     });
   };
 
-  // TODO: give the typings of this some love
-  const createWs = <T extends (options: any, ...rest: any[]) => any>(
-    implementation: T,
-    args: Omit<Parameters<T>[0], "schema" | "context">,
-    ...rest: Parameters<T> extends [any, ...infer R] ? R : never
-  ): ReturnType<T> => {
+  const createWs = <
+    // biome-ignore lint/suspicious/noExplicitAny: needed to accept any ServerOptions generic specialization
+    Options extends ServerOptions<any, any>,
+    Rest extends unknown[],
+    Return,
+  >(
+    implementation: (options: Options, ...rest: Rest) => Return,
+    args: Omit<Options, "schema" | "context">,
+    ...rest: Rest
+  ): Return => {
     return implementation(
       {
         ...args,
         schema: builtSchema(),
         context,
-      },
+      } as Options,
       ...rest,
-    ) as ReturnType<T>;
+    );
   };
 
   const clientCreator = clientCreatorImplementer<
