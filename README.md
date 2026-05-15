@@ -289,6 +289,7 @@ server.listen(3000, () => {
 });
 
 ```
+> If you hit `Query depth limit of N exceeded` (or alias/directive/token limit) errors in production, pass `armorConfig` through to relax the [graphql-armor](https://escape.tech/graphql-armor/) defaults — e.g. `createYoga({ armorConfig: { maxDepth: { n: 20 } } })`. `armorConfig` is forwarded verbatim to `EnvelopArmorPlugin(...)` and is only applied when `enableApiDocs` is `false` (i.e. in production).
 
 ## Usage & client generation
 You can use the GraphQL api with any client you like. However, rumble provides a generation api which can output a TypeScript client from a rumble instance. To perform a generation, use the exported function from your rumble instance like this:
