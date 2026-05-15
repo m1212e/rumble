@@ -68,7 +68,7 @@
     "@urql/core": "^6.0.1",
     "@urql/exchange-graphcache": "^9.0.0",
     "@urql/introspection": "^1.2.1",
-    "devalue": "^5.7.1",
+    "devalue": "^5.8.1",
     "es-toolkit": "^1.46.0",
     "graphql-scalars": "^1.25.0",
     "graphql-yoga": "^5.21.0",
