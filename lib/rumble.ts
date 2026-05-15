@@ -233,7 +233,7 @@ export const db = drizzle(
            * EnvelopArmorPlugin. Only applied when `enableApiDocs` is false
            * (i.e. in production). Useful for relaxing the default depth/alias/
            * directive/token limits when the generated schema legitimately exceeds
-           * them. See https://escape.tech/graphql-armor/ for available options.
+           * them. See https://github.com/Escape-Technologies/graphql-armor for available options.
            *
            * @example
            * createYoga({ armorConfig: { maxDepth: { n: 20 } } })
