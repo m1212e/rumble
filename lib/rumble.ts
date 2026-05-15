@@ -228,6 +228,17 @@ export const db = drizzle(
            * explorer and will not apply the additional envelop armor plugin.
            */
           enableApiDocs?: boolean;
+          /**
+           * Optional configuration passed to the auto-installed graphql-armor
+           * EnvelopArmorPlugin. Only applied when `enableApiDocs` is false
+           * (i.e. in production). Useful for relaxing the default depth/alias/
+           * directive/token limits when the generated schema legitimately exceeds
+           * them. See https://github.com/Escape-Technologies/graphql-armor for available options.
+           *
+           * @example
+           * createYoga({ armorConfig: { maxDepth: { n: 20 } } })
+           */
+          armorConfig?: Parameters<typeof EnvelopArmorPlugin>[0];
         })
       | undefined,
   ) => {
@@ -243,7 +254,7 @@ export const db = drizzle(
         ...(args?.plugins ?? []),
         ...(enableApiDocs
           ? []
-          : [useDisableIntrospection(), EnvelopArmorPlugin()]),
+          : [useDisableIntrospection(), EnvelopArmorPlugin(args?.armorConfig)]),
         rumbleInput.otel?.enabled
           ? ({
               // TODO: add trace header per default in http response
