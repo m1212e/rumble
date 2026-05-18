@@ -1,7 +1,6 @@
 import { type Client, createRequest } from "@urql/core";
 import { capitalize } from "es-toolkit";
 import type {
-  IntrospectionField,
   IntrospectionInputValue,
   IntrospectionQuery,
   IntrospectionType,
@@ -40,6 +39,19 @@ function typeToString(type: any): string {
   if (type.kind === "NON_NULL") return `${typeToString(type.ofType)}!`;
   if (type.kind === "LIST") return `[${typeToString(type.ofType)}]`;
   return type.name;
+}
+
+function unwrapNamedType(
+  typeRef: any,
+  types: readonly IntrospectionType[],
+): IntrospectionType | undefined {
+  let t = typeRef;
+  while (t && (t.kind === "NON_NULL" || t.kind === "LIST")) t = t.ofType;
+  return types.find((x) => x.name === t?.name);
+}
+
+function isCompositeKind(kind: string | undefined) {
+  return kind === "OBJECT" || kind === "INTERFACE" || kind === "UNION";
 }
 
 type VarContext = {
@@ -88,15 +100,20 @@ function makeOperation({
     usedNames: new Set(),
   };
 
-  const selectionString = input
-    ? stringifySelection({
-        field,
-        selection: input,
-        types,
-        autoIncludeIdField,
-        varCtx,
-      })
-    : "";
+  const returnTypeIsComposite = isCompositeKind(
+    unwrapNamedType(field.type, types)?.kind,
+  );
+
+  const selectionString =
+    input && returnTypeIsComposite
+      ? stringifySelection({
+          parentTypeName: unwrapNamedType(field.type, types)!.name,
+          selection: input,
+          types,
+          autoIncludeIdField,
+          varCtx,
+        })
+      : "";
 
   const argumentString = input?.[argsKey]
     ? serializeArguments({
@@ -324,14 +341,14 @@ export function makeGraphQLSubscriptionRequest({
 }
 
 function stringifySelection({
-  field,
+  parentTypeName,
   selection,
   types,
   autoIncludeIdField,
   varCtx,
 }: {
   selection: Record<string, any>;
-  field: IntrospectionField;
+  parentTypeName: string;
   types: readonly IntrospectionType[];
   autoIncludeIdField?: string;
   varCtx: VarContext;
@@ -343,43 +360,43 @@ function stringifySelection({
     selection[autoIncludeIdField] = true;
   }
 
+  const parentType = types.find((t) => t.name === parentTypeName);
+
   const ret = Object.entries(selection)
     .filter(([key]) => key !== argsKey)
     .reduce((acc, [key, value]) => {
       if (typeof value === "object") {
+        const subField =
+          parentType && "fields" in parentType
+            ? parentType.fields.find((f) => f.name === key)
+            : undefined;
+
         let argsString = "";
-        if (value[argsKey]) {
-          let type = field.type;
-
-          if (type.kind === "NON_NULL") {
-            type = type.ofType;
-          }
-          if (type.kind === "LIST") {
-            type = type.ofType;
-          }
-          if (type.kind === "NON_NULL") {
-            type = type.ofType;
-          }
-
-          const referenceObject = (types as any)
-            .find((t: any) => t.name === (type as any).name)
-            .fields.find((f: any) => f.name === key);
-
+        if (value[argsKey] && subField) {
           argsString = serializeArguments({
             args: value[argsKey],
             types,
-            fieldArgs: referenceObject.args,
+            fieldArgs: subField.args,
             varCtx,
           });
         }
 
-        acc += `${key}${argsString} ${stringifySelection({
-          field,
-          selection: value,
-          types,
-          varCtx,
-        })}
+        const subNamedType = subField
+          ? unwrapNamedType(subField.type, types)
+          : undefined;
+
+        if (isCompositeKind(subNamedType?.kind)) {
+          acc += `${key}${argsString} ${stringifySelection({
+            parentTypeName: subNamedType!.name,
+            selection: value,
+            types,
+            varCtx,
+          })}
 `;
+        } else {
+          acc += `${key}${argsString}
+`;
+        }
       } else {
         if (typeof value === "boolean" && value) {
           acc += `${key}
