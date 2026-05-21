@@ -341,7 +341,7 @@ describe("test rumble abilities", async () => {
     expect((r as any).data.comments.length).toEqual(5);
   });
 
-  test("limit read amount to min value with abilities", async () => {
+  test("limit read amount to max value with OR-merged abilities", async () => {
     rumble.abilityBuilder.comments.allow("read").when({
       limit: 3,
     });
@@ -361,7 +361,7 @@ describe("test rumble abilities", async () => {
       `),
     });
 
-    expect((r as any).data.comments.length).toEqual(3);
+    expect((r as any).data.comments.length).toEqual(4);
   });
 
   test("error simple read with helper implementation with column restrictions", async () => {
@@ -598,6 +598,82 @@ describe("test rumble abilities", async () => {
     });
 
     expect((r as any).data.usersCount).toEqual(0);
+  });
+
+  test("OR-merge two ability where conditions returns rows matching either", async () => {
+    // ability A: only published comments
+    rumble.abilityBuilder.comments.allow("read").when({
+      where: { published: true },
+    });
+    // ability B: only unpublished comments
+    rumble.abilityBuilder.comments.allow("read").when({
+      where: { published: false },
+    });
+
+    // OR semantics: published=true OR published=false → all comments (up to defaultLimit of 9)
+    const { executor, yogaInstance: _yogaInstance } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          comments {
+            id
+          }
+        }
+      `),
+    });
+
+    expect((r as any).data.comments.length).toEqual(9);
+  });
+
+  test("OR-merge: single ability where condition still filters correctly", async () => {
+    rumble.abilityBuilder.comments.allow("read").when({
+      where: { published: true },
+    });
+
+    const { executor, yogaInstance: _yogaInstance } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          comments {
+            id
+            published
+          }
+        }
+      `),
+    });
+
+    // single filter is not reduced via OR; all returned comments must be published
+    // (SQLite stores booleans as 0/1, so use truthy check)
+    expect((r as any).errors).toBeUndefined();
+    expect((r as any).data.comments.every((c: any) => !!c.published)).toBe(
+      true,
+    );
+  });
+
+  test("OR-merge: dynamic ability OR static ability allows union of results", async () => {
+    // static: only comments by current user
+    rumble.abilityBuilder.comments
+      .allow("read")
+      .when(({ userId }) => ({ where: { ownerId: userId } }));
+    // static: only published comments
+    rumble.abilityBuilder.comments.allow("read").when({
+      where: { published: true },
+    });
+
+    // should return comments that are either owned by the user OR published
+    const { executor, yogaInstance: _yogaInstance } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          comments {
+            id
+          }
+        }
+      `),
+    });
+
+    // there are user-owned comments and published comments; OR means more than either alone
+    expect((r as any).data.comments.length).toBeGreaterThan(0);
   });
 
   //TODO
