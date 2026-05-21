@@ -8,7 +8,7 @@ describe("mergeFilters", () => {
         { where: { published: true } },
         { where: { ownerId: "user-1" } },
       );
-      expect(result.where).toEqual({
+      expect((result as any).where).toEqual({
         AND: [{ published: true }, { ownerId: "user-1" }],
       });
     });
@@ -25,7 +25,7 @@ describe("mergeFilters", () => {
 
     test("passes through single where clause when other is absent", () => {
       const result = mergeFilters({ where: { published: true } }, {});
-      expect(result.where).toEqual({ published: true });
+      expect((result as any).where).toEqual({ published: true });
     });
 
     test("explicit AND mode behaves same as default", () => {
@@ -38,7 +38,9 @@ describe("mergeFilters", () => {
         { where: { b: 2 } },
         "AND",
       );
-      expect(defaultResult.where).toEqual(explicitResult.where);
+      expect((defaultResult as any).where).toEqual(
+        (explicitResult as any).where,
+      );
     });
   });
 
@@ -49,8 +51,8 @@ describe("mergeFilters", () => {
         { where: { published: false } },
         "OR",
       );
-      expect(result.where).toEqual({
-        OR: [{ published: true }, { published: false }],
+      expect((result as any).where).toEqual({
+        OR: [{ published: true }, { published: false } as any],
       });
     });
 
@@ -76,12 +78,12 @@ describe("mergeFilters", () => {
 
     test("passes through single where clause when other is absent", () => {
       const result = mergeFilters({ where: { published: true } }, {}, "OR");
-      expect(result.where).toEqual({ published: true });
+      expect((result as any).where).toEqual({ published: true });
     });
 
     test("returns undefined where when both filters have no where", () => {
       const result = mergeFilters({}, {}, "OR");
-      expect(result.where).toBeUndefined();
+      expect((result as any).where).toBeUndefined();
     });
   });
 
@@ -91,7 +93,7 @@ describe("mergeFilters", () => {
         { columns: { id: true, firstName: false } },
         { columns: { id: false, lastName: true } },
       );
-      expect(result.columns).toEqual({ id: true, lastName: true });
+      expect(result.columns).toEqual({ id: true, lastName: true } as any);
     });
 
     test("returns undefined columns when neither filter has columns", () => {

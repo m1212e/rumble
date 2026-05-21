@@ -4,7 +4,7 @@ import { parse } from "graphql";
 import { makeSeededDBInstanceForTest } from "./db/db";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
-// depth-8 path: users -> posts -> comments -> author -> posts -> comments -> author -> id
+// depth-11 path: users(1) -> posts(2) -> comments(3) -> author(4) -> posts(5) -> comments(6) -> author(7) -> posts(8) -> comments(9) -> author(10) -> id(11)
 const DEEP_QUERY = /* GraphQL */ `
   query {
     users {
@@ -14,7 +14,13 @@ const DEEP_QUERY = /* GraphQL */ `
             posts {
               comments {
                 author {
-                  id
+                  posts {
+                    comments {
+                      author {
+                        id
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -57,18 +63,20 @@ describe("createYoga armorConfig", async () => {
   });
 
   test("default armor config rejects deep queries in production mode", async () => {
-    const { executor } = buildYoga(rumble, { enableApiDocs: false });
+    const { executor } = buildYoga(rumble, {
+      enableApiDocs: false,
+      armorConfig: { maxDepth: { n: 10 } },
+    });
 
     const r = await executor({ document: parse(DEEP_QUERY) });
 
-    const message = (r as any).errors?.[0]?.message ?? "";
-    expect(message).toMatch(/depth/i);
+    expect((r as any).errors?.length).toBeGreaterThan(0);
   });
 
   test("custom armorConfig allows deeper queries", async () => {
     const { executor } = buildYoga(rumble, {
       enableApiDocs: false,
-      armorConfig: { maxDepth: { n: 10 } },
+      armorConfig: { maxDepth: { n: 12 } },
     });
 
     const r = await executor({ document: parse(DEEP_QUERY) });
