@@ -676,7 +676,7 @@ export const createAbilityBuilder = <
                       allQueryFilters.length === 1
                         ? allQueryFilters[0]
                         : allQueryFilters.reduce((a, b) => {
-                            return mergeFilters(a, b);
+                            return mergeFilters(a, b, "OR");
                           }, {});
 
                     span?.setAttribute("abilities.status", "applied");

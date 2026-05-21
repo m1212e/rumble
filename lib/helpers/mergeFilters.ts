@@ -3,10 +3,16 @@ import { toMerged } from "es-toolkit";
 export function mergeFilters<
   FilterA extends Record<string, any>,
   FilterB extends Record<string, any>,
->(filterA?: Partial<FilterA>, filterB?: Partial<FilterB>) {
+>(
+  filterA?: Partial<FilterA>,
+  filterB?: Partial<FilterB>,
+  mode: "AND" | "OR" = "AND",
+) {
   const where =
     filterA?.where && filterB?.where
-      ? { AND: [filterA?.where, filterB?.where] }
+      ? mode === "OR"
+        ? { OR: [filterA.where, filterB.where] }
+        : { AND: [filterA.where, filterB.where] }
       : (filterA?.where ?? filterB?.where);
 
   const columns =
@@ -41,14 +47,22 @@ export function mergeFilters<
       : undefined;
 
   const limit =
-    filterA?.limit || filterB?.limit
-      ? Math.min(filterA?.limit ?? Infinity, filterB?.limit ?? Infinity)
-      : undefined;
+    mode === "OR"
+      ? filterA?.limit === undefined || filterB?.limit === undefined
+        ? undefined
+        : Math.max(filterA.limit, filterB.limit)
+      : filterA?.limit || filterB?.limit
+        ? Math.min(filterA?.limit ?? Infinity, filterB?.limit ?? Infinity)
+        : undefined;
 
   const offset =
-    filterA?.offset || filterB?.offset
-      ? Math.min(filterA?.offset ?? Infinity, filterB?.offset ?? Infinity)
-      : undefined;
+    mode === "OR"
+      ? filterA?.offset === undefined || filterB?.offset === undefined
+        ? undefined
+        : Math.min(filterA.offset, filterB.offset)
+      : filterA?.offset || filterB?.offset
+        ? Math.min(filterA?.offset ?? Infinity, filterB?.offset ?? Infinity)
+        : undefined;
 
   const with_ =
     filterA?.with || filterB?.with
