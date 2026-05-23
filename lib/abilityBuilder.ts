@@ -166,11 +166,16 @@ export const createAbilityBuilder = <
         }
 
         const actions = Array.isArray(action) ? action : [action];
+        // Track which actions this specific allow() call initialized as "unrestricted",
+        // so .when() can distinguish chained use (allow().when()) from a later separate call
+        // that finds a pre-existing "unrestricted" from a prior bare allow().
+        const setUnrestrictedByThisCall = new Set<(typeof actions)[number]>();
         for (const action of actions) {
           let filters = queryFilters.get(action);
           if (!filters) {
             filters = "unrestricted";
             queryFilters.set(action, filters);
+            setUnrestrictedByThisCall.add(action);
           }
         }
 
@@ -196,7 +201,14 @@ export const createAbilityBuilder = <
           ) => {
             for (const action of actions) {
               if (queryFilters.get(action) === "unrestricted") {
-                queryFilters.set(action, []);
+                if (setUnrestrictedByThisCall.has(action)) {
+                  // Chained directly on this allow() call — override unrestricted with specific filter
+                  queryFilters.set(action, []);
+                } else {
+                  // A previous separate bare allow() already set unrestricted
+                  //  skip this filter
+                  continue;
+                }
               }
               const filters = queryFilters.get(action)!;
               (filters as Exclude<typeof filters, "unrestricted">).push(

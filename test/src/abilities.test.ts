@@ -719,4 +719,51 @@ describe("test rumble abilities", async () => {
 
   // 	expect((r as any).data.customFindComments.length).toEqual(0);
   // });
+
+  // Static wildcard + column restriction ordering tests
+  // postId is notNull in schema, so querying it when excluded triggers a real GraphQL error
+  test("static allow() first, then allow().when(columns) second — all columns should be accessible via OR", async () => {
+    rumble.abilityBuilder.comments.allow("read"); // unrestricted
+    rumble.abilityBuilder.comments.allow("read").when({
+      columns: { id: true, postId: false },
+    });
+
+    const { executor } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          comments {
+            id
+            postId
+          }
+        }
+      `),
+    });
+
+    // OR of (unrestricted) and (id: true, postId: false) should allow all columns
+    expect((r as any).errors).toBeUndefined();
+  });
+
+  test("allow().when(columns) first, then static allow() second — bare allow() is a no-op once .when() was registered", async () => {
+    rumble.abilityBuilder.comments.allow("read").when({
+      columns: { id: true, postId: false },
+    });
+    // bare allow() after .when() is intentionally a no-op (safety: won't silently override conditions)
+    rumble.abilityBuilder.comments.allow("read");
+
+    const { executor } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          comments {
+            id
+            postId
+          }
+        }
+      `),
+    });
+
+    // postId is blocked and bare allow() didn't override — error expected
+    expect((r as any).errors).toBeDefined();
+  });
 });
