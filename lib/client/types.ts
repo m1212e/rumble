@@ -41,8 +41,10 @@ export type QueryableObjectFromGeneratedTypes<
             ForceReactivity
           >
         >
-      : // scalar return type with args — no field selection needed
-        (p: QueryArgs) => Response<QueryResponse, ForceReactivity>
+      : // scalar return type with args — args passed via __args key, no field selection needed
+        (p: {
+          [argsKey]: QueryArgs;
+        }) => Response<QueryResponse, ForceReactivity>
     : // if it's a simple type with no args, we just return the type wrapped in a response
       () => Response<Q[Key], ForceReactivity>;
 };
@@ -53,11 +55,17 @@ export type QueryableObjectFromGeneratedTypes<
 export type ObjectFieldSelection<O> = RequireAtLeastOneFieldSet<{
   [Key in keyof O]: NonNullable<UnArray<O[Key]>> extends (p: infer P) => infer A
     ? P extends Record<string, any>
-      ? // if the field is a function with required arguments, require the arguments in the selection
-        ObjectFieldSelection<UnArray<NonNullable<A>>> & { [argsKey]: P }
-      : // if we do not have required arguments, we can omit them
-        ObjectFieldSelection<UnArray<NonNullable<A>>>
-    : // request a selection for the field if it is to be included or not
+      ? NonNullable<UnArray<A>> extends object
+        ? // object return with required args — need both field selection and args
+          ObjectFieldSelection<UnArray<NonNullable<A>>> & { [argsKey]: P }
+        : // scalar return with required args — only need args, no field selection
+          { [argsKey]: P }
+      : NonNullable<UnArray<A>> extends object
+        ? // object return without required args — just field selection
+          ObjectFieldSelection<UnArray<NonNullable<A>>>
+        : // scalar return without required args — include or not
+          boolean
+    : // non-function field — include or not
       boolean;
 }>;
 
