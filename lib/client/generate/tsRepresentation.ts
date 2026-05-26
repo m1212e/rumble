@@ -100,12 +100,12 @@ function makeTSObjectTypeField(
     argsStringMap.set(arg.name, stringifyTSObjectArg(arg.type));
   }
 
-  if (isRelationType) {
+  if (isRelationType || argsStringMap.size > 0) {
     const makePOptional = argsStringMap
       .entries()
       .every(([, value]) => value.includes("| undefined"));
     const argsString =
-      (args ?? []).length > 0
+      argsStringMap.size > 0
         ? `p${makePOptional ? "?" : ""}: {
   ${argsStringMap
     .entries()

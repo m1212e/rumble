@@ -15,32 +15,35 @@ export type QueryableObjectFromGeneratedTypes<
 > = {
   // do we have a simple type or a function that returns a type?
   [Key in keyof Q]: Q[Key] extends (p: infer QueryArgs) => infer QueryResponse
-    ? <
-        // if the field function has arguments, this means that gql accepts arguments
-        Selected extends QueryArgs extends Record<string, any>
-          ? // in that case we want to extend the object with an args key property
-            ObjectFieldSelection<UnArray<NonNullable<QueryResponse>>> & {
-              [argsKey]: QueryArgs;
-            }
-          : // for no-argument functions, we just want the selection
-            ObjectFieldSelection<UnArray<NonNullable<QueryResponse>>>,
-      >(
-        s: Selected,
-      ) => DeriveNullability<
-        // transfer nullability from the original response type to the returned type
-        QueryResponse,
-        // wrap it in a return
-        Response<
-          DeriveArrayType<
-            // transfer array-ness from the original response type to the returned type
-            QueryResponse,
-            // apply the selection to get the final type
-            ApplySelection<ExtractGQLTypeFromField<QueryResponse>, Selected>
-          >,
-          ForceReactivity
+    ? NonNullable<QueryResponse> extends object
+      ? <
+          // if the field function has arguments, this means that gql accepts arguments
+          Selected extends QueryArgs extends Record<string, any>
+            ? // in that case we want to extend the object with an args key property
+              ObjectFieldSelection<UnArray<NonNullable<QueryResponse>>> & {
+                [argsKey]: QueryArgs;
+              }
+            : // for no-argument functions, we just want the selection
+              ObjectFieldSelection<UnArray<NonNullable<QueryResponse>>>,
+        >(
+          s: Selected,
+        ) => DeriveNullability<
+          // transfer nullability from the original response type to the returned type
+          QueryResponse,
+          // wrap it in a return
+          Response<
+            DeriveArrayType<
+              // transfer array-ness from the original response type to the returned type
+              QueryResponse,
+              // apply the selection to get the final type
+              ApplySelection<ExtractGQLTypeFromField<QueryResponse>, Selected>
+            >,
+            ForceReactivity
+          >
         >
-      >
-    : // if it's a simple type, we just return the type wrapped in a response
+      : // scalar return type with args — no field selection needed
+        (p: QueryArgs) => Response<QueryResponse, ForceReactivity>
+    : // if it's a simple type with no args, we just return the type wrapped in a response
       () => Response<Q[Key], ForceReactivity>;
 };
 
