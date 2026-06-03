@@ -1,6 +1,5 @@
 import type { Span } from "@opentelemetry/api";
 import { relationsFilterToSQL } from "drizzle-orm";
-import { CasingCache } from "drizzle-orm/casing";
 import { debounce } from "es-toolkit";
 import { lazy } from "./helpers/lazy";
 import { mergeFilters } from "./helpers/mergeFilters";
@@ -362,7 +361,7 @@ export const createAbilityBuilder = <
             );
           }
 
-          const primaryKeyField = Object.values(tableSchema.primaryKey)[0];
+          const primaryKeyField: any = Object.values(tableSchema.primaryKey)[0];
           // we want a filter that excludes everything
           const distinctValues = createDistinctValuesFromSQLType(
             primaryKeyField.getSQLType() as any,
@@ -421,8 +420,7 @@ export const createAbilityBuilder = <
               });
 
               const sqlTransformedWhere = lazy(() => {
-                const casing =
-                  (db._ as any).session?.dialect?.casing ?? new CasingCache();
+                const casing = (db._ as any).session?.dialect?.casing;
 
                 return filters?.where
                   ? relationsFilterToSQL(
