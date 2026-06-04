@@ -112,7 +112,7 @@ export const createCountQueryImplementer = <
 
             return (db as any)
               .select({ count: count() })
-              .from(tableSchema.fullSchema)
+              .from(tableSchema.table)
               .where(
                 ctx.abilities[table]
                   .filter(listAction)

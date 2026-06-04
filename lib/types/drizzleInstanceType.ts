@@ -4,16 +4,16 @@ import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { ObjectValues } from "./objectFieldType";
 
 export type DrizzleInstance =
-  | PgAsyncDatabase<any, any, any, any>
+  | PgAsyncDatabase<any, any>
   | BaseSQLiteDatabase<any, any, any, any>
-  | MySqlDatabase<any, any, any, any>;
+  | MySqlDatabase<any, any>;
 
 /**
- * Type representing the schema of a Drizzle table.
- * It extracts the schema information from the internal structure of a concrete Drizzle instance.
+ * Type representing the relational config of a table in a Drizzle instance.
+ * In rc3+, schema info lives in db._.relations (TablesRelationalConfig) rather than db._.schema.
  */
 export type DrizzleTableSchema<DB extends DrizzleInstance> = ObjectValues<
-  NonNullable<DB["_"]["schema"]>
+  DB["_"]["relations"]
 >;
 
 /**

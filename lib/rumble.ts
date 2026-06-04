@@ -41,22 +41,6 @@ export const rumble = <
 >(
   rumbleInput: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>,
 ) => {
-  if (!rumbleInput.db._.schema) {
-    throw new RumbleError(`
-rumble could not find any schema in the provided drizzle instance.
-Make sure you import the schema and pass it to the drizzle instance:
-
-export const db = drizzle(
-  "postgres://postgres:postgres@localhost:5432/postgres",
-  {
-    relations,
-    schema,    // <--- add this line
-  },
-);
-
-`);
-  }
-
   if (!rumbleInput.db._.relations) {
     throw new RumbleError(`
 rumble could not find any relations in the provided drizzle instance.
@@ -66,7 +50,6 @@ export const db = drizzle(
   "postgres://postgres:postgres@localhost:5432/postgres",
   {
     relations, // <--- add this line
-    schema,
   },
 );
 

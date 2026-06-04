@@ -1,5 +1,4 @@
 import { toCamelCase } from "drizzle-orm/casing";
-import type { drizzle } from "drizzle-orm/node-postgres";
 import { type PgEnum, PgEnumColumn } from "drizzle-orm/pg-core";
 import { capitalize } from "es-toolkit";
 import type { DrizzleInstance } from "./types/drizzleInstanceType";
@@ -10,22 +9,16 @@ import type {
 } from "./types/rumbleInput";
 import type { SchemaBuilderType } from "./types/schemaBuilderType";
 
-//TODO check if the enum find logic can be made more solid after drizzle reaches 1.0
-
 /**
- * Checks if a schema type is an enum
+ * Checks if a column is a PgEnumColumn
  */
-export function isEnumSchema(schemaType: any): schemaType is PgEnum<any> {
-  // TODO make this compatible with other db drivers
+export function isEnumSchema(schemaType: any): schemaType is PgEnumColumn<any> {
+  // TODO: make this compatible with other db drivers
   return schemaType instanceof PgEnumColumn;
 }
 
 // TODO make this compatible with other db drivers
 type EnumTypes = PgEnum<any>;
-
-type EnumFields<T> = {
-  [K in keyof T as T[K] extends EnumTypes ? K : never]: T[K];
-};
 
 export type NonEnumFields<T> = {
   [K in keyof T as T[K] extends EnumTypes ? never : K]: T[K];
@@ -62,72 +55,48 @@ export const createEnumImplementer = <
     PothosConfig
   >,
 >({
-  db,
   schemaBuilder,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
   schemaBuilder: SchemaBuilder;
 }) => {
   const referenceStorage = new Map<string, any>();
 
+  /**
+   * Registers a Postgres enum as a GraphQL enum type.
+   *
+   * Pass the `enum` option with the pgEnum object (e.g. `moodEnum`),
+   * or pass the `enumColumn` option with a column that uses the enum.
+   * Use `refName` to override the auto-generated GraphQL type name.
+   */
   const enumImplementer = <
-    ExplicitEnumVariableName extends keyof EnumFields<
-      NonNullable<DB["_"]["fullSchema"]>
-    >,
-    EnumColumn extends EnumTypes,
+    EnumColumn extends PgEnumColumn<any>,
     RefName extends string,
   >({
-    tsName,
+    enum: enumObject,
     enumColumn,
     refName,
-  }: Partial<{
-    tsName: ExplicitEnumVariableName;
-    enumColumn: EnumColumn;
-    refName?: RefName | undefined;
-  }> &
-    (
-      | {
-          tsName: ExplicitEnumVariableName;
-        }
-      | {
-          enumColumn: EnumColumn;
-        }
-    )) => {
-    //TODO check if this can be done typesafe
-
+  }: {
+    refName?: RefName;
+  } & (
+    | { enum: PgEnum<any>; enumColumn?: never }
+    | { enumColumn: EnumColumn; enum?: never }
+  )) => {
     let enumSchemaName: string | undefined;
     let enumValues: any[] | undefined;
 
-    if (tsName) {
-      const schemaEnum = db._.fullSchema![tsName as string];
-
-      enumSchemaName = tsName.toString();
-
-      const enumCol = Object.values(
-        (db as ReturnType<typeof drizzle<any, any, any>>)._.schema!,
-      )
-        .filter((s) => typeof s === "object")
-        .map((s) => Object.values(s.columns))
-        .flat(2)
-        .filter(isEnumSchema)
-        .find((e: any) => e.config.enum === schemaEnum);
-
-      if (!enumCol) {
-        throw new RumbleError(`Could not find applied enum column for ${tsName.toString()}.
-Please ensure that you use the enum at least once as a column of a table!`);
-      }
-
-      enumValues = (enumCol as any).enumValues;
+    if (enumObject) {
+      enumSchemaName = enumObject.enumName;
+      enumValues = enumObject.enumValues;
     } else if (enumColumn) {
-      const entry = Object.entries(
-        (db as ReturnType<typeof drizzle<any, any, any>>)._.fullSchema!,
-      ).filter(([_, value]) => (enumColumn as any).config.enum === value)[0];
+      const pgEnum = (enumColumn as any).enum as PgEnum<any> | undefined;
 
-      if (!entry) {
+      if (!pgEnum) {
         throw new RumbleError(
-          `Could not find enum entry for ${(enumColumn as any).config.name}.`,
+          `Could not find enum definition on column. Make sure the column is a pgEnum column.`,
         );
       }
-      enumSchemaName = entry[0];
+
+      enumSchemaName = pgEnum.enumName;
       enumValues = enumColumn.enumValues;
     }
 

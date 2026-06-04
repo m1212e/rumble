@@ -23,10 +23,7 @@ import * as schema from "./db/schema";
 export const db = drizzle(
   "postgres://postgres:postgres@localhost:5432/postgres",
   {
-    // although drizzle might not force you to pass both schema and relations,
-    // rumble needs both to be able to infer relations between tables
     relations,
-    schema,
   },
 );
 

@@ -216,7 +216,7 @@ export function makeGraphQLQueryRequest({
 
   const promise = new Promise<any>((resolve, reject) => {
     pipe(
-      client.query(operationString, variables),
+      client.query(operationString, variables) as any,
       take(1),
       subscribe((v: any) => {
         if (v.error) {
@@ -275,8 +275,8 @@ export function makeGraphQLMutationRequest({
 
   const observable = toObservable(
     pipe(
-      pipe(client.mutation(operationString, variables), share),
-      map((v) => {
+      pipe(client.mutation(operationString, variables) as any, share),
+      map((v: any) => {
         if (v.error) {
           throw v.error;
         }
@@ -289,7 +289,7 @@ export function makeGraphQLMutationRequest({
 
   const promise = new Promise<any>((resolve, reject) => {
     pipe(
-      client.mutation(operationString, variables),
+      client.mutation(operationString, variables) as any,
       take(1),
       subscribe((v: any) => {
         if (v.error) {
@@ -328,8 +328,8 @@ export function makeGraphQLSubscriptionRequest({
   });
 
   return pipe(
-    client.subscription(operationString, variables),
-    map((v) => {
+    client.subscription(operationString, variables) as any,
+    map((v: any) => {
       if (v.error) {
         throw v.error;
       }

@@ -4,9 +4,7 @@ import * as schema from "./schema";
 
 console.info("Seeding...");
 
-const db = drizzle("postgres://postgres:postgres@localhost:5432/postgres", {
-  schema,
-});
+const db = drizzle("postgres://postgres:postgres@localhost:5432/postgres");
 
 console.info("Resetting database...");
 await reset(db, schema);
