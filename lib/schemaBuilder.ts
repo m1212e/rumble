@@ -5,6 +5,7 @@ import SmartSubscriptionsPlugin, {
 } from "@pothos/plugin-smart-subscriptions";
 import TracingPlugin, { isRootField } from "@pothos/plugin-tracing";
 import { createOpenTelemetryWrapper } from "@pothos/tracing-opentelemetry";
+import { getTableColumns, isTable, type Table } from "drizzle-orm";
 import {
   DateResolver,
   DateTimeISOResolver,
@@ -93,11 +94,12 @@ export const createSchemaBuilder = <
       relations: db._.relations,
       getTableConfig(table) {
         //TODO support composite primary keys
+        const columns = isTable(table)
+          ? Object.values(getTableColumns(table as Table))
+          : [];
         return {
-          columns: Object.values((table as any)[Symbol.for("drizzle:Columns")]),
-          primaryKeys: Object.values(
-            (table as any)[Symbol.for("drizzle:Columns")],
-          ).filter((v: any) => v.primary),
+          columns,
+          primaryKeys: columns.filter((v: any) => v.primary),
         } as any;
       },
     },

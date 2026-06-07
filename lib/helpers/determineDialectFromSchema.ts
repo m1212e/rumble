@@ -1,3 +1,4 @@
+import { is } from "drizzle-orm";
 import type { MySqlDatabase } from "drizzle-orm/mysql-core";
 import { MySqlTable } from "drizzle-orm/mysql-core";
 import type { PgAsyncDatabase } from "drizzle-orm/pg-core";
@@ -8,21 +9,28 @@ import type { DrizzleInstance } from "../types/drizzleInstanceType";
 
 export type DBDialect = "mysql" | "postgres" | "sqlite";
 
+const dialectCache = new WeakMap<object, DBDialect>();
+
 export function determineDBDialectFromSchema<DB extends DrizzleInstance>(
   schema: DB["_"]["relations"],
-) {
+): DBDialect {
+  const cached = dialectCache.get(schema as unknown as object);
+  if (cached) return cached;
+
   const found = new Set<DBDialect>();
 
   for (const table of Object.values(schema).map((t: any) => t.table)) {
-    if (typeof table !== "object") {
+    if (!table || typeof table !== "object") {
       continue;
     }
 
-    if (table instanceof PgTable) {
+    // `is()` survives duplicate drizzle-orm copies in node_modules where
+    // `instanceof` silently returns false against the "wrong" class identity.
+    if (is(table, PgTable)) {
       found.add("postgres");
-    } else if (table instanceof MySqlTable) {
+    } else if (is(table, MySqlTable)) {
       found.add("mysql");
-    } else if (table instanceof SQLiteTable) {
+    } else if (is(table, SQLiteTable)) {
       found.add("sqlite");
     }
   }
@@ -30,7 +38,9 @@ export function determineDBDialectFromSchema<DB extends DrizzleInstance>(
   const dialects = Array.from(found);
 
   if (dialects.length === 1) {
-    return dialects[0];
+    const only = dialects[0]!;
+    dialectCache.set(schema as unknown as object, only);
+    return only;
   }
 
   if (dialects.length === 0) {
@@ -43,23 +53,17 @@ export function determineDBDialectFromSchema<DB extends DrizzleInstance>(
 export function isPostgresDB<
   Narrowed extends PgAsyncDatabase<any, any> = PgAsyncDatabase<any, any>,
 >(db: any): db is Narrowed {
-  const dialect = determineDBDialectFromSchema(db._.relations);
-
-  return dialect === "postgres";
+  return determineDBDialectFromSchema(db._.relations) === "postgres";
 }
 
 export function isMySQLDB<
   Narrowed extends MySqlDatabase<any, any> = MySqlDatabase<any, any>,
 >(db: any): db is Narrowed {
-  const dialect = determineDBDialectFromSchema(db._.relations);
-
-  return dialect === "mysql";
+  return determineDBDialectFromSchema(db._.relations) === "mysql";
 }
 
 export function isSQLiteDB<
   Narrowed extends BaseSQLiteDatabase<any, any> = BaseSQLiteDatabase<any, any>,
 >(db: any): db is Narrowed {
-  const dialect = determineDBDialectFromSchema(db._.relations);
-
-  return dialect === "sqlite";
+  return determineDBDialectFromSchema(db._.relations) === "sqlite";
 }

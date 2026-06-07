@@ -123,9 +123,10 @@ export const createOrderArgImplementer = <
 
           const relations = Object.entries(tableSchema.relations ?? {}).reduce(
             (acc, [key, value]) => {
+              const targetTsName = (value as any).targetTableName as string;
               const relationSchema = tableHelper({
                 db,
-                table: (value as any).targetTable,
+                table: targetTsName,
               });
               const referenceModel = orderArgImplementer({
                 dbName: relationSchema.dbName,

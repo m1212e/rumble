@@ -1,6 +1,7 @@
 import type { FieldMap } from "@pothos/core";
 import type { DrizzleObjectFieldBuilder } from "@pothos/plugin-drizzle";
-import { One } from "drizzle-orm";
+import { is, One } from "drizzle-orm";
+import { PgColumn } from "drizzle-orm/pg-core";
 import { capitalize } from "es-toolkit";
 import pluralize from "pluralize";
 import type { AbilityBuilderType } from "./abilityBuilder";
@@ -286,14 +287,21 @@ export const createObjectImplementer = <
               return acc;
             }
 
+            // Array columns only exist on Postgres; `dimensions` is a runtime
+            // property of PgColumn instances. Gate via is() so MySQL/SQLite
+            // columns aren't probed for a field they don't have.
             let isArray = false;
-            if ((column as any).dimensions > 0) {
-              if ((column as any).dimensions !== 1) {
-                throw new RumbleError(
-                  "Only one-dimensional arrays are supported for default object implementation",
-                );
+            if (is(column, PgColumn)) {
+              const dimensions = (column as PgColumn & { dimensions?: number })
+                .dimensions;
+              if (dimensions && dimensions > 0) {
+                if (dimensions !== 1) {
+                  throw new RumbleError(
+                    "Only one-dimensional arrays are supported for default object implementation",
+                  );
+                }
+                isArray = true;
               }
-              isArray = true;
             }
 
             if (isEnumSchema(column)) {
@@ -326,9 +334,10 @@ export const createObjectImplementer = <
 
         const relations = Object.entries(tableSchema.relations ?? {}).reduce(
           (acc, [key, value]) => {
+            const targetTsName = (value as any).targetTableName as string;
             const relationSchema = tableHelper({
               db,
-              table: (value as any).targetTable,
+              table: targetTsName,
             });
             const WhereArg = whereArgImplementer({
               dbName: relationSchema.dbName,
@@ -344,7 +353,7 @@ export const createObjectImplementer = <
             let nullable = false;
             let isMany = true;
             let filterSpecifier = "many";
-            if (value instanceof One) {
+            if (is(value, One)) {
               isMany = false;
               nullable =
                 value.optional ||

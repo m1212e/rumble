@@ -197,9 +197,13 @@ export const createWhereArgImplementer = <
 
           const relations = Object.entries(tableSchema.relations ?? {}).reduce(
             (acc, [key, value]) => {
+              // `targetTableName` is the publicly typed TS-key of the target
+              // relation in db._.relations, prefer it over re-resolving via
+              // the `targetTable` object.
+              const targetTsName = (value as any).targetTableName as string;
               const relationSchema = tableHelper({
                 db,
-                table: (value as any).targetTable,
+                table: targetTsName,
               });
               const referenceModel = whereArgImplementer({
                 dbName: relationSchema.dbName,

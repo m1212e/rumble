@@ -1,4 +1,4 @@
-import type { Column } from "drizzle-orm";
+import { type Column, is } from "drizzle-orm";
 import { toCamelCase } from "drizzle-orm/casing";
 import {
   isPgEnum,
@@ -29,10 +29,7 @@ export function isEnumSchema(
   schemaType: any,
 ): schemaType is PgEnumColumn<any> | PgEnumObjectColumn<any> {
   // TODO: make this compatible with other db drivers
-  return (
-    schemaType instanceof PgEnumColumn ||
-    schemaType instanceof PgEnumObjectColumn
-  );
+  return is(schemaType, PgEnumColumn) || is(schemaType, PgEnumObjectColumn);
 }
 
 // TODO make this compatible with other db drivers
