@@ -26,15 +26,7 @@ export type OrderArgImplementerType<
     RequestEvent,
     Action,
     PothosConfig,
-    Schema,
-    SchemaBuilderType<
-      UserContext,
-      DB,
-      RequestEvent,
-      Action,
-      PothosConfig,
-      Schema
-    >
+    Schema
   >
 >;
 
@@ -48,19 +40,18 @@ export const createOrderArgImplementer = <
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
   Schema extends Record<string, any>,
-  SchemaBuilder extends SchemaBuilderType<
+>({
+  db,
+  schemaBuilder,
+}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig, Schema> & {
+  schemaBuilder: SchemaBuilderType<
     UserContext,
     DB,
     RequestEvent,
     Action,
     PothosConfig,
     Schema
-  >,
->({
-  db,
-  schemaBuilder,
-}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig, Schema> & {
-  schemaBuilder: SchemaBuilder;
+  >;
 }) => {
   const referenceStorage = new Map<string, any>();
 

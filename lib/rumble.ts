@@ -118,8 +118,7 @@ export const r = rumble({
     RequestEvent,
     Action,
     PothosConfig,
-    Schema,
-    typeof abilityBuilder
+    Schema
   >({
     ...rumbleInput,
     abilityBuilder,
@@ -151,8 +150,7 @@ export const r = rumble({
     RequestEvent,
     Action,
     PothosConfig,
-    Schema,
-    typeof schemaBuilder
+    Schema
   >({
     ...rumbleInput,
     schemaBuilder,
@@ -164,9 +162,7 @@ export const r = rumble({
     RequestEvent,
     Action,
     PothosConfig,
-    Schema,
-    typeof schemaBuilder,
-    typeof enum_
+    Schema
   >({
     ...rumbleInput,
     schemaBuilder,
@@ -179,8 +175,7 @@ export const r = rumble({
     RequestEvent,
     Action,
     PothosConfig,
-    Schema,
-    typeof schemaBuilder
+    Schema
   >({
     ...rumbleInput,
     schemaBuilder,
@@ -192,13 +187,7 @@ export const r = rumble({
     RequestEvent,
     Action,
     PothosConfig,
-    Schema,
-    typeof schemaBuilder,
-    typeof whereArg,
-    typeof orderArg,
-    typeof enum_,
-    typeof makePubSubInstance,
-    typeof abilityBuilder
+    Schema
   >({
     ...rumbleInput,
     schemaBuilder,
@@ -215,11 +204,7 @@ export const r = rumble({
     RequestEvent,
     Action,
     PothosConfig,
-    Schema,
-    typeof schemaBuilder,
-    typeof whereArg,
-    typeof orderArg,
-    typeof makePubSubInstance
+    Schema
   >({
     ...rumbleInput,
     schemaBuilder,
@@ -388,8 +373,7 @@ export const r = rumble({
     RequestEvent,
     Action,
     PothosConfig,
-    Schema,
-    typeof schemaBuilder
+    Schema
   >({
     ...rumbleInput,
     builtSchema,

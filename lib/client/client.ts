@@ -13,18 +13,19 @@ export const clientCreatorImplementer = <
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
   Schema extends Record<string, any>,
-  SchemaBuilder extends SchemaBuilderType<
-    UserContext,
-    DB,
-    RequestEvent,
-    Action,
-    PothosConfig,
-    Schema
-  >,
 >({
   builtSchema,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig, Schema> & {
-  builtSchema: () => ReturnType<SchemaBuilder["toSchema"]>;
+  builtSchema: () => ReturnType<
+    SchemaBuilderType<
+      UserContext,
+      DB,
+      RequestEvent,
+      Action,
+      PothosConfig,
+      Schema
+    >["toSchema"]
+  >;
 }) => {
   const clientCreator = async ({
     apiUrl,

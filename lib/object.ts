@@ -63,54 +63,6 @@ export const createObjectImplementer = <
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
   Schema extends Record<string, any>,
-  SchemaBuilder extends SchemaBuilderType<
-    UserContext,
-    DB,
-    RequestEvent,
-    Action,
-    PothosConfig,
-    Schema
-  >,
-  WhereArgImplementer extends WhereArgImplementerType<
-    UserContext,
-    DB,
-    RequestEvent,
-    Action,
-    PothosConfig,
-    Schema
-  >,
-  OrderArgImplementer extends OrderArgImplementerType<
-    UserContext,
-    DB,
-    RequestEvent,
-    Action,
-    PothosConfig,
-    Schema
-  >,
-  EnumImplementer extends EnumImplementerType<
-    UserContext,
-    DB,
-    RequestEvent,
-    Action,
-    PothosConfig,
-    Schema
-  >,
-  MakePubSubInstance extends MakePubSubInstanceType<
-    UserContext,
-    DB,
-    RequestEvent,
-    Action,
-    PothosConfig,
-    Schema
-  >,
-  AbilityBuilderInstance extends AbilityBuilderType<
-    UserContext,
-    DB,
-    RequestEvent,
-    Action,
-    PothosConfig,
-    Schema
-  >,
 >({
   db,
   search,
@@ -121,13 +73,63 @@ export const createObjectImplementer = <
   enumImplementer,
   abilityBuilder,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig, Schema> & {
-  schemaBuilder: SchemaBuilder;
-  whereArgImplementer: WhereArgImplementer;
-  orderArgImplementer: OrderArgImplementer;
-  enumImplementer: EnumImplementer;
-  makePubSubInstance: MakePubSubInstance;
-  abilityBuilder: AbilityBuilderInstance;
+  schemaBuilder: SchemaBuilderType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig,
+    Schema
+  >;
+  whereArgImplementer: WhereArgImplementerType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig,
+    Schema
+  >;
+  orderArgImplementer: OrderArgImplementerType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig,
+    Schema
+  >;
+  enumImplementer: EnumImplementerType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig,
+    Schema
+  >;
+  makePubSubInstance: MakePubSubInstanceType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig,
+    Schema
+  >;
+  abilityBuilder: AbilityBuilderType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig,
+    Schema
+  >;
 }) => {
+  type SchemaBuilder = SchemaBuilderType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig,
+    Schema
+  >;
   return <
     TableName extends keyof DrizzleQueryFunction<DB>,
     RefName extends string,

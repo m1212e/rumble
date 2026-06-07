@@ -21,15 +21,15 @@ export function mapSQLTypeToGraphQLType<
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
   Schema extends Record<string, any>,
-  SchemaBuilder extends SchemaBuilderType<
+>({ sqlType, fieldName }: { sqlType: PossibleSQLType; fieldName?: string }) {
+  type SchemaBuilder = SchemaBuilderType<
     UserContext,
     DB,
     RequestEvent,
     Action,
     PothosConfig,
     Schema
-  >,
->({ sqlType, fieldName }: { sqlType: PossibleSQLType; fieldName?: string }) {
+  >;
   type ReturnType = Parameters<
     Parameters<Parameters<SchemaBuilder["queryField"]>[1]>[0]["field"]
   >[0]["type"];
