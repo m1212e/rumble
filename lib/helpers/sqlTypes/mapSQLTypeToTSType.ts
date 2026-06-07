@@ -1,6 +1,3 @@
-import type { DrizzleInstance } from "../../types/drizzleInstanceType";
-import type { CustomRumblePothosConfig } from "../../types/rumbleInput";
-import type { SchemaBuilderType } from "../../types/schemaBuilderType";
 import {
   isBooleanSQLTypeString,
   isDateLikeSQLTypeString,
@@ -14,27 +11,31 @@ import {
   UnknownTypeRumbleError,
 } from "./types";
 
-export function mapSQLTypeToGraphQLType<
-  UserContext extends Record<string, any>,
-  DB extends DrizzleInstance,
-  RequestEvent extends Record<string, any>,
-  Action extends string,
-  PothosConfig extends CustomRumblePothosConfig,
-  Schema extends Record<string, any>,
->({ sqlType, fieldName }: { sqlType: PossibleSQLType; fieldName?: string }) {
-  type SchemaBuilder = SchemaBuilderType<
-    UserContext,
-    DB,
-    RequestEvent,
-    Action,
-    PothosConfig,
-    Schema
-  >;
-  type ReturnType = Parameters<
-    Parameters<Parameters<SchemaBuilder["queryField"]>[1]>[0]["field"]
-  >[0]["type"];
-
-  let ret: ReturnType | undefined;
+export function mapSQLTypeToGraphQLType({
+  sqlType,
+  fieldName,
+}: {
+  sqlType: PossibleSQLType;
+  fieldName?: string;
+}):
+  | "Int"
+  | "Float"
+  | "String"
+  | "ID"
+  | "Boolean"
+  | "DateTime"
+  | "Date"
+  | "JSON" {
+  let ret:
+    | "Int"
+    | "Float"
+    | "String"
+    | "ID"
+    | "Boolean"
+    | "DateTime"
+    | "Date"
+    | "JSON"
+    | undefined;
 
   if (isIntLikeSQLTypeString(sqlType)) {
     ret = "Int";

@@ -35,24 +35,21 @@ export const createCountQueryImplementer = <
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >;
   whereArgImplementer: WhereArgImplementerType<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >;
   makePubSubInstance: MakePubSubInstanceType<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >;
 }) => {
   return <TableName extends keyof DrizzleQueryFunction<DB>>({

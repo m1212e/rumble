@@ -8,14 +8,12 @@ export type SchemaBuilderType<
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
-  Schema extends Record<string, any>,
 > = ReturnType<
   typeof createSchemaBuilder<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >
 >["schemaBuilder"];

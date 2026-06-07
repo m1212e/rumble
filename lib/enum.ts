@@ -53,15 +53,13 @@ export type EnumImplementerType<
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
-  Schema extends Record<string, any>,
 > = ReturnType<
   typeof createEnumImplementer<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >
 >;
 
@@ -71,18 +69,16 @@ export const createEnumImplementer = <
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
-  Schema extends Record<string, any>,
 >({
   schema,
   schemaBuilder,
-}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig, Schema> & {
+}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
   schemaBuilder: SchemaBuilderType<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >;
 }) => {
   const referenceStorage = new Map<string, any>();
@@ -99,7 +95,7 @@ export const createEnumImplementer = <
    * Use `refName` to override the auto-generated GraphQL type name.
    */
   const enumImplementer = <
-    TsName extends keyof EnumFields<Schema> & string,
+    TsName extends string,
     EnumColumn extends Column,
     RefName extends string,
   >(

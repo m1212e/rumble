@@ -15,7 +15,7 @@ export type RumbleInput<
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
-  Schema extends Record<string, any>,
+  Schema extends Record<string, any> = Record<string, any>,
 > = {
   /**
    * Your drizzle database instance

@@ -33,14 +33,13 @@ export const createSchemaBuilder = <
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
-  Schema extends Record<string, any>,
 >({
   db,
   disableDefaultObjects,
   pubsub,
   pothosConfig,
   otel,
-}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig, Schema> & {
+}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
   pubsub: ReturnType<typeof createPubSub>;
 }) => {
   const createSpan =
@@ -50,14 +49,7 @@ export const createSchemaBuilder = <
 
   registerRuntimeFiltersPlugin();
   const schemaBuilder = new SchemaBuilder<{
-    Context: ContextType<
-      UserContext,
-      DB,
-      RequestEvent,
-      Action,
-      PothosConfig,
-      Schema
-    >;
+    Context: ContextType<UserContext, DB, RequestEvent, Action, PothosConfig>;
     DrizzleRelations: DB["_"]["relations"];
     Scalars: {
       JSON: {

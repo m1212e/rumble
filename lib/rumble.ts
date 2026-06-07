@@ -108,8 +108,7 @@ export const r = rumble({
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >(rumbleInput);
 
   const context = createContextFunction<
@@ -117,8 +116,7 @@ export const r = rumble({
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >({
     ...rumbleInput,
     abilityBuilder,
@@ -129,8 +127,7 @@ export const r = rumble({
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >({
     ...rumbleInput,
   });
@@ -140,8 +137,7 @@ export const r = rumble({
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >({ ...rumbleInput, pubsub });
 
   const enum_ = createEnumImplementer<
@@ -149,8 +145,7 @@ export const r = rumble({
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >({
     ...rumbleInput,
     schemaBuilder,
@@ -161,8 +156,7 @@ export const r = rumble({
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >({
     ...rumbleInput,
     schemaBuilder,
@@ -174,8 +168,7 @@ export const r = rumble({
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >({
     ...rumbleInput,
     schemaBuilder,
@@ -372,8 +365,7 @@ export const r = rumble({
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >({
     ...rumbleInput,
     builtSchema,

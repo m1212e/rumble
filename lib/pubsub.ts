@@ -21,15 +21,13 @@ export type MakePubSubInstanceType<
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
-  Schema extends Record<string, any>,
 > = ReturnType<
   typeof createPubSubInstance<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >
 >["makePubSubInstance"];
 
@@ -39,17 +37,9 @@ export const createPubSubInstance = <
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
-  Schema extends Record<string, any>,
 >({
   subscriptions,
-}: RumbleInput<
-  UserContext,
-  DB,
-  RequestEvent,
-  Action,
-  PothosConfig,
-  Schema
->) => {
+}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>) => {
   const pubsub = subscriptions
     ? createPubSub(...subscriptions)
     : createPubSub();

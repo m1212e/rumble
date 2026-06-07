@@ -78,48 +78,42 @@ export const createObjectImplementer = <
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >;
   whereArgImplementer: WhereArgImplementerType<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >;
   orderArgImplementer: OrderArgImplementerType<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >;
   enumImplementer: EnumImplementerType<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >;
   makePubSubInstance: MakePubSubInstanceType<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >;
   abilityBuilder: AbilityBuilderType<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >;
 }) => {
   type SchemaBuilder = SchemaBuilderType<
@@ -127,8 +121,7 @@ export const createObjectImplementer = <
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
+    PothosConfig
   >;
   return <
     TableName extends keyof DrizzleQueryFunction<DB>,
