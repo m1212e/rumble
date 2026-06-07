@@ -43,7 +43,6 @@ const {
   pubsub,
   createYoga,
   clientCreator,
-  enum_,
 } = rumble({
   // here we pass the db instance from above
   db,
@@ -65,8 +64,6 @@ const {
   // 	enabled: true,
   // },
 });
-
-enum_({ tsName: "" });
 
 /*
 
