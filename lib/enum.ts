@@ -17,13 +17,7 @@ import type {
 import type { SchemaBuilderType } from "./types/schemaBuilderType";
 
 /**
- * Checks if a column is a Postgres enum column.
- *
- * Drizzle 1.0 exposes two enum column classes:
- * - `PgEnumColumn` for array-style enums: `pgEnum("name", ["a", "b"])`
- * - `PgEnumObjectColumn` for object-style enums: `pgEnum("name", { A: "a" })`
- *
- * Both expose the same `enum` and `enumValues` properties.
+ * Checks if a column is a Postgres enum column
  */
 export function isEnumSchema(
   schemaType: any,
@@ -41,9 +35,8 @@ export type NonEnumFields<T> = {
 
 /**
  * Picks the keys of a schema object that are pgEnum definitions
- * (either array-style `PgEnum` or object-style `PgEnumObject`).
  */
-export type EnumFields<S> = {
+export type EnumFieldKeys<S> = keyof {
   [K in keyof S as S[K] extends EnumTypes ? K : never]: S[K];
 };
 
@@ -53,13 +46,15 @@ export type EnumImplementerType<
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
+  AvailableEnums extends string,
 > = ReturnType<
   typeof createEnumImplementer<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig
+    PothosConfig,
+    AvailableEnums
   >
 >;
 
@@ -69,6 +64,7 @@ export const createEnumImplementer = <
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
+  AvailableEnums extends string,
 >({
   schema,
   schemaBuilder,
@@ -95,7 +91,7 @@ export const createEnumImplementer = <
    * Use `refName` to override the auto-generated GraphQL type name.
    */
   const enumImplementer = <
-    TsName extends string,
+    TsName extends AvailableEnums,
     EnumColumn extends Column,
     RefName extends string,
   >(

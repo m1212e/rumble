@@ -17,7 +17,7 @@ import { createWhereArgImplementer } from "./args/whereArg";
 import { clientCreatorImplementer } from "./client/client";
 import { createContextFunction } from "./context";
 import { createCountQueryImplementer } from "./countQuery";
-import { createEnumImplementer } from "./enum";
+import { createEnumImplementer, type EnumFieldKeys } from "./enum";
 import { lazy } from "./helpers/lazy";
 import { sofaOpenAPIWebhookDocs } from "./helpers/sofaOpenAPIWebhookDocs";
 import { createObjectImplementer } from "./object";
@@ -45,9 +45,10 @@ export const rumble = <
     DB,
     RequestEvent,
     Action,
-    PothosConfig,
-    Schema
-  >,
+    PothosConfig
+  > & {
+    schema: Schema;
+  },
 ) => {
   if (!rumbleInput.db._.relations) {
     throw new RumbleError(`
@@ -145,7 +146,8 @@ export const r = rumble({
     DB,
     RequestEvent,
     Action,
-    PothosConfig
+    PothosConfig,
+    EnumFieldKeys<Schema>
   >({
     ...rumbleInput,
     schemaBuilder,

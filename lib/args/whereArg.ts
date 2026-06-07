@@ -58,7 +58,8 @@ export const createWhereArgImplementer = <
     DB,
     RequestEvent,
     Action,
-    PothosConfig
+    PothosConfig,
+    any
   >;
   schemaBuilder: SchemaBuilderType<
     UserContext,

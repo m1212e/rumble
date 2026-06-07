@@ -99,7 +99,8 @@ export const createObjectImplementer = <
     DB,
     RequestEvent,
     Action,
-    PothosConfig
+    PothosConfig,
+    any
   >;
   makePubSubInstance: MakePubSubInstanceType<
     UserContext,
