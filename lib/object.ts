@@ -224,7 +224,7 @@ export const createObjectImplementer = <
         const userAdjustments =
           adjust?.(
             new Proxy(t, {
-              get: (target, prop, receiver) => {
+              get: (target, prop, _receiver) => {
                 if (
                   // we only care for field/relation functions
                   typeof (target as any)[prop] !== "function" ||
@@ -466,7 +466,7 @@ export const createObjectImplementer = <
             description:
               "The search distance of the object. If a search is provided, this field will be populated with the search distance.",
             nullable: true,
-            resolve: (parent, args, ctx, info) =>
+            resolve: (parent, _args, _ctx, _info) =>
               (parent as any).search_distance,
           });
         }

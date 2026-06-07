@@ -1,4 +1,4 @@
-import { type Client, createRequest } from "@urql/core";
+import type { Client } from "@urql/core";
 import { capitalize } from "es-toolkit";
 import type {
   IntrospectionInputValue,
@@ -17,12 +17,9 @@ import("svelte/reactivity")
   .catch(() => {});
 
 import {
-  empty,
   fromValue,
   map,
   merge,
-  onEnd,
-  onStart,
   pipe,
   type Source,
   share,
@@ -155,7 +152,7 @@ export function makeGraphQLQueryRequest({
   const dataProxy = lazy(
     () =>
       new Proxy(currentData, {
-        get(target, prop, receiver) {
+        get(_target, prop, receiver) {
           svelteSubscriber();
           const val = Reflect.get(currentData, prop, receiver);
           if (typeof val === "function") {
@@ -167,7 +164,7 @@ export function makeGraphQLQueryRequest({
   );
 
   const svelteSubscriber = createSubscriber((update) => {
-    const unsub = observable.subscribe((d) => {
+    const unsub = observable.subscribe((_d) => {
       update();
     });
     return () => unsub.unsubscribe();

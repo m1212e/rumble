@@ -343,7 +343,6 @@ export const r = rumble({
   };
 
   const createWs = <
-    // biome-ignore lint/suspicious/noExplicitAny: needed to accept any ServerOptions generic specialization
     Options extends ServerOptions<any, any>,
     Rest extends unknown[],
     Return,

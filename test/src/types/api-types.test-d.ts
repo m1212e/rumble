@@ -135,7 +135,6 @@ r.object({ table: "notATable" });
 // ---------------------------------------------------------------------------
 
 r.schemaBuilder.queryFields((t) => ({
-  // biome-ignore lint/correctness/useYield: type-only probe
   probe: t.drizzleField({
     type: r.object({ table: "users" }),
     resolve: async (_query, _root, _args, ctx, _info) => {
@@ -164,7 +163,6 @@ r.schemaBuilder.queryFields((t) => ({
 
       // unreachable at runtime
       throw new Error("type-only");
-      return ctxArg;
     },
   }),
 }));

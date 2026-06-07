@@ -76,7 +76,7 @@ export function adjustQueryArgsForSearch({
           )
         : Object.entries(tableSchema.columns)
     ).filter(
-      ([key, col]) =>
+      ([_key, col]) =>
         isStringLikeSQLTypeString(col.getSQLType()) ||
         isIDLikeSQLTypeString(col.getSQLType()),
     );

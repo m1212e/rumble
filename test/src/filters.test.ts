@@ -354,7 +354,7 @@ describe("test rumble abilities and filters", async () => {
       .by(({ entities }) => entities);
 
     const { executor, yogaInstance: _yogaInstance } = build();
-    const r = await executor({
+    await executor({
       document: parse(/* GraphQL */ `
 			query {
 			  user(id: "${data.users[0].id}") {

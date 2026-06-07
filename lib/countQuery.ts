@@ -101,7 +101,7 @@ export const createCountQueryImplementer = <
           args: {
             where: t.arg({ type: WhereArg, required: false }),
           },
-          resolve: async (root, args, ctx, info) => {
+          resolve: async (_root, args, ctx, _info) => {
             if (isAllowed && !(await isAllowed(ctx))) {
               throw new RumbleErrorSafe("Not allowed to perform this action");
             }

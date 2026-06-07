@@ -9,7 +9,7 @@ import {
   serial,
 } from "drizzle-orm/pg-core";
 import { rumble } from "../../lib";
-import { createEnumImplementer, isEnumSchema } from "../../lib/enum";
+import { isEnumSchema } from "../../lib/enum";
 import {
   determineDBDialectFromSchema,
   isMySQLDB,

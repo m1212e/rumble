@@ -133,11 +133,11 @@ abilityBuilder.posts
   .filter("read")
   // the prefetch function is called in parallel with the query resolve and thus does not have access to the entities
   // returned by the query. This allows to parallelize the async work with the query resolve of the data.
-  .prefetch(async ({ context }) => {
+  .prefetch(async ({ context: _context }) => {
     return { somePrefetch: "data" };
   })
   // the prefetched data is available in the actual filter function
-  .by(({ context: _context, entities, prefetched }) => {
+  .by(({ context: _context, entities, prefetched: _prefetched }) => {
     return entities;
   });
 
