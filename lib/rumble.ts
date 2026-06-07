@@ -37,9 +37,17 @@ export const rumble = <
   DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
   PothosConfig extends CustomRumblePothosConfig,
+  Schema extends Record<string, any>,
   Action extends string = "read" | "update" | "delete",
 >(
-  rumbleInput: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>,
+  rumbleInput: RumbleInput<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig,
+    Schema
+  >,
 ) => {
   if (!rumbleInput.db._.relations) {
     throw new RumbleError(`
@@ -52,6 +60,25 @@ export const db = drizzle(
     relations, // <--- add this line
   },
 );
+
+`);
+  }
+
+  if (
+    !rumbleInput.schema ||
+    typeof rumbleInput.schema !== "object" ||
+    Object.keys(rumbleInput.schema).length === 0
+  ) {
+    throw new RumbleError(`
+rumble requires the drizzle schema object to be passed when initializing.
+Import your schema module and pass it alongside \`db\`:
+
+import * as schema from "./db/schema";
+
+export const r = rumble({
+  db,
+  schema, // <--- add this line
+});
 
 `);
   }
@@ -81,7 +108,8 @@ export const db = drizzle(
     DB,
     RequestEvent,
     Action,
-    PothosConfig
+    PothosConfig,
+    Schema
   >(rumbleInput);
 
   const context = createContextFunction<
@@ -90,6 +118,7 @@ export const db = drizzle(
     RequestEvent,
     Action,
     PothosConfig,
+    Schema,
     typeof abilityBuilder
   >({
     ...rumbleInput,
@@ -101,7 +130,8 @@ export const db = drizzle(
     DB,
     RequestEvent,
     Action,
-    PothosConfig
+    PothosConfig,
+    Schema
   >({
     ...rumbleInput,
   });
@@ -111,7 +141,8 @@ export const db = drizzle(
     DB,
     RequestEvent,
     Action,
-    PothosConfig
+    PothosConfig,
+    Schema
   >({ ...rumbleInput, pubsub });
 
   const enum_ = createEnumImplementer<
@@ -120,6 +151,7 @@ export const db = drizzle(
     RequestEvent,
     Action,
     PothosConfig,
+    Schema,
     typeof schemaBuilder
   >({
     ...rumbleInput,
@@ -132,6 +164,7 @@ export const db = drizzle(
     RequestEvent,
     Action,
     PothosConfig,
+    Schema,
     typeof schemaBuilder,
     typeof enum_
   >({
@@ -146,6 +179,7 @@ export const db = drizzle(
     RequestEvent,
     Action,
     PothosConfig,
+    Schema,
     typeof schemaBuilder
   >({
     ...rumbleInput,
@@ -158,6 +192,7 @@ export const db = drizzle(
     RequestEvent,
     Action,
     PothosConfig,
+    Schema,
     typeof schemaBuilder,
     typeof whereArg,
     typeof orderArg,
@@ -180,6 +215,7 @@ export const db = drizzle(
     RequestEvent,
     Action,
     PothosConfig,
+    Schema,
     typeof schemaBuilder,
     typeof whereArg,
     typeof orderArg,
@@ -352,6 +388,7 @@ export const db = drizzle(
     RequestEvent,
     Action,
     PothosConfig,
+    Schema,
     typeof schemaBuilder
   >({
     ...rumbleInput,

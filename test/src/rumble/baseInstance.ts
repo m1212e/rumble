@@ -14,6 +14,7 @@ export function makeRumbleSeedInstance(
 ) {
   const r = rumble({
     db,
+    schema,
     context(_request) {
       return {
         userId: userId ?? "123",

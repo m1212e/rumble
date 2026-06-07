@@ -15,11 +15,16 @@ export type RumbleInput<
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
+  Schema extends Record<string, any>,
 > = {
   /**
    * Your drizzle database instance
    */
   db: DB;
+  /**
+   * The drizzle schema object (the same one passed to `defineRelations`).
+   */
+  schema: Schema;
   /**
    * A function for providing context for each request based on the incoming HTTP Request.
    * The type of the parameter equals the HTTPRequest type of your chosen server.

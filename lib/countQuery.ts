@@ -23,33 +23,37 @@ export const createCountQueryImplementer = <
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
+  Schema extends Record<string, any>,
   SchemaBuilder extends SchemaBuilderType<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig
+    PothosConfig,
+    Schema
   >,
   WhereArgImplementer extends WhereArgImplementerType<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig
+    PothosConfig,
+    Schema
   >,
   MakePubSubInstance extends MakePubSubInstanceType<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig
+    PothosConfig,
+    Schema
   >,
 >({
   db,
   schemaBuilder,
   whereArgImplementer,
   makePubSubInstance,
-}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
+}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig, Schema> & {
   schemaBuilder: SchemaBuilder;
   whereArgImplementer: WhereArgImplementer;
   makePubSubInstance: MakePubSubInstance;

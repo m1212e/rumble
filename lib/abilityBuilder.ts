@@ -30,13 +30,15 @@ export type AbilityBuilderType<
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
+  Schema extends Record<string, any>,
 > = ReturnType<
   typeof createAbilityBuilder<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig
+    PothosConfig,
+    Schema
   >
 >;
 
@@ -116,12 +118,20 @@ export const createAbilityBuilder = <
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
+  Schema extends Record<string, any>,
 >({
   db,
   actions,
   defaultLimit,
   otel,
-}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>) => {
+}: RumbleInput<
+  UserContext,
+  DB,
+  RequestEvent,
+  Action,
+  PothosConfig,
+  Schema
+>) => {
   type TableNames = keyof DrizzleQueryFunction<DB>;
 
   let hasBeenBuilt = false;

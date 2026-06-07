@@ -46,6 +46,8 @@ const {
 } = rumble({
   // here we pass the db instance from above
   db,
+  // pass the drizzle schema module so rumble can resolve identifiers by name
+  schema,
   // this is how we can define a context callback
   // it takes a request object as an argument and returns the objects you want in the request context
   // similar to the context callback in express or similar frameworks

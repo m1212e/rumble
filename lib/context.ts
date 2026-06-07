@@ -15,6 +15,7 @@ export type ContextFunctionType<
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
+  Schema extends Record<string, any>,
 > = ReturnType<
   typeof createContextFunction<
     UserContext,
@@ -22,7 +23,15 @@ export type ContextFunctionType<
     RequestEvent,
     Action,
     PothosConfig,
-    AbilityBuilderType<UserContext, DB, RequestEvent, Action, PothosConfig>
+    Schema,
+    AbilityBuilderType<
+      UserContext,
+      DB,
+      RequestEvent,
+      Action,
+      PothosConfig,
+      Schema
+    >
   >
 >;
 
@@ -32,9 +41,17 @@ export type ContextType<
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
+  Schema extends Record<string, any>,
 > = Awaited<
   ReturnType<
-    ContextFunctionType<UserContext, DB, RequestEvent, Action, PothosConfig>
+    ContextFunctionType<
+      UserContext,
+      DB,
+      RequestEvent,
+      Action,
+      PothosConfig,
+      Schema
+    >
   >
 >;
 
@@ -44,19 +61,21 @@ export const createContextFunction = <
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
+  Schema extends Record<string, any>,
   AbilityBuilder extends ReturnType<
     typeof createAbilityBuilder<
       UserContext,
       DB,
       RequestEvent,
       Action,
-      PothosConfig
+      PothosConfig,
+      Schema
     >
   >,
 >({
   context: makeUserContext,
   abilityBuilder,
-}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
+}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig, Schema> & {
   abilityBuilder: AbilityBuilder;
 }) => {
   const builtAbilityBuilder = lazy(() => abilityBuilder._.build());

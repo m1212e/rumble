@@ -29,6 +29,7 @@ export type WhereArgImplementerType<
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
+  Schema extends Record<string, any>,
 > = ReturnType<
   typeof createWhereArgImplementer<
     UserContext,
@@ -36,8 +37,23 @@ export type WhereArgImplementerType<
     RequestEvent,
     Action,
     PothosConfig,
-    SchemaBuilderType<UserContext, DB, RequestEvent, Action, PothosConfig>,
-    EnumImplementerType<UserContext, DB, RequestEvent, Action, PothosConfig>
+    Schema,
+    SchemaBuilderType<
+      UserContext,
+      DB,
+      RequestEvent,
+      Action,
+      PothosConfig,
+      Schema
+    >,
+    EnumImplementerType<
+      UserContext,
+      DB,
+      RequestEvent,
+      Action,
+      PothosConfig,
+      Schema
+    >
   >
 >;
 
@@ -50,25 +66,28 @@ export const createWhereArgImplementer = <
   RequestEvent extends Record<string, any>,
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
+  Schema extends Record<string, any>,
   SchemaBuilder extends SchemaBuilderType<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig
+    PothosConfig,
+    Schema
   >,
   EnumImplementer extends EnumImplementerType<
     UserContext,
     DB,
     RequestEvent,
     Action,
-    PothosConfig
+    PothosConfig,
+    Schema
   >,
 >({
   db,
   schemaBuilder,
   enumImplementer,
-}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
+}: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig, Schema> & {
   enumImplementer: EnumImplementer;
   schemaBuilder: SchemaBuilder;
 }) => {

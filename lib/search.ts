@@ -9,7 +9,7 @@ import type { tableHelper } from "./helpers/tableHelpers";
 import type { RumbleInput } from "./types/rumbleInput";
 
 export async function initSearchIfApplicable(
-  input: RumbleInput<any, any, any, any, any>,
+  input: RumbleInput<any, any, any, any, any, any>,
 ) {
   if (!isPostgresDB(input.db)) {
     console.info(
@@ -57,7 +57,7 @@ export function adjustQueryArgsForSearch({
   args,
   tableSchema,
   abilities,
-}: Pick<RumbleInput<any, any, any, any, any>, "search"> & {
+}: Pick<RumbleInput<any, any, any, any, any, any>, "search"> & {
   //TODO types
   args: any;
   tableSchema: ReturnType<typeof tableHelper>;
