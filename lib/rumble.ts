@@ -147,7 +147,8 @@ export const r = rumble({
     RequestEvent,
     Action,
     PothosConfig,
-    EnumFieldKeys<Schema>
+    EnumFieldKeys<Schema>,
+    Schema
   >({
     ...rumbleInput,
     schemaBuilder,

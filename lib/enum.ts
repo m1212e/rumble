@@ -40,6 +40,82 @@ export type EnumFieldKeys<S> = keyof {
   [K in keyof S as S[K] extends EnumTypes ? K : never]: S[K];
 };
 
+/**
+ * Fallback value tuple used whenever the concrete enum members cannot be
+ * recovered from the drizzle types (e.g. an object-enum whose values were
+ * widened to `string`, or a `tsName` that does not resolve against `Schema`).
+ */
+type UnknownEnumValues = readonly [string, ...string[]];
+
+/**
+ * Extracts the literal value tuple carried by a drizzle enum definition.
+ */
+type EnumValuesOf<E> =
+  E extends PgEnum<infer V>
+    ? V
+    : E extends PgEnumObject<infer O>
+      ? ReadonlyArray<O[keyof O] & string>
+      : UnknownEnumValues;
+
+/**
+ * The GraphQL enum member union for a single `enum_(...)` call, resolved from
+ * whichever of the three per-call generics the caller populated (`tsName` /
+ * `enum` / `enumColumn`). The unused generics default to `never`, so
+ * `[X] extends [never]` tells us which identification form was used.
+ *
+ * Anything we can't recover from the drizzle types (an object-enum widened to
+ * `string`, or a `tsName` that doesn't resolve against `Schema`) falls back to
+ * `string`, matching Pothos' own enum member type.
+ */
+type EnumMembers<Schema, TsName, EnumArg, EnumColumn> = [EnumColumn] extends [
+  never,
+]
+  ? [EnumArg] extends [never]
+    ? [TsName] extends [never]
+      ? string
+      : TsName extends keyof Schema
+        ? EnumValuesOf<Schema[TsName]>[number]
+        : string
+    : EnumValuesOf<EnumArg>[number]
+  : EnumColumn extends { enumValues: infer CV extends UnknownEnumValues }
+    ? CV[number]
+    : string;
+
+/**
+ * The strongly typed Pothos enum ref returned by a single `enum_(...)` call.
+ *
+ * Kept as a named, exported alias on purpose: the `.d.ts` emitter prints type
+ * aliases by reference rather than expanding their bodies, so the (otherwise
+ * very deep) `SchemaBuilder` / `EnumRef` types never get inlined into the
+ * declaration output. Two details keep this printable without the emitter
+ * recursing: referencing `SchemaBuilderType<...>` (a named alias) rather than
+ * `typeof schemaBuilder` (a value), and inlining the member resolution so the
+ * cyclic drizzle `Schema[TsName]` access never surfaces as its own symbol.
+ */
+export type EnumImplementationRef<
+  UserContext extends Record<string, any>,
+  DB extends DrizzleInstance,
+  RequestEvent extends Record<string, any>,
+  Action extends string,
+  PothosConfig extends CustomRumblePothosConfig,
+  Schema,
+  TsName,
+  EnumArg,
+  EnumColumn,
+> =
+  SchemaBuilderType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig
+  > extends PothosSchemaTypes.SchemaBuilder<infer Types>
+    ? PothosSchemaTypes.EnumRef<
+        Types,
+        EnumMembers<Schema, TsName, EnumArg, EnumColumn>
+      >
+    : never;
+
 export type EnumImplementerType<
   UserContext extends Record<string, any>,
   DB extends DrizzleInstance,
@@ -47,6 +123,7 @@ export type EnumImplementerType<
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
   AvailableEnums extends string,
+  Schema extends Record<string, any> = Record<string, any>,
 > = ReturnType<
   typeof createEnumImplementer<
     UserContext,
@@ -54,7 +131,8 @@ export type EnumImplementerType<
     RequestEvent,
     Action,
     PothosConfig,
-    AvailableEnums
+    AvailableEnums,
+    Schema
   >
 >;
 
@@ -65,6 +143,7 @@ export const createEnumImplementer = <
   Action extends string,
   PothosConfig extends CustomRumblePothosConfig,
   AvailableEnums extends string,
+  Schema extends Record<string, any> = Record<string, any>,
 >({
   schema,
   schemaBuilder,
@@ -91,27 +170,34 @@ export const createEnumImplementer = <
    * Use `refName` to override the auto-generated GraphQL type name.
    */
   const enumImplementer = <
-    TsName extends AvailableEnums,
-    EnumColumn extends Column,
-    RefName extends string,
+    TsName extends AvailableEnums = never,
+    EnumArg extends PgEnum<any> | PgEnumObject<any> = never,
+    EnumColumn extends Column = never,
+    RefName extends string = string,
   >(
     args: {
       refName?: RefName;
     } & (
       | { tsName: TsName; enum?: never; enumColumn?: never }
-      | {
-          enum: PgEnum<any> | PgEnumObject<any>;
-          tsName?: never;
-          enumColumn?: never;
-        }
+      | { enum: EnumArg; tsName?: never; enumColumn?: never }
       | { enumColumn: EnumColumn; tsName?: never; enum?: never }
     ),
-  ) => {
+  ): EnumImplementationRef<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig,
+    Schema,
+    TsName,
+    EnumArg,
+    EnumColumn
+  > => {
     const { refName } = args;
     const tsName = (args as { tsName?: string }).tsName;
     const enumObjectArg = (args as { enum?: PgEnum<any> | PgEnumObject<any> })
       .enum;
-    const enumColumn = (args as { enumColumn?: EnumColumn }).enumColumn;
+    const enumColumn = (args as { enumColumn?: Column }).enumColumn;
 
     let enumObject: PgEnum<any> | PgEnumObject<any> | undefined = enumObjectArg;
 
@@ -164,21 +250,32 @@ export const createEnumImplementer = <
     const graphqlImplementationName =
       refName ?? `${capitalize(toCamelCase(enumSchemaName))}Enum`;
 
-    let ret: ReturnType<typeof implement> | undefined = referenceStorage.get(
-      graphqlImplementationName,
-    );
-    if (ret) {
-      return ret;
+    // The runtime always produces a plain Pothos enum ref; the strong typing
+    // lives entirely in the (explicit, named) return type, so we cast on the
+    // way out. The named return alias is what keeps the `.d.ts` emitter from
+    // recursing on the inlined SchemaBuilder/EnumRef types.
+    type Ret = EnumImplementationRef<
+      UserContext,
+      DB,
+      RequestEvent,
+      Action,
+      PothosConfig,
+      Schema,
+      TsName,
+      EnumArg,
+      EnumColumn
+    >;
+
+    const cached = referenceStorage.get(graphqlImplementationName);
+    if (cached) {
+      return cached as Ret;
     }
 
-    const implement = () =>
-      schemaBuilder.enumType(graphqlImplementationName, {
-        values: enumValues,
-      });
-
-    ret = implement();
+    const ret = schemaBuilder.enumType(graphqlImplementationName, {
+      values: enumValues,
+    });
     referenceStorage.set(graphqlImplementationName, ret);
-    return ret;
+    return ret as unknown as Ret;
   };
 
   return enumImplementer;

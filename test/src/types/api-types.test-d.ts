@@ -16,6 +16,7 @@
  */
 
 import { drizzle } from "drizzle-orm/bun-sqlite";
+import { pgEnum, pgTable } from "drizzle-orm/pg-core";
 import { expectTypeOf } from "expect-type";
 import { rumble } from "../../../lib";
 import { relations } from "../db/relations";
@@ -184,6 +185,46 @@ r2.abilityBuilder.posts.allow("read");
 r2.abilityBuilder.posts.allow("publish");
 // @ts-expect-error "delete" is not in the custom action set
 r2.abilityBuilder.posts.allow("delete");
+
+// ---------------------------------------------------------------------------
+// enum_ helper: the returned GraphQL enum ref is strongly typed, with the
+// member union derived from the drizzle enum definition.
+// ---------------------------------------------------------------------------
+
+// Recover the member shape carried by a Pothos enum ref.
+type EnumShapeOf<R> =
+  R extends PothosSchemaTypes.EnumRef<any, infer T, any> ? T : never;
+
+const moodEnum = pgEnum("mood_native", ["sad", "ok", "happy"]);
+// Object-enum form: drizzle widens the values to `string` unless they are
+// `as const`, so the literal union is only recoverable in the const case.
+const objectEnum = pgEnum("object_native", {
+  Draft: "draft",
+  Published: "published",
+} as const);
+const things = pgTable("things_table", {
+  mood: moodEnum(),
+});
+
+// `enum`: array form keeps the literal union.
+const moodRef = r.enum_({ enum: moodEnum });
+expectTypeOf<EnumShapeOf<typeof moodRef>>().toEqualTypeOf<
+  "sad" | "ok" | "happy"
+>();
+// ...and is genuinely narrowed (not widened to `string`/`any`).
+expectTypeOf<EnumShapeOf<typeof moodRef>>().not.toEqualTypeOf<string>();
+
+// `enum`: object form recovers the union from the object's value types.
+const objectRef = r.enum_({ enum: objectEnum });
+expectTypeOf<EnumShapeOf<typeof objectRef>>().toEqualTypeOf<
+  "draft" | "published"
+>();
+
+// `enumColumn`: union recovered from the column's `enumValues` tuple.
+const columnRef = r.enum_({ enumColumn: things.mood });
+expectTypeOf<EnumShapeOf<typeof columnRef>>().toEqualTypeOf<
+  "sad" | "ok" | "happy"
+>();
 
 // ---------------------------------------------------------------------------
 // Known-broken cases live below this line, each tagged TYPE-BROKEN.
