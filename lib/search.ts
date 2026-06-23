@@ -18,7 +18,16 @@ export async function initSearchIfApplicable(
     return;
   }
 
-  await input.db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
+  try {
+    await input.db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
+  } catch (error) {
+    console.error(
+      "Failed to create pg_trgm extension. Search functionality may not work. " +
+        "Ensure the database user has CREATE privilege or the extension is pre-installed.",
+      error,
+    );
+    return;
+  }
   if (input.search?.threshold) {
     // make absolutely sure the threshold is a number
     const threshold = Number(input.search.threshold);
