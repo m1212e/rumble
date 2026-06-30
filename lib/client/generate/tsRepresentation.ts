@@ -156,19 +156,33 @@ function makeTSInputObjectTypeField(returnType: GraphQLInputType) {
 }
 
 function stringifyTSObjectArg(arg: any) {
-  let ret = "unknown";
   let isNullable = true;
+  let isList = false;
 
-  if (arg instanceof GraphQLNonNull) {
-    isNullable = false;
-    arg = arg.ofType;
+  for (let index = 0; index < 4; index++) {
+    if (arg instanceof GraphQLNonNull) {
+      if (!isList) {
+        isNullable = false;
+      }
+      arg = arg.ofType;
+    } else if (arg instanceof GraphQLList) {
+      isList = true;
+      arg = arg.ofType;
+    }
   }
+
+  let ret = "unknown";
 
   if (
     arg instanceof GraphQLInputObjectType ||
-    arg instanceof GraphQLScalarType
+    arg instanceof GraphQLScalarType ||
+    arg instanceof GraphQLEnumType
   ) {
     ret = arg.name;
+  }
+
+  if (isList) {
+    ret += "[]";
   }
 
   if (isNullable) {

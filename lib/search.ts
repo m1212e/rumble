@@ -39,11 +39,18 @@ export async function initSearchIfApplicable(
     const result = await input.db.execute(sql`SELECT current_database()`);
     const dbName = result.rows[0].current_database;
 
-    await input.db.execute(
-      sql.raw(
-        `ALTER DATABASE ${dbName} SET pg_trgm.similarity_threshold = ${threshold};`,
-      ),
-    );
+    try {
+      await input.db.execute(
+        sql.raw(
+          `ALTER DATABASE ${dbName} SET pg_trgm.similarity_threshold = ${threshold};`,
+        ),
+      );
+    } catch (error: any) {
+      // XX000 = tuple concurrently updated: multiple workers racing to set the same
+      // idempotent value at startup. Safe to ignore — one of them will win.
+      if (error?.cause?.code !== "XX000" && error?.code !== "XX000")
+        throw error;
+    }
   }
 
   if (input.search?.cpu_operator_cost) {
