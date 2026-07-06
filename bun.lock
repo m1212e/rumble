@@ -60,9 +60,6 @@
       ],
     },
   },
-  "overrides": {
-    "wonka": "6.3.6",
-  },
   "packages": {
     "@0no-co/graphql.web": ["@0no-co/graphql.web@1.2.0", "", { "peerDependencies": { "graphql": "^14.0.0 || ^15.0.0 || ^16.0.0" }, "optionalPeers": ["graphql"] }, "sha512-/1iHy9TTr63gE1YcR5idjx8UREz1s0kFhydf3bBLCXyqjhkIc6igAzTOx3zPifCwFR87tsh/4Pa9cNts6d2otw=="],
 
@@ -290,9 +287,9 @@
 
     "@types/trusted-types": ["@types/trusted-types@2.0.7", "", {}, "sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw=="],
 
-    "@urql/core": ["@urql/core@6.0.1", "", { "dependencies": { "@0no-co/graphql.web": "^1.0.13", "wonka": "^6.3.2" } }, "sha512-FZDiQk6jxbj5hixf2rEPv0jI+IZz0EqqGW8mJBEug68/zHTtT+f34guZDmyjJZyiWbj0vL165LoMr/TkeDHaug=="],
+    "@urql/core": ["@urql/core@6.0.1", "", { "dependencies": { "@0no-co/graphql.web": "^1.0.13", "wonka": "^6.3.6" } }, "sha512-FZDiQk6jxbj5hixf2rEPv0jI+IZz0EqqGW8mJBEug68/zHTtT+f34guZDmyjJZyiWbj0vL165LoMr/TkeDHaug=="],
 
-    "@urql/exchange-graphcache": ["@urql/exchange-graphcache@9.0.0", "", { "dependencies": { "@0no-co/graphql.web": "^1.0.13", "@urql/core": "^6.0.1", "wonka": "^6.3.2" } }, "sha512-5ACktvMFdnD5JC6DaSUrlj345c1JIUi7PwgvmnkwVOWsCRt/Vo9946UaG+sg69ku8seESMBK4xkeI41M39Dd5A=="],
+    "@urql/exchange-graphcache": ["@urql/exchange-graphcache@9.0.0", "", { "dependencies": { "@0no-co/graphql.web": "^1.0.13", "@urql/core": "^6.0.1", "wonka": "^6.3.6" } }, "sha512-5ACktvMFdnD5JC6DaSUrlj345c1JIUi7PwgvmnkwVOWsCRt/Vo9946UaG+sg69ku8seESMBK4xkeI41M39Dd5A=="],
 
     "@urql/introspection": ["@urql/introspection@1.2.1", "", { "peerDependencies": { "graphql": "^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0" } }, "sha512-U9FTSISz69EEK3bHWDsqux9JqOeiLzr3eDFBQ5DmHuTLaBsd5mjPdtLRzzzmb9nW1Ygd6IR8YcuM7zeNqQ5lCQ=="],
 

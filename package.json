@@ -78,9 +78,6 @@
     "pluralize": "^8.0.0",
     "wonka": "^6.3.6"
   },
-  "overrides": {
-    "wonka": "6.3.6"
-  },
   "main": "./out/index.cjs",
   "types": "./out/index.d.cts",
   "exports": {
