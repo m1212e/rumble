@@ -67,6 +67,59 @@ export type DateWhereInputArgument = {
   NOT?: DateWhereInputArgument;
 };
 
+export type BooleanWhereInputArgument = {
+  eq?: boolean;
+  ne?: boolean;
+  in?: boolean[];
+  notIn?: boolean[];
+  isNull?: boolean;
+  isNotNull?: boolean;
+  arrayOverlaps?: boolean[];
+  arrayContained?: boolean[];
+  arrayContains?: boolean[];
+  AND?: BooleanWhereInputArgument[];
+  OR?: BooleanWhereInputArgument[];
+  NOT?: BooleanWhereInputArgument;
+};
+
+export type IDWhereInputArgument = {
+  eq?: string;
+  ne?: string;
+  gt?: string;
+  gte?: string;
+  lt?: string;
+  lte?: string;
+  in?: string[];
+  notIn?: string[];
+  like?: string;
+  ilike?: string;
+  notLike?: string;
+  notIlike?: string;
+  isNull?: boolean;
+  isNotNull?: boolean;
+  arrayOverlaps?: string[];
+  arrayContained?: string[];
+  arrayContains?: string[];
+  AND?: IDWhereInputArgument[];
+  OR?: IDWhereInputArgument[];
+  NOT?: IDWhereInputArgument;
+};
+
+export type JSONWhereInputArgument = {
+  eq?: unknown;
+  ne?: unknown;
+  in?: unknown[];
+  notIn?: unknown[];
+  isNull?: boolean;
+  isNotNull?: boolean;
+  arrayOverlaps?: unknown[];
+  arrayContained?: unknown[];
+  arrayContains?: unknown[];
+  AND?: JSONWhereInputArgument[];
+  OR?: JSONWhereInputArgument[];
+  NOT?: JSONWhereInputArgument;
+};
+
 // TODO: Add proper type for schemaBuilder
 
 export function implementDefaultWhereInputArgs(schemaBuilder: any) {
@@ -198,6 +251,89 @@ export function implementDefaultWhereInputArgs(schemaBuilder: any) {
         }),
         NOT: t.field({
           type: DateWhereInputArgument,
+        }),
+      }),
+    });
+
+  const BooleanWhereInputArgument = schemaBuilder
+    .inputRef("BooleanWhereInputArgument")
+    .implement({
+      fields: (t: any) => ({
+        eq: t.boolean(),
+        ne: t.boolean(),
+        in: t.booleanList(),
+        notIn: t.booleanList(),
+        isNull: t.boolean(),
+        isNotNull: t.boolean(),
+        arrayOverlaps: t.booleanList(),
+        arrayContained: t.booleanList(),
+        arrayContains: t.booleanList(),
+        AND: t.field({
+          type: [BooleanWhereInputArgument],
+        }),
+        OR: t.field({
+          type: [BooleanWhereInputArgument],
+        }),
+        NOT: t.field({
+          type: BooleanWhereInputArgument,
+        }),
+      }),
+    });
+
+  const IDWhereInputArgument = schemaBuilder
+    .inputRef("IDWhereInputArgument")
+    .implement({
+      fields: (t: any) => ({
+        eq: t.id(),
+        ne: t.id(),
+        gt: t.id(),
+        gte: t.id(),
+        lt: t.id(),
+        lte: t.id(),
+        in: t.idList(),
+        notIn: t.idList(),
+        like: t.string(),
+        ilike: t.string(),
+        notLike: t.string(),
+        notIlike: t.string(),
+        isNull: t.boolean(),
+        isNotNull: t.boolean(),
+        arrayOverlaps: t.idList(),
+        arrayContained: t.idList(),
+        arrayContains: t.idList(),
+        AND: t.field({
+          type: [IDWhereInputArgument],
+        }),
+        OR: t.field({
+          type: [IDWhereInputArgument],
+        }),
+        NOT: t.field({
+          type: IDWhereInputArgument,
+        }),
+      }),
+    });
+
+  const JSONWhereInputArgument = schemaBuilder
+    .inputRef("JSONWhereInputArgument")
+    .implement({
+      fields: (t: any) => ({
+        eq: t.field({ type: "JSON", required: false }),
+        ne: t.field({ type: "JSON", required: false }),
+        in: t.field({ type: ["JSON"], required: false }),
+        notIn: t.field({ type: ["JSON"], required: false }),
+        isNull: t.boolean(),
+        isNotNull: t.boolean(),
+        arrayOverlaps: t.field({ type: ["JSON"], required: false }),
+        arrayContained: t.field({ type: ["JSON"], required: false }),
+        arrayContains: t.field({ type: ["JSON"], required: false }),
+        AND: t.field({
+          type: [JSONWhereInputArgument],
+        }),
+        OR: t.field({
+          type: [JSONWhereInputArgument],
+        }),
+        NOT: t.field({
+          type: JSONWhereInputArgument,
         }),
       }),
     });

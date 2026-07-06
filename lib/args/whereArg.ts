@@ -70,6 +70,38 @@ export const createWhereArgImplementer = <
   >;
 }) => {
   const referenceStorage = new Map<string, any>();
+  const enumArrayWhereInputStorage = new Map<string, any>();
+
+  const getEnumArrayWhereInput = (enumImpl: any) => {
+    const typeName = `${enumImpl.name}WhereInputArgument`;
+
+    const existing = enumArrayWhereInputStorage.get(typeName);
+    if (existing) {
+      return existing;
+    }
+
+    const ret = schemaBuilder.inputRef(typeName);
+    enumArrayWhereInputStorage.set(typeName, ret);
+
+    ret.implement({
+      fields: (t: any) => ({
+        eq: t.field({ type: enumImpl, required: false }),
+        ne: t.field({ type: enumImpl, required: false }),
+        in: t.field({ type: [enumImpl], required: false }),
+        notIn: t.field({ type: [enumImpl], required: false }),
+        isNull: t.boolean({ required: false }),
+        isNotNull: t.boolean({ required: false }),
+        arrayOverlaps: t.field({ type: [enumImpl], required: false }),
+        arrayContained: t.field({ type: [enumImpl], required: false }),
+        arrayContains: t.field({ type: [enumImpl], required: false }),
+        AND: t.field({ type: [ret], required: false }),
+        OR: t.field({ type: [ret], required: false }),
+        NOT: t.field({ type: ret, required: false }),
+      }),
+    });
+
+    return ret;
+  };
 
   const whereArgImplementer = <
     TableName extends keyof DrizzleQueryFunction<DB>,
@@ -98,118 +130,121 @@ export const createWhereArgImplementer = <
 
     const inputTypeName = refName ?? makeDefaultName(tableSchema.tsName);
 
-    let ret: ReturnType<typeof implement> | undefined =
-      referenceStorage.get(inputTypeName);
-    if (ret) {
-      return ret;
+    const existing = referenceStorage.get(inputTypeName);
+    if (existing) {
+      return existing;
     }
 
-    const implement = () => {
-      return schemaBuilder.inputType(inputTypeName, {
-        fields: (t) => {
-          const mapSQLTypeStringToInputPothosType = (
-            sqlType: PossibleSQLType,
-            fieldName: string,
-          ) => {
-            const gqlType = mapSQLTypeToGraphQLType({
-              sqlType,
-              fieldName,
-            });
-            switch (gqlType) {
-              case "Int":
-                return t.field({ type: "IntWhereInputArgument" });
-              case "String":
-                return t.field({ type: "StringWhereInputArgument" });
-              case "Boolean":
-                return t.boolean({ required: false });
-              case "Date":
-                return t.field({
-                  type: "DateWhereInputArgument",
-                });
-              case "DateTime":
-                return t.field({
-                  type: "DateWhereInputArgument",
-                });
-              case "Float":
-                return t.field({
-                  type: "FloatWhereInputArgument",
-                });
-              case "ID":
-                return t.id({ required: false });
-              case "JSON":
-                return t.field({
-                  type: "JSON",
-                  required: false,
-                });
-              default:
-                throw new RumbleError(
-                  `Unsupported argument type ${gqlType} for column ${sqlType}`,
-                );
-            }
-          };
-          const fields = Object.entries(tableSchema.columns).reduce(
-            (acc, [key, value]) => {
-              if (isEnumSchema(value)) {
-                const enumImpl = enumImplementer({
-                  enumColumn: value,
-                });
+    const ret = schemaBuilder.inputRef(inputTypeName);
+    referenceStorage.set(inputTypeName, ret);
 
-                acc[key] = t.field({
-                  type: enumImpl,
-                  required: false,
-                });
-              } else {
-                acc[key] = mapSQLTypeStringToInputPothosType(
-                  value.getSQLType() as PossibleSQLType,
-                  key,
-                );
-              }
-
-              return acc;
-            },
-            {} as Record<
-              keyof typeof tableSchema.columns,
-              ReturnType<typeof mapSQLTypeStringToInputPothosType>
-            >,
-          );
-
-          const relations = Object.entries(tableSchema.relations ?? {}).reduce(
-            (acc, [key, value]) => {
-              // `targetTableName` is the publicly typed TS-key of the target
-              // relation in db._.relations, prefer it over re-resolving via
-              // the `targetTable` object.
-              const targetTsName = (value as any).targetTableName as string;
-              const relationSchema = tableHelper({
-                db,
-                table: targetTsName,
+    ret.implement({
+      fields: (t: any) => {
+        const mapSQLTypeStringToInputPothosType = (
+          sqlType: PossibleSQLType,
+          fieldName: string,
+        ) => {
+          const gqlType = mapSQLTypeToGraphQLType({
+            sqlType,
+            fieldName,
+          });
+          switch (gqlType) {
+            case "Int":
+              return t.field({ type: "IntWhereInputArgument" });
+            case "String":
+              return t.field({ type: "StringWhereInputArgument" });
+            case "Boolean":
+              return t.field({ type: "BooleanWhereInputArgument" });
+            case "Date":
+              return t.field({
+                type: "DateWhereInputArgument",
               });
-              const referenceModel = whereArgImplementer({
-                dbName: relationSchema.dbName,
+            case "DateTime":
+              return t.field({
+                type: "DateWhereInputArgument",
+              });
+            case "Float":
+              return t.field({
+                type: "FloatWhereInputArgument",
+              });
+            case "ID":
+              return t.field({ type: "IDWhereInputArgument" });
+            case "JSON":
+              return t.field({
+                type: "JSONWhereInputArgument",
+              });
+            default:
+              throw new RumbleError(
+                `Unsupported argument type ${gqlType} for column ${sqlType}`,
+              );
+          }
+        };
+        const fields = Object.entries(tableSchema.columns).reduce(
+          (acc, [key, value]) => {
+            if (isEnumSchema(value)) {
+              const enumImpl = enumImplementer({
+                enumColumn: value,
               });
 
               acc[key] = t.field({
-                type: referenceModel,
+                type:
+                  (value as any).dimensions > 0
+                    ? getEnumArrayWhereInput(enumImpl)
+                    : enumImpl,
                 required: false,
               });
+            } else {
+              acc[key] = mapSQLTypeStringToInputPothosType(
+                value.getSQLType() as PossibleSQLType,
+                key,
+              );
+            }
 
-              return acc;
-            },
-            {} as Record<
-              keyof typeof tableSchema.columns,
-              ReturnType<typeof mapSQLTypeStringToInputPothosType>
-            >,
-          );
+            return acc;
+          },
+          {} as Record<
+            keyof typeof tableSchema.columns,
+            ReturnType<typeof mapSQLTypeStringToInputPothosType>
+          >,
+        );
 
-          return {
-            ...fields,
-            ...relations,
-          };
-        },
-      });
-    };
+        const relations = Object.entries(tableSchema.relations ?? {}).reduce(
+          (acc, [key, value]) => {
+            // `targetTableName` is the publicly typed TS-key of the target
+            // relation in db._.relations, prefer it over re-resolving via
+            // the `targetTable` object.
+            const targetTsName = (value as any).targetTableName as string;
+            const relationSchema = tableHelper({
+              db,
+              table: targetTsName,
+            });
+            const referenceModel = whereArgImplementer({
+              dbName: relationSchema.dbName,
+            });
 
-    ret = implement();
-    referenceStorage.set(inputTypeName, ret);
+            acc[key] = t.field({
+              type: referenceModel,
+              required: false,
+            });
+
+            return acc;
+          },
+          {} as Record<
+            keyof typeof tableSchema.columns,
+            ReturnType<typeof mapSQLTypeStringToInputPothosType>
+          >,
+        );
+
+        return {
+          ...fields,
+          ...relations,
+          AND: t.field({ type: [ret], required: false }),
+          OR: t.field({ type: [ret], required: false }),
+          NOT: t.field({ type: ret, required: false }),
+        };
+      },
+    });
+
     return ret;
   };
 

@@ -13,8 +13,11 @@ import {
 } from "graphql-scalars";
 import type { createPubSub } from "graphql-yoga";
 import {
+  type BooleanWhereInputArgument,
   type DateWhereInputArgument,
+  type IDWhereInputArgument,
   implementDefaultWhereInputArgs,
+  type JSONWhereInputArgument,
   type NumberWhereInputArgument,
   type StringWhereInputArgument,
 } from "./args/whereArgsImplementer";
@@ -70,6 +73,9 @@ export const createSchemaBuilder = <
       FloatWhereInputArgument: NumberWhereInputArgument;
       StringWhereInputArgument: StringWhereInputArgument;
       DateWhereInputArgument: DateWhereInputArgument;
+      BooleanWhereInputArgument: BooleanWhereInputArgument;
+      IDWhereInputArgument: IDWhereInputArgument;
+      JSONWhereInputArgument: JSONWhereInputArgument;
     };
     DefaultFieldNullability: false;
   }>({
