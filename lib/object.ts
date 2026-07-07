@@ -66,6 +66,7 @@ export const createObjectImplementer = <
 >({
   db,
   search,
+  logger: loggerConfig,
   schemaBuilder,
   makePubSubInstance,
   whereArgImplementer,
@@ -167,9 +168,9 @@ export const createObjectImplementer = <
     const tableSchema = tableHelper({ db, table });
 
     if (Object.keys(tableSchema.primaryKey).length === 0) {
-      console.warn(
-        `Could not find primary key for ${table.toString()}. Cannot register subscriptions!`,
-      );
+      const log = loggerConfig?.enabled ? loggerConfig.logger : undefined;
+      const msg = `Could not find primary key for ${table.toString()}. Cannot register subscriptions!`;
+      log ? log.warn({ "rumble.table": table.toString() }, msg) : console.warn(msg);
     }
     const primaryKey = Object.values(tableSchema.primaryKey)[0];
 
@@ -181,11 +182,9 @@ export const createObjectImplementer = <
         if (!primaryKey) return;
         const primaryKeyValue = (element as any)[primaryKey.name];
         if (!primaryKeyValue) {
-          console.warn(
-            `Could not find primary key value for ${JSON.stringify(
-              element,
-            )}. Cannot register subscription!`,
-          );
+          const log = loggerConfig?.enabled ? loggerConfig.logger : undefined;
+          const msg = `Could not find primary key value for element on ${table.toString()}. Cannot register subscription!`;
+          log ? log.warn({ "rumble.table": table.toString() }, msg) : console.warn(msg);
           return;
         }
 

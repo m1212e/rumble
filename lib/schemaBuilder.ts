@@ -3,7 +3,10 @@ import DrizzlePlugin from "@pothos/plugin-drizzle";
 import SmartSubscriptionsPlugin, {
   subscribeOptionsFromIterator,
 } from "@pothos/plugin-smart-subscriptions";
-import TracingPlugin, { isRootField } from "@pothos/plugin-tracing";
+import TracingPlugin, {
+  isRootField,
+  wrapResolver,
+} from "@pothos/plugin-tracing";
 import { createOpenTelemetryWrapper } from "@pothos/tracing-opentelemetry";
 import { getTableColumns, isTable, type Table } from "drizzle-orm";
 import {
@@ -42,6 +45,7 @@ export const createSchemaBuilder = <
   pubsub,
   pothosConfig,
   otel,
+  logger,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
   pubsub: ReturnType<typeof createPubSub>;
 }) => {
@@ -108,12 +112,42 @@ export const createSchemaBuilder = <
     },
     defaultFieldNullability: false,
     tracing: {
-      default: otel?.enabled ? (config) => isRootField(config) : () => false,
-      wrap: createSpan
-        ? (resolver, options) => createSpan(resolver, options)
-        : (resolver) => resolver,
+      default:
+        otel?.enabled || logger?.enabled
+          ? (config) => isRootField(config)
+          : () => false,
+      wrap: (resolver, options, config) => {
+        let r = createSpan ? createSpan(resolver, options) : resolver;
+        if (logger?.enabled) {
+          const log = logger.logger;
+          r = wrapResolver(r, (error, duration) => {
+            if (error) {
+              log.error(
+                {
+                  "graphql.field.name": config.name,
+                  "graphql.parent.type": config.parentType,
+                  durationMs: duration,
+                  err: error,
+                },
+                "resolver failed",
+              );
+            } else {
+              log.debug(
+                {
+                  "graphql.field.name": config.name,
+                  "graphql.parent.type": config.parentType,
+                  durationMs: duration,
+                },
+                "resolver completed",
+              );
+            }
+          });
+        }
+        return r;
+      },
     },
     otel,
+    logger,
   });
 
   schemaBuilder.addScalarType("JSON", JSONResolver);

@@ -4,6 +4,14 @@ import type { TracingWrapperOptions } from "@pothos/tracing-opentelemetry";
 import type { createPubSub } from "graphql-yoga";
 import type { DrizzleInstance } from "./drizzleInstanceType";
 
+export interface RumbleLogger {
+  info(obj: Record<string, unknown>, msg: string): void;
+  warn(obj: Record<string, unknown>, msg: string): void;
+  error(obj: Record<string, unknown>, msg: string): void;
+  debug(obj: Record<string, unknown>, msg: string): void;
+  child(bindings: Record<string, unknown>): RumbleLogger;
+}
+
 export type CustomRumblePothosConfig = Omit<
   ConstructorParameters<typeof SchemaBuilder>[0],
   "smartSubscriptions" | "drizzle"
@@ -101,5 +109,20 @@ export type RumbleInput<
      * You can pass options to the tracing wrapper
      */
     options?: TracingWrapperOptions<unknown>;
+  };
+  /**
+   * Structured logging for rumble internals. Pass a pino (or compatible) logger instance.
+   * When enabled, rumble emits structured log entries for GraphQL operations, ability checks,
+   * and runtime filter applications — queryable by level and field in Loki or similar.
+   */
+  logger?: {
+    /**
+     * Whether structured logging should be enabled.
+     */
+    enabled?: boolean;
+    /**
+     * The logger instance to use. Must satisfy the RumbleLogger interface (pino satisfies this).
+     */
+    logger: RumbleLogger;
   };
 };

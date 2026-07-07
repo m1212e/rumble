@@ -11,21 +11,19 @@ import type { RumbleInput } from "./types/rumbleInput";
 export async function initSearchIfApplicable(
   input: RumbleInput<any, any, any, any, any, any>,
 ) {
+  const log = input.logger?.enabled ? input.logger.logger : undefined;
+
   if (!isPostgresDB(input.db)) {
-    console.info(
-      "Database dialect is not compatible with search, skipping search initialization. Only PostgreSQL is supported.",
-    );
+    const msg = "Database dialect is not compatible with search, skipping search initialization. Only PostgreSQL is supported.";
+    log ? log.info({}, msg) : console.info(msg);
     return;
   }
 
   try {
     await input.db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
   } catch (error) {
-    console.error(
-      "Failed to create pg_trgm extension. Search functionality may not work. " +
-        "Ensure the database user has CREATE privilege or the extension is pre-installed.",
-      error,
-    );
+    const msg = "Failed to create pg_trgm extension. Search functionality may not work. Ensure the database user has CREATE privilege or the extension is pre-installed.";
+    log ? log.error({ err: error }, msg) : console.error(msg, error);
     return;
   }
   if (input.search?.threshold) {

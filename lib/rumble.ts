@@ -255,49 +255,104 @@ export const r = rumble({
         ...(enableApiDocs
           ? []
           : [useDisableIntrospection(), EnvelopArmorPlugin(args?.armorConfig)]),
-        rumbleInput.otel?.enabled
+        rumbleInput.otel?.enabled || rumbleInput.logger?.enabled
           ? ({
               // TODO: add trace header per default in http response
               // TODO: Automatic Persisted Queries
               onExecute: ({ setExecuteFn, executeFn }) => {
-                setExecuteFn((options) =>
-                  rumbleInput.otel!.tracer!.startActiveSpan(
-                    SpanNames.EXECUTE,
-                    {
-                      attributes: {
-                        [AttributeNames.OPERATION_NAME]:
-                          options.operationName ?? "anonymous",
-                        [AttributeNames.SOURCE]: options.document,
-                      },
-                    },
-                    async (span) => {
-                      try {
-                        const result = await executeFn(options);
+                setExecuteFn(async (options) => {
+                  const log = rumbleInput.logger?.enabled
+                    ? rumbleInput.logger.logger
+                    : undefined;
+                  const operationName = options.operationName ?? "anonymous";
+                  const start = Date.now();
 
-                        if (
-                          result &&
-                          "errors" in result &&
-                          result.errors?.length
-                        ) {
-                          for (const error of result.errors) {
+                  log?.info(
+                    { "graphql.operation.name": operationName },
+                    "graphql execute start",
+                  );
+
+                  const run = async () => {
+                    const result = await executeFn(options);
+                    if (result && "errors" in result && result.errors?.length) {
+                      log?.error(
+                        {
+                          "graphql.operation.name": operationName,
+                          durationMs: Date.now() - start,
+                          errors: result.errors.map((e: { message: string }) => e.message),
+                        },
+                        "graphql execute completed with errors",
+                      );
+                    } else {
+                      log?.info(
+                        {
+                          "graphql.operation.name": operationName,
+                          durationMs: Date.now() - start,
+                        },
+                        "graphql execute completed",
+                      );
+                    }
+                    return result;
+                  };
+
+                  if (rumbleInput.otel?.enabled) {
+                    return rumbleInput.otel.tracer!.startActiveSpan(
+                      SpanNames.EXECUTE,
+                      {
+                        attributes: {
+                          [AttributeNames.OPERATION_NAME]: operationName,
+                          [AttributeNames.SOURCE]: options.document,
+                        },
+                      },
+                      async (span) => {
+                        try {
+                          const result = await run();
+                          if (
+                            result &&
+                            "errors" in result &&
+                            result.errors?.length
+                          ) {
+                            for (const error of result.errors) {
+                              span.recordException(error);
+                            }
+                            span.setStatus({ code: SpanStatusCode.ERROR });
+                          }
+                          return result;
+                        } catch (error) {
+                          if (error instanceof Error) {
                             span.recordException(error);
                           }
+                          log?.error(
+                            {
+                              "graphql.operation.name": operationName,
+                              durationMs: Date.now() - start,
+                              err: error,
+                            },
+                            "graphql execute threw",
+                          );
                           span.setStatus({ code: SpanStatusCode.ERROR });
+                          throw error;
+                        } finally {
+                          span.end();
                         }
+                      },
+                    );
+                  }
 
-                        return result;
-                      } catch (error) {
-                        if (error instanceof Error) {
-                          span.recordException(error);
-                        }
-                        span.setStatus({ code: SpanStatusCode.ERROR });
-                        throw error;
-                      } finally {
-                        span.end();
-                      }
-                    },
-                  ),
-                );
+                  try {
+                    return await run();
+                  } catch (error) {
+                    log?.error(
+                      {
+                        "graphql.operation.name": operationName,
+                        durationMs: Date.now() - start,
+                        err: error,
+                      },
+                      "graphql execute threw",
+                    );
+                    throw error;
+                  }
+                });
               },
             } as Plugin)
           : false,

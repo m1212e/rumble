@@ -1,5 +1,6 @@
 import type { Tracer } from "@opentelemetry/api";
 import type { SchemaTypes } from "@pothos/core";
+import type { RumbleLogger } from "../types/rumbleInput";
 import type { pluginName } from "./filterTypes";
 import type {
   applyFiltersKey,
@@ -16,6 +17,10 @@ declare global {
       otel?: {
         enabled?: boolean;
         tracer?: Tracer;
+      };
+      logger?: {
+        enabled?: boolean;
+        logger: RumbleLogger;
       };
     }
 

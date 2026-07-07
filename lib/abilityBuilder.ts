@@ -20,6 +20,7 @@ import { RumbleError } from "./types/rumbleError";
 import type {
   CustomRumblePothosConfig,
   RumbleInput,
+  RumbleLogger,
 } from "./types/rumbleInput";
 
 //TODO: optimize this for v8 & refactor
@@ -97,18 +98,15 @@ function isStaticQueryFilter<
   return typeof filter !== "function";
 }
 
-const nothingRegisteredWarningLogger = debounce(
-  (model: string, action: string) => {
-    console.warn(`
-Warning! No abilities have been registered for
-
-    ${model}/${action}
-
-but has been accessed. This will block everything. If this is intended, you can ignore this warning. If not, please ensure that you register the ability in your ability builder.
-`);
-  },
-  1000,
-);
+const makeNothingRegisteredWarner = (logger?: RumbleLogger) =>
+  debounce((model: string, action: string) => {
+    const msg = `No abilities registered for ${model}/${action} — blocking everything. Register the ability or ignore this warning if intentional.`;
+    if (logger) {
+      logger.warn({ "rumble.table": model, "rumble.action": action }, msg);
+    } else {
+      console.warn(msg);
+    }
+  }, 1000);
 
 export const createAbilityBuilder = <
   UserContext extends Record<string, any>,
@@ -121,7 +119,10 @@ export const createAbilityBuilder = <
   actions,
   defaultLimit,
   otel,
+  logger: loggerConfig,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>) => {
+  const log = loggerConfig?.enabled ? loggerConfig.logger : undefined;
+  const nothingRegisteredWarningLogger = makeNothingRegisteredWarner(log);
   type TableNames = keyof DrizzleQueryFunction<DB>;
 
   let hasBeenBuilt = false;
@@ -695,17 +696,47 @@ export const createAbilityBuilder = <
 
                   if (otel?.enabled && otel.tracer) {
                     return otel.tracer.startActiveSpan(
-                      `prepare_query_abilities_${action}`,
+                      `rumble.abilities.prepare`,
                       (span) => {
+                        span.setAttribute("rumble.action", action);
+                        span.setAttribute("rumble.table", tableName.toString());
                         try {
-                          return assembleAbilities(span);
+                          // assembleAbilities sets abilities.* attributes on the span;
+                          // we capture them in parallel for logging via a lightweight proxy
+                          const attrs: Record<string, unknown> = {
+                            "rumble.table": tableName.toString(),
+                            "rumble.action": action,
+                          };
+                          const proxy = new Proxy(span, {
+                            get(target, prop) {
+                              if (prop === "setAttribute") {
+                                return (k: string, v: unknown) => {
+                                  attrs[k] = v;
+                                  return target.setAttribute(k, v as any);
+                                };
+                              }
+                              return (target as any)[prop];
+                            },
+                          });
+                          const result = assembleAbilities(proxy);
+                          log?.debug(attrs, "abilities prepared");
+                          return result;
                         } finally {
                           span.end();
                         }
                       },
                     );
                   } else {
-                    return assembleAbilities();
+                    const attrs: Record<string, unknown> = {
+                      "rumble.table": tableName.toString(),
+                      "rumble.action": action,
+                    };
+                    const spy = log
+                      ? ({ setAttribute: (k: string, v: unknown) => { attrs[k] = v; } } as unknown as Span)
+                      : undefined;
+                    const result = assembleAbilities(spy);
+                    log?.debug(attrs, "abilities prepared");
+                    return result;
                   }
                 },
               };

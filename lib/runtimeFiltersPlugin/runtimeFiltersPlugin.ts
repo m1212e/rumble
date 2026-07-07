@@ -6,6 +6,7 @@ import SchemaBuilder, {
   type SchemaTypes,
 } from "@pothos/core";
 import type { GraphQLFieldResolver } from "graphql";
+import type { RumbleLogger } from "../types/rumbleInput";
 import { type ApplyFiltersField, pluginName } from "./filterTypes";
 
 export const applyFiltersKey = "applyFilters";
@@ -15,10 +16,14 @@ export class RuntimeFiltersPlugin<
 > extends BasePlugin<Types> {
   private tracer?: Tracer;
   private tracerEnabled?: boolean;
+  private logger?: RumbleLogger;
 
   override onTypeConfig(typeConfig: PothosTypeConfig) {
     this.tracer = this.builder.options.otel?.tracer;
     this.tracerEnabled = this.builder.options.otel?.enabled;
+    this.logger = this.builder.options.logger?.enabled
+      ? this.builder.options.logger.logger
+      : undefined;
     return typeConfig;
   }
 
@@ -74,8 +79,9 @@ export class RuntimeFiltersPlugin<
 
         if (this.tracer && this.tracerEnabled) {
           const o = await this.tracer.startActiveSpan(
-            `apply_filters`,
+            `rumble.filter.resolve`,
             async (span) => {
+              span.setAttribute("graphql.field.name", fieldConfig.name);
               try {
                 return await Promise.all([
                   resolver(parent, args, context, info),
@@ -119,6 +125,14 @@ export class RuntimeFiltersPlugin<
         );
 
         span?.setAttribute("filters.allowed", allowed.length);
+        this.logger?.debug(
+          {
+            "graphql.field.name": fieldConfig.name,
+            "filters.total": allFilters.length,
+            "filters.allowed": allowed.length,
+          },
+          "runtime filters applied",
+        );
 
         // if the original value was an array, return an array
         if (Array.isArray(resolved)) {
@@ -132,17 +146,32 @@ export class RuntimeFiltersPlugin<
 
       if (this.tracer && this.tracerEnabled) {
         return this.tracer.startActiveSpan(
-          `filter_${fieldConfig.name}`,
+          `rumble.filter.apply`,
           async (span) => {
+            span.setAttribute("graphql.field.name", fieldConfig.name);
             try {
               return await runFilters(span);
+            } catch (error) {
+              this.logger?.error(
+                { "graphql.field.name": fieldConfig.name, err: error },
+                "runtime filter threw",
+              );
+              throw error;
             } finally {
               span.end();
             }
           },
         );
       } else {
-        return runFilters();
+        try {
+          return await runFilters();
+        } catch (error) {
+          this.logger?.error(
+            { "graphql.field.name": fieldConfig.name, err: error },
+            "runtime filter threw",
+          );
+          throw error;
+        }
       }
     };
   }

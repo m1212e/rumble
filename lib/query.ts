@@ -30,6 +30,7 @@ export const createQueryImplementer = <
   db,
   schemaBuilder,
   search,
+  logger: loggerConfig,
   whereArgImplementer,
   orderArgImplementer,
   makePubSubInstance,
@@ -111,11 +112,11 @@ export const createQueryImplementer = <
       }
 
       return {
-        [pluralize.plural(table.toString())]: t.drizzleField({
+        [pluralName]: t.drizzleField({
           type: [table],
           nullable: false,
           smartSubscription: true,
-          description: `List all ${pluralize.plural(table.toString())}`,
+          description: `List all ${pluralName}`,
           subscribe: (subscriptions, _root, _args, _ctx, _info) => {
             registerOnInstance({
               instance: subscriptions,
