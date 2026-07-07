@@ -1,23 +1,21 @@
 import {
+  isBigIntLikeSQLTypeString,
   isBooleanSQLTypeString,
+  isBytesSQLTypeString,
   isDateLikeSQLTypeString,
   isDateTimeLikeSQLTypeString,
   isFloatLikeSQLTypeString,
   isIDLikeSQLTypeString,
   isIntLikeSQLTypeString,
+  isJSONFallbackSQLTypeString,
   isJSONLikeSQLTypeString,
   isStringLikeSQLTypeString,
+  normalizeSQLType,
   type PossibleSQLType,
   UnknownTypeRumbleError,
 } from "./types";
 
-export function mapSQLTypeToGraphQLType({
-  sqlType,
-  fieldName,
-}: {
-  sqlType: PossibleSQLType;
-  fieldName?: string;
-}):
+export type GraphQLTypeName =
   | "Int"
   | "Float"
   | "String"
@@ -25,27 +23,40 @@ export function mapSQLTypeToGraphQLType({
   | "Boolean"
   | "DateTime"
   | "Date"
-  | "JSON" {
-  let ret:
-    | "Int"
-    | "Float"
-    | "String"
-    | "ID"
-    | "Boolean"
-    | "DateTime"
-    | "Date"
-    | "JSON"
-    | undefined;
+  | "JSON"
+  | "BigInt"
+  | "Bytes";
 
-  if (isIntLikeSQLTypeString(sqlType)) {
+export function mapSQLTypeToGraphQLType({
+  sqlType,
+  fieldName,
+}: {
+  sqlType: PossibleSQLType;
+  fieldName?: string;
+}): GraphQLTypeName {
+  // MySQL raw enum columns expose their values in the SQL type string.
+  // Handle before normalization since normalization would strip the parens.
+  if (/^enum\(/.test(sqlType)) {
+    return "String";
+  }
+
+  const normalized = normalizeSQLType(sqlType);
+
+  let ret: GraphQLTypeName | undefined;
+
+  if (isIntLikeSQLTypeString(normalized)) {
     ret = "Int";
   }
 
-  if (isFloatLikeSQLTypeString(sqlType)) {
+  if (isBigIntLikeSQLTypeString(normalized)) {
+    ret = "BigInt";
+  }
+
+  if (isFloatLikeSQLTypeString(normalized)) {
     ret = "Float";
   }
 
-  if (isStringLikeSQLTypeString(sqlType)) {
+  if (isStringLikeSQLTypeString(normalized)) {
     if (
       fieldName &&
       (fieldName.toLowerCase().endsWith("_id") ||
@@ -57,24 +68,32 @@ export function mapSQLTypeToGraphQLType({
     }
   }
 
-  if (isIDLikeSQLTypeString(sqlType)) {
+  if (isIDLikeSQLTypeString(normalized)) {
     ret = "ID";
   }
 
-  if (isBooleanSQLTypeString(sqlType)) {
+  if (isBooleanSQLTypeString(normalized)) {
     ret = "Boolean";
   }
 
-  if (isDateTimeLikeSQLTypeString(sqlType)) {
+  if (isDateTimeLikeSQLTypeString(normalized)) {
     ret = "DateTime";
   }
 
-  if (isDateLikeSQLTypeString(sqlType)) {
+  if (isDateLikeSQLTypeString(normalized)) {
     ret = "Date";
   }
 
-  if (isJSONLikeSQLTypeString(sqlType)) {
+  if (isJSONLikeSQLTypeString(normalized)) {
     ret = "JSON";
+  }
+
+  if (isJSONFallbackSQLTypeString(normalized)) {
+    ret = "JSON";
+  }
+
+  if (isBytesSQLTypeString(normalized)) {
+    ret = "Bytes";
   }
 
   if (ret !== undefined) {

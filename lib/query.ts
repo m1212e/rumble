@@ -13,6 +13,7 @@ import type {
   DrizzleInstance,
   DrizzleQueryFunction,
 } from "./types/drizzleInstanceType";
+import { RumbleError } from "./types/rumbleError";
 import type {
   CustomRumblePothosConfig,
   RumbleInput,
@@ -64,6 +65,8 @@ export const createQueryImplementer = <
     PothosConfig
   >;
 }) => {
+  const registeredQueryFieldNames = new Set<string>();
+
   return <TableName extends keyof DrizzleQueryFunction<DB>>({
     table,
     readAction = "read" as Action,
@@ -97,6 +100,19 @@ export const createQueryImplementer = <
     const primaryKeyField = Object.values(tableSchema.primaryKey)[0];
 
     const { registerOnInstance } = makePubSubInstance({ table: table });
+
+    const pluralName = pluralize.plural(table.toString());
+    const singularName = pluralize.singular(table.toString());
+    for (const name of [pluralName, singularName]) {
+      if (registeredQueryFieldNames.has(name)) {
+        throw new RumbleError(
+          `Duplicate query field "${name}": the table "${table.toString()}" generates a ` +
+            `query field that collides with one already registered. Use unique table names ` +
+            `(or refNames) to avoid plural/singular collisions (e.g. "post" and "posts").`,
+        );
+      }
+      registeredQueryFieldNames.add(name);
+    }
 
     return schemaBuilder.queryFields((t) => {
       const manyArgs = {
@@ -173,9 +189,12 @@ export const createQueryImplementer = <
                     ),
                   );
                 } else {
-                  console.info(
-                    "Database dialect is not postgresql, cannot set cpu_operator_cost.",
-                  );
+                  const msg =
+                    "Database dialect is not postgresql, cannot set cpu_operator_cost.";
+                  const log = loggerConfig?.enabled
+                    ? loggerConfig.logger
+                    : undefined;
+                  log ? log.info({}, msg) : console.info(msg);
                 }
                 return (tx.query as any)[table].findMany(queryInstance);
               });
@@ -184,11 +203,11 @@ export const createQueryImplementer = <
             return (db.query as any)[table].findMany(queryInstance);
           },
         }),
-        [pluralize.singular(table.toString())]: t.drizzleField({
+        [singularName]: t.drizzleField({
           type: table,
           nullable: false,
           smartSubscription: true,
-          description: `Get a single ${pluralize.singular(table.toString())} by ID`,
+          description: `Get a single ${singularName} by ID`,
           args: {
             id: t.arg.id({ required: true }),
           },

@@ -14,7 +14,8 @@ export async function initSearchIfApplicable(
   const log = input.logger?.enabled ? input.logger.logger : undefined;
 
   if (!isPostgresDB(input.db)) {
-    const msg = "Database dialect is not compatible with search, skipping search initialization. Only PostgreSQL is supported.";
+    const msg =
+      "Database dialect is not compatible with search, skipping search initialization. Only PostgreSQL is supported.";
     log ? log.info({}, msg) : console.info(msg);
     return;
   }
@@ -22,7 +23,8 @@ export async function initSearchIfApplicable(
   try {
     await input.db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
   } catch (error) {
-    const msg = "Failed to create pg_trgm extension. Search functionality may not work. Ensure the database user has CREATE privilege or the extension is pre-installed.";
+    const msg =
+      "Failed to create pg_trgm extension. Search functionality may not work. Ensure the database user has CREATE privilege or the extension is pre-installed.";
     log ? log.error({ err: error }, msg) : console.error(msg, error);
     return;
   }

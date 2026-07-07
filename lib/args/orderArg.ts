@@ -93,8 +93,13 @@ export const createOrderArgImplementer = <
     const implement = () => {
       return schemaBuilder.inputType(inputTypeName, {
         fields: (t) => {
+          // Drizzle's relationsOrderToSQL treats every key as a column on the
+          // current table, so exposing relation keys would generate invalid SQL.
           const fields = Object.entries(tableSchema.columns).reduce(
             (acc, [key]) => {
+              // GraphQL reserves names starting with "__" for introspection.
+              if (key.startsWith("__")) return acc;
+
               acc[key] = t.field({
                 type: sortingParameterEnumRef(),
                 required: false,
@@ -102,40 +107,10 @@ export const createOrderArgImplementer = <
 
               return acc;
             },
-            {} as Record<
-              keyof typeof tableSchema.columns,
-              ReturnType<typeof t.field>
-            >,
+            {} as Record<string, ReturnType<typeof t.field>>,
           );
 
-          const relations = Object.entries(tableSchema.relations ?? {}).reduce(
-            (acc, [key, value]) => {
-              const targetTsName = (value as any).targetTableName as string;
-              const relationSchema = tableHelper({
-                db,
-                table: targetTsName,
-              });
-              const referenceModel = orderArgImplementer({
-                dbName: relationSchema.dbName,
-              });
-
-              acc[key] = t.field({
-                type: referenceModel,
-                required: false,
-              });
-
-              return acc;
-            },
-            {} as Record<
-              keyof typeof tableSchema.columns,
-              ReturnType<typeof t.field>
-            >,
-          );
-
-          return {
-            ...fields,
-            ...relations,
-          };
+          return fields;
         },
       });
     };

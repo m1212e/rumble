@@ -1,5 +1,6 @@
-import { type Column, is } from "drizzle-orm";
+import { type Column, getTableName, is, isTable } from "drizzle-orm";
 import { toCamelCase } from "drizzle-orm/casing";
+import { MySqlEnumColumn, MySqlEnumObjectColumn } from "drizzle-orm/mysql-core";
 import {
   isPgEnum,
   type PgEnum,
@@ -17,13 +18,21 @@ import type {
 import type { SchemaBuilderType } from "./types/schemaBuilderType";
 
 /**
- * Checks if a column is a Postgres enum column
+ * Checks if a column is a database enum column (Postgres or MySQL).
  */
 export function isEnumSchema(
   schemaType: any,
-): schemaType is PgEnumColumn<any> | PgEnumObjectColumn<any> {
-  // TODO: make this compatible with other db drivers
-  return is(schemaType, PgEnumColumn) || is(schemaType, PgEnumObjectColumn);
+): schemaType is
+  | PgEnumColumn<any>
+  | PgEnumObjectColumn<any>
+  | MySqlEnumColumn<any>
+  | MySqlEnumObjectColumn<any> {
+  return (
+    is(schemaType, PgEnumColumn) ||
+    is(schemaType, PgEnumObjectColumn) ||
+    is(schemaType, MySqlEnumColumn) ||
+    is(schemaType, MySqlEnumObjectColumn)
+  );
 }
 
 // TODO make this compatible with other db drivers
@@ -228,19 +237,34 @@ export const createEnumImplementer = <
       enumSchemaName = enumObject.enumName;
       enumValues = enumObject.enumValues as unknown as any[];
     } else if (enumColumn) {
-      const pgEnum = (enumColumn as any).enum as
-        | PgEnum<any>
-        | PgEnumObject<any>
-        | undefined;
+      // MySQL enum columns carry their values directly; there is no standalone
+      // enum object. Derive a stable name from table + column name.
+      if (
+        is(enumColumn, MySqlEnumColumn) ||
+        is(enumColumn, MySqlEnumObjectColumn)
+      ) {
+        enumValues = (enumColumn as any).enumValues as unknown as any[];
+        const colTable = (enumColumn as any).table;
+        const tableName =
+          colTable && isTable(colTable) ? getTableName(colTable) : undefined;
+        enumSchemaName = tableName
+          ? `${tableName}_${enumColumn.name}`
+          : enumColumn.name;
+      } else {
+        const pgEnum = (enumColumn as any).enum as
+          | PgEnum<any>
+          | PgEnumObject<any>
+          | undefined;
 
-      if (!pgEnum) {
-        throw new RumbleError(
-          `Could not find enum definition on column. Make sure the column is a pgEnum column.`,
-        );
+        if (!pgEnum) {
+          throw new RumbleError(
+            `Could not find enum definition on column. Make sure the column is a pgEnum column.`,
+          );
+        }
+
+        enumSchemaName = pgEnum.enumName;
+        enumValues = enumColumn.enumValues as unknown as any[];
       }
-
-      enumSchemaName = pgEnum.enumName;
-      enumValues = enumColumn.enumValues as unknown as any[];
     }
 
     if (!enumSchemaName || !enumValues) {

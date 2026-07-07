@@ -732,7 +732,11 @@ export const createAbilityBuilder = <
                       "rumble.action": action,
                     };
                     const spy = log
-                      ? ({ setAttribute: (k: string, v: unknown) => { attrs[k] = v; } } as unknown as Span)
+                      ? ({
+                          setAttribute: (k: string, v: unknown) => {
+                            attrs[k] = v;
+                          },
+                        } as unknown as Span)
                       : undefined;
                     const result = assembleAbilities(spy);
                     log?.debug(attrs, "abilities prepared");

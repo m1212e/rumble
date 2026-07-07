@@ -10,13 +10,17 @@ import TracingPlugin, {
 import { createOpenTelemetryWrapper } from "@pothos/tracing-opentelemetry";
 import { getTableColumns, isTable, type Table } from "drizzle-orm";
 import {
+  BigIntResolver,
+  ByteResolver,
   DateResolver,
   DateTimeISOResolver,
   JSONResolver,
 } from "graphql-scalars";
 import type { createPubSub } from "graphql-yoga";
 import {
+  type BigIntWhereInputArgument,
   type BooleanWhereInputArgument,
+  type DateTimeWhereInputArgument,
   type DateWhereInputArgument,
   type IDWhereInputArgument,
   implementDefaultWhereInputArgs,
@@ -41,7 +45,6 @@ export const createSchemaBuilder = <
   PothosConfig extends CustomRumblePothosConfig,
 >({
   db,
-  disableDefaultObjects,
   pubsub,
   pothosConfig,
   otel,
@@ -69,7 +72,15 @@ export const createSchemaBuilder = <
       };
       DateTime: {
         Input: Date;
-        Output: Date;
+        Output: Date | string;
+      };
+      BigInt: {
+        Input: bigint | number;
+        Output: bigint | number | string;
+      };
+      Bytes: {
+        Input: string;
+        Output: string;
       };
     };
     Inputs: {
@@ -77,6 +88,8 @@ export const createSchemaBuilder = <
       FloatWhereInputArgument: NumberWhereInputArgument;
       StringWhereInputArgument: StringWhereInputArgument;
       DateWhereInputArgument: DateWhereInputArgument;
+      DateTimeWhereInputArgument: DateTimeWhereInputArgument;
+      BigIntWhereInputArgument: BigIntWhereInputArgument;
       BooleanWhereInputArgument: BooleanWhereInputArgument;
       IDWhereInputArgument: IDWhereInputArgument;
       JSONWhereInputArgument: JSONWhereInputArgument;
@@ -153,19 +166,13 @@ export const createSchemaBuilder = <
   schemaBuilder.addScalarType("JSON", JSONResolver);
   schemaBuilder.addScalarType("Date", DateResolver);
   schemaBuilder.addScalarType("DateTime", DateTimeISOResolver);
+  schemaBuilder.addScalarType("BigInt", BigIntResolver);
+  schemaBuilder.addScalarType("Bytes", ByteResolver);
   implementDefaultWhereInputArgs(schemaBuilder);
 
-  if (!disableDefaultObjects?.query) {
-    schemaBuilder.queryType({});
-  }
-
-  if (!disableDefaultObjects?.subscription) {
-    schemaBuilder.subscriptionType({});
-  }
-
-  if (!disableDefaultObjects?.mutation) {
-    schemaBuilder.mutationType({});
-  }
+  schemaBuilder.queryType({});
+  schemaBuilder.subscriptionType({});
+  schemaBuilder.mutationType({});
 
   return { schemaBuilder };
 };

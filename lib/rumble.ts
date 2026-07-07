@@ -3,6 +3,7 @@ import { useDisableIntrospection } from "@graphql-yoga/plugin-disable-introspect
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { AttributeNames, SpanNames } from "@pothos/tracing-opentelemetry";
 import { merge } from "es-toolkit";
+import { GraphQLSchema } from "graphql";
 import type { ServerOptions } from "graphql-ws";
 import {
   createYoga as nativeCreateYoga,
@@ -216,7 +217,47 @@ export const r = rumble({
     makePubSubInstance,
   });
 
-  const builtSchema = lazy(() => schemaBuilder.toSchema());
+  const builtSchema = lazy(() => {
+    let raw: ReturnType<typeof schemaBuilder.toSchema>;
+    try {
+      raw = schemaBuilder.toSchema();
+    } catch (e: any) {
+      const msg: string = e?.message ?? String(e);
+      const unimplMatch = msg.match(
+        /ObjectRef<(.+?)> has not been implemented/,
+      );
+      if (unimplMatch) {
+        throw new RumbleError(
+          `Could not build GraphQL schema: the table "${unimplMatch[1]}" is referenced ` +
+            `in a relation but has not been registered. Call rumble.object({ table: "${unimplMatch[1]}" }) ` +
+            `before building the schema.`,
+        );
+      }
+      throw e;
+    }
+
+    const mutation = raw.getMutationType();
+    const subscription = raw.getSubscriptionType();
+    const emptyMutation =
+      mutation && Object.keys(mutation.getFields()).length === 0;
+    const emptySubscription =
+      subscription && Object.keys(subscription.getFields()).length === 0;
+
+    if (!emptyMutation && !emptySubscription) return raw;
+
+    const config = raw.toConfig();
+    const filteredTypes = config.types.filter((t) => {
+      if (emptyMutation && t === mutation) return false;
+      if (emptySubscription && t === subscription) return false;
+      return true;
+    });
+    return new GraphQLSchema({
+      ...config,
+      mutation: emptyMutation ? undefined : config.mutation,
+      subscription: emptySubscription ? undefined : config.subscription,
+      types: filteredTypes,
+    });
+  });
 
   const createYoga = (
     args?:
@@ -279,7 +320,9 @@ export const r = rumble({
                         {
                           "graphql.operation.name": operationName,
                           durationMs: Date.now() - start,
-                          errors: result.errors.map((e: { message: string }) => e.message),
+                          errors: result.errors.map(
+                            (e: { message: string }) => e.message,
+                          ),
                         },
                         "graphql execute completed with errors",
                       );

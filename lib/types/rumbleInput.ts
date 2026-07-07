@@ -41,14 +41,6 @@ export type RumbleInput<
     | ((event: RequestEvent) => Promise<UserContext> | UserContext)
     | undefined;
   /**
-   * If you only want to disable query, mutation or subscription default objects, you can do so here
-   */
-  disableDefaultObjects?: {
-    mutation?: boolean;
-    subscription?: boolean;
-    query?: boolean;
-  };
-  /**
    * The actions that are available
    */
   actions?: Action[];

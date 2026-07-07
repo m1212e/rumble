@@ -120,6 +120,41 @@ export type JSONWhereInputArgument = {
   NOT?: JSONWhereInputArgument;
 };
 
+export type BigIntWhereInputArgument = {
+  eq?: bigint | number;
+  ne?: bigint | number;
+  gt?: bigint | number;
+  gte?: bigint | number;
+  lt?: bigint | number;
+  lte?: bigint | number;
+  in?: (bigint | number)[];
+  notIn?: (bigint | number)[];
+  isNull?: boolean;
+  isNotNull?: boolean;
+  AND?: BigIntWhereInputArgument[];
+  OR?: BigIntWhereInputArgument[];
+  NOT?: BigIntWhereInputArgument;
+};
+
+export type DateTimeWhereInputArgument = {
+  eq?: Date;
+  ne?: Date;
+  gt?: Date;
+  gte?: Date;
+  lt?: Date;
+  lte?: Date;
+  in?: Date[];
+  notIn?: Date[];
+  isNull?: boolean;
+  isNotNull?: boolean;
+  arrayOverlaps?: Date[];
+  arrayContained?: Date[];
+  arrayContains?: Date[];
+  AND?: DateTimeWhereInputArgument[];
+  OR?: DateTimeWhereInputArgument[];
+  NOT?: DateTimeWhereInputArgument;
+};
+
 // TODO: Add proper type for schemaBuilder
 
 export function implementDefaultWhereInputArgs(schemaBuilder: any) {
@@ -335,6 +370,49 @@ export function implementDefaultWhereInputArgs(schemaBuilder: any) {
         NOT: t.field({
           type: JSONWhereInputArgument,
         }),
+      }),
+    });
+
+  const BigIntWhereInputArgument = schemaBuilder
+    .inputRef("BigIntWhereInputArgument")
+    .implement({
+      fields: (t: any) => ({
+        eq: t.field({ type: "BigInt", required: false }),
+        ne: t.field({ type: "BigInt", required: false }),
+        gt: t.field({ type: "BigInt", required: false }),
+        gte: t.field({ type: "BigInt", required: false }),
+        lt: t.field({ type: "BigInt", required: false }),
+        lte: t.field({ type: "BigInt", required: false }),
+        in: t.field({ type: ["BigInt"], required: false }),
+        notIn: t.field({ type: ["BigInt"], required: false }),
+        isNull: t.boolean(),
+        isNotNull: t.boolean(),
+        AND: t.field({ type: [BigIntWhereInputArgument] }),
+        OR: t.field({ type: [BigIntWhereInputArgument] }),
+        NOT: t.field({ type: BigIntWhereInputArgument }),
+      }),
+    });
+
+  const DateTimeWhereInputArgument = schemaBuilder
+    .inputRef("DateTimeWhereInputArgument")
+    .implement({
+      fields: (t: any) => ({
+        eq: t.field({ type: "DateTime", required: false }),
+        ne: t.field({ type: "DateTime", required: false }),
+        gt: t.field({ type: "DateTime", required: false }),
+        gte: t.field({ type: "DateTime", required: false }),
+        lt: t.field({ type: "DateTime", required: false }),
+        lte: t.field({ type: "DateTime", required: false }),
+        in: t.field({ type: ["DateTime"], required: false }),
+        notIn: t.field({ type: ["DateTime"], required: false }),
+        isNull: t.boolean(),
+        isNotNull: t.boolean(),
+        arrayOverlaps: t.field({ type: ["DateTime"], required: false }),
+        arrayContained: t.field({ type: ["DateTime"], required: false }),
+        arrayContains: t.field({ type: ["DateTime"], required: false }),
+        AND: t.field({ type: [DateTimeWhereInputArgument] }),
+        OR: t.field({ type: [DateTimeWhereInputArgument] }),
+        NOT: t.field({ type: DateTimeWhereInputArgument }),
       }),
     });
 }

@@ -1,4 +1,6 @@
+import { is } from "drizzle-orm";
 import { toCamelCase } from "drizzle-orm/casing";
+import { PgColumn } from "drizzle-orm/pg-core";
 import { capitalize } from "es-toolkit";
 import { type EnumImplementerType, isEnumSchema } from "../enum";
 import { mapSQLTypeToGraphQLType } from "../helpers/sqlTypes/mapSQLTypeToTSType";
@@ -71,6 +73,38 @@ export const createWhereArgImplementer = <
 }) => {
   const referenceStorage = new Map<string, any>();
   const enumArrayWhereInputStorage = new Map<string, any>();
+  const scalarArrayWhereInputStorage = new Map<string, any>();
+
+  const scalarArrayWhereInputName = (gqlType: string) =>
+    `${gqlType}ArrayWhereInputArgument`;
+
+  const getScalarArrayWhereInput = (gqlType: string) => {
+    const typeName = scalarArrayWhereInputName(gqlType);
+    const existing = scalarArrayWhereInputStorage.get(typeName);
+    if (existing) return existing;
+
+    const ret = schemaBuilder.inputRef(typeName);
+    scalarArrayWhereInputStorage.set(typeName, ret);
+
+    ret.implement({
+      fields: (t: any) => ({
+        eq: t.field({ type: [gqlType], required: false }),
+        ne: t.field({ type: [gqlType], required: false }),
+        in: t.field({ type: [[gqlType]], required: false }),
+        notIn: t.field({ type: [[gqlType]], required: false }),
+        isNull: t.boolean({ required: false }),
+        isNotNull: t.boolean({ required: false }),
+        arrayOverlaps: t.field({ type: [gqlType], required: false }),
+        arrayContained: t.field({ type: [gqlType], required: false }),
+        arrayContains: t.field({ type: [gqlType], required: false }),
+        AND: t.field({ type: [ret], required: false }),
+        OR: t.field({ type: [ret], required: false }),
+        NOT: t.field({ type: ret, required: false }),
+      }),
+    });
+
+    return ret;
+  };
 
   const getEnumArrayWhereInput = (enumImpl: any) => {
     const typeName = `${enumImpl.name}WhereInputArgument`;
@@ -145,36 +179,69 @@ export const createWhereArgImplementer = <
         const mapSQLTypeStringToInputPothosType = (
           sqlType: PossibleSQLType,
           fieldName: string,
+          isArray: boolean,
         ) => {
           const gqlType = mapSQLTypeToGraphQLType({
             sqlType,
             fieldName,
           });
+
+          if (isArray) {
+            return t.field({
+              type: getScalarArrayWhereInput(gqlType),
+              required: false,
+            });
+          }
+
           switch (gqlType) {
             case "Int":
-              return t.field({ type: "IntWhereInputArgument" });
+              return t.field({
+                type: "IntWhereInputArgument",
+                required: false,
+              });
+            case "BigInt":
+              return t.field({
+                type: "BigIntWhereInputArgument",
+                required: false,
+              });
             case "String":
-              return t.field({ type: "StringWhereInputArgument" });
+              return t.field({
+                type: "StringWhereInputArgument",
+                required: false,
+              });
             case "Boolean":
-              return t.field({ type: "BooleanWhereInputArgument" });
+              return t.field({
+                type: "BooleanWhereInputArgument",
+                required: false,
+              });
             case "Date":
               return t.field({
                 type: "DateWhereInputArgument",
+                required: false,
               });
             case "DateTime":
               return t.field({
-                type: "DateWhereInputArgument",
+                type: "DateTimeWhereInputArgument",
+                required: false,
               });
             case "Float":
               return t.field({
                 type: "FloatWhereInputArgument",
+                required: false,
               });
             case "ID":
-              return t.field({ type: "IDWhereInputArgument" });
+              return t.field({
+                type: "IDWhereInputArgument",
+                required: false,
+              });
             case "JSON":
               return t.field({
                 type: "JSONWhereInputArgument",
+                required: false,
               });
+            case "Bytes":
+              // No meaningful filter operators for byte columns — skip.
+              return null;
             default:
               throw new RumbleError(
                 `Unsupported argument type ${gqlType} for column ${sqlType}`,
@@ -183,31 +250,40 @@ export const createWhereArgImplementer = <
         };
         const fields = Object.entries(tableSchema.columns).reduce(
           (acc, [key, value]) => {
+            // GraphQL reserves names starting with "__" for introspection.
+            if (key.startsWith("__")) return acc;
+
+            // Detect pg array columns via the `dimensions` runtime property.
+            let isArray = false;
+            if (is(value, PgColumn)) {
+              const dims = (value as PgColumn & { dimensions?: number })
+                .dimensions;
+              if (dims && dims > 0) isArray = true;
+            }
+
             if (isEnumSchema(value)) {
               const enumImpl = enumImplementer({
                 enumColumn: value,
               });
 
               acc[key] = t.field({
-                type:
-                  (value as any).dimensions > 0
-                    ? getEnumArrayWhereInput(enumImpl)
-                    : enumImpl,
+                type: isArray ? getEnumArrayWhereInput(enumImpl) : enumImpl,
                 required: false,
               });
             } else {
-              acc[key] = mapSQLTypeStringToInputPothosType(
+              const field = mapSQLTypeStringToInputPothosType(
                 value.getSQLType() as PossibleSQLType,
                 key,
+                isArray,
               );
+              if (field !== null) {
+                acc[key] = field;
+              }
             }
 
             return acc;
           },
-          {} as Record<
-            keyof typeof tableSchema.columns,
-            ReturnType<typeof mapSQLTypeStringToInputPothosType>
-          >,
+          {} as Record<string, ReturnType<typeof t.field>>,
         );
 
         const relations = Object.entries(tableSchema.relations ?? {}).reduce(

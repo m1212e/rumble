@@ -170,7 +170,9 @@ export const createObjectImplementer = <
     if (Object.keys(tableSchema.primaryKey).length === 0) {
       const log = loggerConfig?.enabled ? loggerConfig.logger : undefined;
       const msg = `Could not find primary key for ${table.toString()}. Cannot register subscriptions!`;
-      log ? log.warn({ "rumble.table": table.toString() }, msg) : console.warn(msg);
+      log
+        ? log.warn({ "rumble.table": table.toString() }, msg)
+        : console.warn(msg);
     }
     const primaryKey = Object.values(tableSchema.primaryKey)[0];
 
@@ -184,7 +186,9 @@ export const createObjectImplementer = <
         if (!primaryKeyValue) {
           const log = loggerConfig?.enabled ? loggerConfig.logger : undefined;
           const msg = `Could not find primary key value for element on ${table.toString()}. Cannot register subscription!`;
-          log ? log.warn({ "rumble.table": table.toString() }, msg) : console.warn(msg);
+          log
+            ? log.warn({ "rumble.table": table.toString() }, msg)
+            : console.warn(msg);
           return;
         }
 
@@ -266,6 +270,16 @@ export const createObjectImplementer = <
 
         const fields = Object.entries(columns).reduce(
           (acc, [key, column]) => {
+            // GraphQL reserves all names beginning with "__" for introspection.
+            // Skip such columns silently — the user must expose them manually
+            // via `adjust` if they truly need them.
+            if (key.startsWith("__")) {
+              console.warn(
+                `Skipping column "${key}" on table "${tableSchema.tsName}": names starting with "__" are reserved by GraphQL introspection. Use a custom adjust() call if you really need to expose this column.`,
+              );
+              return acc;
+            }
+
             // in case the user wants to overwrite a field
             // we want to merge with our stuff in case the user
             // did not specify it themselves

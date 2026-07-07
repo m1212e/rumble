@@ -27,6 +27,12 @@ export function buildPothosResponseTypeFromGraphQLType<
       return isArray
         ? builder.exposeIntList(fieldName, { nullable: nullable as any })
         : builder.exposeInt(fieldName, { nullable });
+    case "BigInt":
+      return builder.field({
+        type: isArray ? ["BigInt"] : "BigInt",
+        resolve: (element: any) => element[fieldName],
+        nullable,
+      });
     case "String":
       return isArray
         ? builder.exposeStringList(fieldName, { nullable: nullable as any })
@@ -44,7 +50,13 @@ export function buildPothosResponseTypeFromGraphQLType<
     case "DateTime":
       return builder.field({
         type: isArray ? ["DateTime"] : "DateTime",
-        resolve: (element: any) => element[fieldName],
+        // Drizzle's timestamp({ mode: "string" }) returns a string; the
+        // DateTimeISO scalar expects a Date object, so coerce when needed.
+        resolve: (element: any) => {
+          const v = element[fieldName];
+          if (v == null) return v;
+          return v instanceof Date ? v : new Date(v);
+        },
         nullable,
       });
     case "Float":
@@ -59,6 +71,16 @@ export function buildPothosResponseTypeFromGraphQLType<
       return builder.field({
         type: isArray ? ["JSON"] : "JSON",
         resolve: (element: any) => element[fieldName],
+        nullable,
+      });
+    case "Bytes":
+      return builder.field({
+        type: "Bytes",
+        resolve: (element: any) => {
+          const v = element[fieldName];
+          if (v == null) return v;
+          return Buffer.isBuffer(v) ? v.toString("base64") : String(v);
+        },
         nullable,
       });
     default:
