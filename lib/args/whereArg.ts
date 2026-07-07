@@ -85,10 +85,12 @@ export const createWhereArgImplementer = <
 
     ret.implement({
       fields: (t: any) => ({
-        eq: t.field({ type: enumImpl, required: false }),
-        ne: t.field({ type: enumImpl, required: false }),
-        in: t.field({ type: [enumImpl], required: false }),
-        notIn: t.field({ type: [enumImpl], required: false }),
+        // the column holds an array, so eq/ne compare against a whole
+        // array value and in/notIn against a list of array values
+        eq: t.field({ type: [enumImpl], required: false }),
+        ne: t.field({ type: [enumImpl], required: false }),
+        in: t.field({ type: [[enumImpl]], required: false }),
+        notIn: t.field({ type: [[enumImpl]], required: false }),
         isNull: t.boolean({ required: false }),
         isNotNull: t.boolean({ required: false }),
         arrayOverlaps: t.field({ type: [enumImpl], required: false }),
