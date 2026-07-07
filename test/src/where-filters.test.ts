@@ -5,14 +5,12 @@ import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
 describe("where argument filters", async () => {
   let { db, data } = await makeSeededDBInstanceForTest();
-  // @ts-expect-error
   let { rumble, build } = makeRumbleSeedInstance(db, data.users.at(0)?.id);
 
   beforeEach(async () => {
     const s = await makeSeededDBInstanceForTest();
     db = s.db;
     data = s.data;
-    // @ts-expect-error
     const r = makeRumbleSeedInstance(db, data.users.at(0)?.id);
     rumble = r.rumble;
     build = r.build;

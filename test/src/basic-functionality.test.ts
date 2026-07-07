@@ -5,7 +5,6 @@ import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
 describe("test rumble basics", async () => {
   let { db, data, schema: _schema } = await makeSeededDBInstanceForTest();
-  // @ts-expect-error
   let { rumble, build } = makeRumbleSeedInstance(db, data.users.at(0)?.id, 9);
 
   beforeEach(async () => {
@@ -13,7 +12,6 @@ describe("test rumble basics", async () => {
     db = s.db;
     data = s.data;
 
-    // @ts-expect-error
     const r = makeRumbleSeedInstance(db, data.users.at(0)?.id, 9);
     rumble = r.rumble;
     build = r.build;
@@ -122,7 +120,6 @@ describe("test rumble basics", async () => {
 
   test("defaultLimit caps list results when no explicit limit is given", async () => {
     const s = await makeSeededDBInstanceForTest();
-    // @ts-expect-error
     const r = makeRumbleSeedInstance(s.db, s.data.users[0].id, 2);
     r.rumble.abilityBuilder.users.allow(["read"]);
     const { executor } = r.build();

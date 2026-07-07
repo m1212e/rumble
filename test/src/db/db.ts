@@ -9,7 +9,7 @@ const dummy = drizzle(":memory:", { relations });
 export type DB = typeof dummy;
 
 export async function makeSeededDBInstanceForTest() {
-  const db = drizzle(":memory:", { relations, schema });
+  const db = drizzle(":memory:", { relations });
   await migrate(db, {
     migrationsFolder: join(import.meta.dir, "..", "..", "drizzle"),
   });

@@ -28,7 +28,7 @@ import * as schema from "../db/schema";
 
 declare const ctxArg: never;
 
-const db = drizzle(":memory:", { relations, schema });
+const db = drizzle(":memory:", { relations });
 
 const r = rumble({
   db,

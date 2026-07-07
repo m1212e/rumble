@@ -1,12 +1,12 @@
-import type { MySqlDatabase } from "drizzle-orm/mysql-core";
+import type { MySqlAsyncDatabase } from "drizzle-orm/mysql-core";
 import type { PgAsyncDatabase } from "drizzle-orm/pg-core";
-import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+import type { SQLiteAsyncDatabase } from "drizzle-orm/sqlite-core";
 import type { ObjectValues } from "./objectFieldType";
 
 export type DrizzleInstance =
   | PgAsyncDatabase<any, any>
-  | BaseSQLiteDatabase<any, any, any, any>
-  | MySqlDatabase<any, any>;
+  | SQLiteAsyncDatabase<any, any, any>
+  | MySqlAsyncDatabase<any, any>;
 
 /**
  * Type representing the relational config of a table in a Drizzle instance.

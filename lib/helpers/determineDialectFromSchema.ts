@@ -1,9 +1,9 @@
 import { is } from "drizzle-orm";
-import type { MySqlDatabase } from "drizzle-orm/mysql-core";
+import type { MySqlAsyncDatabase } from "drizzle-orm/mysql-core";
 import { MySqlTable } from "drizzle-orm/mysql-core";
 import type { PgAsyncDatabase } from "drizzle-orm/pg-core";
 import { PgTable } from "drizzle-orm/pg-core";
-import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+import type { SQLiteAsyncDatabase } from "drizzle-orm/sqlite-core";
 import { SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { DrizzleInstance } from "../types/drizzleInstanceType";
 
@@ -57,13 +57,17 @@ export function isPostgresDB<
 }
 
 export function isMySQLDB<
-  Narrowed extends MySqlDatabase<any, any> = MySqlDatabase<any, any>,
+  Narrowed extends MySqlAsyncDatabase<any, any> = MySqlAsyncDatabase<any, any>,
 >(db: any): db is Narrowed {
   return determineDBDialectFromSchema(db._.relations) === "mysql";
 }
 
 export function isSQLiteDB<
-  Narrowed extends BaseSQLiteDatabase<any, any> = BaseSQLiteDatabase<any, any>,
+  Narrowed extends SQLiteAsyncDatabase<any, any, any> = SQLiteAsyncDatabase<
+    any,
+    any,
+    any
+  >,
 >(db: any): db is Narrowed {
   return determineDBDialectFromSchema(db._.relations) === "sqlite";
 }

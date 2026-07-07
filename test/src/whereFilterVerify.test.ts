@@ -5,7 +5,6 @@ import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
 describe("verify where filter alignment fixes", async () => {
   const { db, data } = await makeSeededDBInstanceForTest();
-  // @ts-expect-error
   const { rumble, build } = makeRumbleSeedInstance(db, data.users.at(0)?.id);
 
   rumble.abilityBuilder.users.allow(["read"]);

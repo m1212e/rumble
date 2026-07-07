@@ -181,7 +181,7 @@ export const createQueryImplementer = <
               args.search.length > 0 &&
               search?.cpu_operator_cost
             ) {
-              return db.transaction(async (tx) => {
+              return db.transaction(async (tx: any) => {
                 if (isPostgresDB(tx)) {
                   await tx.execute(
                     sql.raw(

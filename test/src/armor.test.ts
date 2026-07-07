@@ -47,14 +47,12 @@ function buildYoga(
 
 describe("createYoga armorConfig", async () => {
   let { db, data } = await makeSeededDBInstanceForTest();
-  // @ts-expect-error
   let { rumble } = makeRumbleSeedInstance(db, data.users.at(0)?.id, 9);
 
   beforeEach(async () => {
     const s = await makeSeededDBInstanceForTest();
     db = s.db;
     data = s.data;
-    // @ts-expect-error
     const r = makeRumbleSeedInstance(db, data.users.at(0)?.id, 9);
     rumble = r.rumble;
     rumble.abilityBuilder.users.allow(["read"]);
