@@ -104,7 +104,7 @@ describe("wrapSubscriptionIterator", () => {
     })();
 
     const log = makeMockLogger();
-    for await (const _ of wrapSubscriptionIterator(source, log, "Op")) {
+    for await (const _ of wrapSubscriptionIterator(source as any, log, "Op")) {
     }
 
     expect(log.error).toHaveBeenCalledTimes(1);
@@ -192,7 +192,7 @@ describe("buildTracedExecute — logger only", () => {
     const log = makeMockLogger();
     const executeFn = mock(async () => ({
       errors: [{ message: "field error" }],
-    }));
+    })) as any;
 
     const wrapped = buildTracedExecute(
       executeFn,
@@ -276,7 +276,7 @@ describe("buildTracedExecute — otel only", () => {
     const tracer = makeMockTracer(span);
     const err = { message: "oops" };
     const wrapped = buildTracedExecute(
-      mock(async () => ({ errors: [err] })),
+      mock(async () => ({ errors: [err] })) as any,
       makeRumbleInput({ otel: { enabled: true, tracer } }),
     );
 
@@ -368,13 +368,13 @@ describe("buildTracedSubscribe — logger only", () => {
     const log = makeMockLogger();
     const errorResult = { errors: [{ message: "sub failed" }] };
     const wrapped = buildTracedSubscribe(
-      mock(async () => errorResult),
+      mock(async () => errorResult) as any,
       makeRumbleInput({ logger: { enabled: true, logger: log } }),
     );
 
     const result = await wrapped(baseArgs);
 
-    expect(result).toBe(errorResult);
+    expect(result).toBe(errorResult as any);
     expect(log.error).toHaveBeenCalledTimes(1);
     expect((log.error as any).mock.calls[0][0].errors).toContain("sub failed");
   });
@@ -418,7 +418,7 @@ describe("buildTracedSubscribe — otel only", () => {
     const span = makeMockSpan();
     const tracer = makeMockTracer(span);
     const wrapped = buildTracedSubscribe(
-      mock(async () => ({ errors: [{ message: "setup error" }] })),
+      mock(async () => ({ errors: [{ message: "setup error" }] })) as any,
       makeRumbleInput({ otel: { enabled: true, tracer } }),
     );
 
