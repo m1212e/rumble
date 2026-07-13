@@ -1,7 +1,6 @@
 import { EnvelopArmorPlugin } from "@escape.tech/graphql-armor";
 import { useDisableIntrospection } from "@graphql-yoga/plugin-disable-introspection";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
-import { AttributeNames, SpanNames } from "@pothos/tracing-opentelemetry";
 import { merge } from "es-toolkit";
 import { GraphQLSchema } from "graphql";
 import type { ServerOptions } from "graphql-ws";
@@ -21,6 +20,12 @@ import { createCountQueryImplementer } from "./countQuery";
 import { createEnumImplementer, type EnumFieldKeys } from "./enum";
 import { lazy } from "./helpers/lazy";
 import { sofaOpenAPIWebhookDocs } from "./helpers/sofaOpenAPIWebhookDocs";
+import {
+  buildTracedExecute,
+  buildTracedSubscribe,
+  defaultExecute,
+  defaultSubscribe,
+} from "./helpers/tracing";
 import { createObjectImplementer } from "./object";
 import { createPubSubInstance } from "./pubsub";
 import { createQueryImplementer } from "./query";
@@ -301,101 +306,12 @@ export const r = rumble({
               // TODO: add trace header per default in http response
               // TODO: Automatic Persisted Queries
               onExecute: ({ setExecuteFn, executeFn }) => {
-                setExecuteFn(async (options) => {
-                  const log = rumbleInput.logger?.enabled
-                    ? rumbleInput.logger.logger
-                    : undefined;
-                  const operationName = options.operationName ?? "anonymous";
-                  const start = Date.now();
-
-                  log?.info(
-                    { "graphql.operation.name": operationName },
-                    "graphql execute start",
-                  );
-
-                  const run = async () => {
-                    const result = await executeFn(options);
-                    if (result && "errors" in result && result.errors?.length) {
-                      log?.error(
-                        {
-                          "graphql.operation.name": operationName,
-                          durationMs: Date.now() - start,
-                          errors: result.errors.map(
-                            (e: { message: string }) => e.message,
-                          ),
-                        },
-                        "graphql execute completed with errors",
-                      );
-                    } else {
-                      log?.info(
-                        {
-                          "graphql.operation.name": operationName,
-                          durationMs: Date.now() - start,
-                        },
-                        "graphql execute completed",
-                      );
-                    }
-                    return result;
-                  };
-
-                  if (rumbleInput.otel?.enabled) {
-                    return rumbleInput.otel.tracer!.startActiveSpan(
-                      SpanNames.EXECUTE,
-                      {
-                        attributes: {
-                          [AttributeNames.OPERATION_NAME]: operationName,
-                          [AttributeNames.SOURCE]: options.document,
-                        },
-                      },
-                      async (span) => {
-                        try {
-                          const result = await run();
-                          if (
-                            result &&
-                            "errors" in result &&
-                            result.errors?.length
-                          ) {
-                            for (const error of result.errors) {
-                              span.recordException(error);
-                            }
-                            span.setStatus({ code: SpanStatusCode.ERROR });
-                          }
-                          return result;
-                        } catch (error) {
-                          if (error instanceof Error) {
-                            span.recordException(error);
-                          }
-                          log?.error(
-                            {
-                              "graphql.operation.name": operationName,
-                              durationMs: Date.now() - start,
-                              err: error,
-                            },
-                            "graphql execute threw",
-                          );
-                          span.setStatus({ code: SpanStatusCode.ERROR });
-                          throw error;
-                        } finally {
-                          span.end();
-                        }
-                      },
-                    );
-                  }
-
-                  try {
-                    return await run();
-                  } catch (error) {
-                    log?.error(
-                      {
-                        "graphql.operation.name": operationName,
-                        durationMs: Date.now() - start,
-                        err: error,
-                      },
-                      "graphql execute threw",
-                    );
-                    throw error;
-                  }
-                });
+                setExecuteFn(
+                  buildTracedExecute(
+                    executeFn,
+                    rumbleInput,
+                  ) as typeof executeFn,
+                );
               },
             } as Plugin)
           : false,
@@ -426,6 +342,14 @@ export const r = rumble({
       ...args,
       schema: builtSchema(),
       context,
+      execute: buildTracedExecute(
+        args.execute ?? defaultExecute,
+        rumbleInput,
+      ) as any,
+      subscribe: buildTracedSubscribe(
+        args.subscribe ?? defaultSubscribe,
+        rumbleInput,
+      ) as any,
       errorHandler(errors) {
         const span = trace.getActiveSpan();
 
@@ -455,6 +379,14 @@ export const r = rumble({
         ...args,
         schema: builtSchema(),
         context,
+        execute: buildTracedExecute(
+          (args as any).execute ?? defaultExecute,
+          rumbleInput,
+        ) as any,
+        subscribe: buildTracedSubscribe(
+          (args as any).subscribe ?? defaultSubscribe,
+          rumbleInput,
+        ) as any,
       } as Options,
       ...rest,
     );

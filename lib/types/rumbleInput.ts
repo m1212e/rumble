@@ -116,5 +116,12 @@ export type RumbleInput<
      * The logger instance to use. Must satisfy the RumbleLogger interface (pino satisfies this).
      */
     logger: RumbleLogger;
+    /**
+     * When both logger and otel are enabled, inject `traceId` and `spanId` fields into every
+     * log entry emitted during a GraphQL operation. Useful for correlating log lines with
+     * traces in backends like Jaeger or Grafana Tempo.
+     * @default true
+     */
+    injectTraceId?: boolean;
   };
 };
