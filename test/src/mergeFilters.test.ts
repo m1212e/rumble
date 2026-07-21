@@ -1,7 +1,37 @@
 import { describe, expect, test } from "bun:test";
 import { mergeFilters } from "../../lib/helpers/mergeFilters";
 
+// See the comment on `EmptyFilter` in `../../lib/abilityBuilder.ts` — it's a
+// globally registered symbol, so recreating it here yields the same value.
+const EmptyFilter = Symbol.for("drizzle:EmptyFilter");
+
 describe("mergeFilters", () => {
+  describe("EmptyFilter sentinel", () => {
+    test("treats EmptyFilter as no filter, not a real where to AND with", () => {
+      const result = mergeFilters(
+        { where: EmptyFilter },
+        { where: { ownerId: "user-1" } },
+      );
+      expect((result as any).where).toEqual({ ownerId: "user-1" });
+    });
+
+    test("treats EmptyFilter as no filter regardless of argument order", () => {
+      const result = mergeFilters(
+        { where: { ownerId: "user-1" } },
+        { where: EmptyFilter },
+      );
+      expect((result as any).where).toEqual({ ownerId: "user-1" });
+    });
+
+    test("returns undefined where when both sides are EmptyFilter", () => {
+      const result = mergeFilters(
+        { where: EmptyFilter },
+        { where: EmptyFilter },
+      );
+      expect((result as any).where).toBeUndefined();
+    });
+  });
+
   describe("AND mode (default)", () => {
     test("combines two where clauses with AND", () => {
       const result = mergeFilters(

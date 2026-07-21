@@ -1,5 +1,20 @@
 import { toMerged } from "es-toolkit";
 
+// See the comment on `EmptyFilter` in `../abilityBuilder.ts` for why this is
+// recreated locally instead of imported from drizzle-orm.
+const EmptyFilter = Symbol.for("drizzle:EmptyFilter");
+
+/**
+ * Normalizes drizzle-orm's `EmptyFilter` sentinel to `undefined` so it's
+ * treated as "no filter" rather than a real filter value to combine with
+ * AND/OR — otherwise merging an unrestricted (EmptyFilter) base filter with
+ * a real `where` would needlessly wrap it as `{ AND: [EmptyFilter, where] }`
+ * instead of just `where`.
+ */
+function realWhere(where: unknown) {
+  return where === EmptyFilter ? undefined : where;
+}
+
 export function mergeFilters<
   FilterA extends Record<string, any>,
   FilterB extends Record<string, any>,
@@ -8,12 +23,15 @@ export function mergeFilters<
   filterB?: Partial<FilterB>,
   mode: "AND" | "OR" = "AND",
 ) {
+  const filterAWhere = realWhere(filterA?.where);
+  const filterBWhere = realWhere(filterB?.where);
+
   const where =
-    filterA?.where && filterB?.where
+    filterAWhere && filterBWhere
       ? mode === "OR"
-        ? { OR: [filterA.where, filterB.where] }
-        : { AND: [filterA.where, filterB.where] }
-      : (filterA?.where ?? filterB?.where);
+        ? { OR: [filterAWhere, filterBWhere] }
+        : { AND: [filterAWhere, filterBWhere] }
+      : (filterAWhere ?? filterBWhere);
 
   const columns =
     filterA?.columns || filterB?.columns
