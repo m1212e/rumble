@@ -122,6 +122,32 @@ r.query({ table: "users" });
 r.query({ table: "notATable" });
 
 // ---------------------------------------------------------------------------
+// query helper: custom findMany/findFirst handlers
+// ---------------------------------------------------------------------------
+
+r.query({
+  table: "posts",
+  findMany: ({ tx, filter, queryArgs }) => {
+    // filter and queryArgs share the same drizzle query-config shape for the table.
+    expectTypeOf(filter).toEqualTypeOf(queryArgs);
+    // tx can be fed straight into the table's own findMany.
+    return tx.query.posts.findMany(queryArgs);
+  },
+  findFirst: ({ tx, filter, queryArgs }) => {
+    expectTypeOf(filter).toEqualTypeOf(queryArgs);
+    // findFirst's tx is always the full DB instance (never wrapped in a transaction).
+    expectTypeOf(tx).toHaveProperty("transaction");
+    return tx.query.posts.findFirst(queryArgs);
+  },
+});
+
+// @ts-expect-error findMany's return type must match the table's own findMany result
+r.query({ table: "posts", findMany: () => 123 });
+
+// @ts-expect-error findFirst's return type must match the table's own findFirst result
+r.query({ table: "posts", findFirst: () => 123 });
+
+// ---------------------------------------------------------------------------
 // object helper: bad table rejected, refName is optional string
 // ---------------------------------------------------------------------------
 

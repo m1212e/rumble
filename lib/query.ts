@@ -71,6 +71,8 @@ export const createQueryImplementer = <
     table,
     readAction = "read" as Action,
     listAction = "read" as Action,
+    findFirst,
+    findMany,
   }: {
     /**
      * The table for which to implement the query
@@ -86,6 +88,20 @@ export const createQueryImplementer = <
      * @default "read"
      */
     listAction?: Action;
+
+    findMany?: (p: {
+      tx: DB | Parameters<Parameters<DB["transaction"]>[0]>[0];
+      filter: Parameters<DrizzleQueryFunction<DB>[TableName]["findMany"]>[0];
+      queryArgs: Parameters<DrizzleQueryFunction<DB>[TableName]["findMany"]>[0];
+    }) => ReturnType<DrizzleQueryFunction<DB>[TableName]["findMany"]>;
+
+    findFirst?: (p: {
+      tx: DB;
+      filter: Parameters<DrizzleQueryFunction<DB>[TableName]["findFirst"]>[0];
+      queryArgs: Parameters<
+        DrizzleQueryFunction<DB>[TableName]["findFirst"]
+      >[0];
+    }) => ReturnType<DrizzleQueryFunction<DB>[TableName]["findFirst"]>;
   }) => {
     const WhereArg = whereArgImplementer({
       table: table,
@@ -169,11 +185,15 @@ export const createQueryImplementer = <
               (filter as any).orderBy = mappedArgs.orderBy;
             }
 
-            const queryInstance = query(filter as any);
+            const queryArgs = query(filter as any);
 
             if ((filter as any).columns) {
-              queryInstance.columns = (filter as any).columns;
+              queryArgs.columns = (filter as any).columns;
             }
+
+            const run = findMany
+              ? (tx: DB) => findMany({ tx, filter: filter as any, queryArgs })
+              : (tx: any) => (tx.query as any)[table].findMany(queryArgs);
 
             if (
               search?.enabled &&
@@ -196,11 +216,12 @@ export const createQueryImplementer = <
                     : undefined;
                   log ? log.info({}, msg) : console.info(msg);
                 }
-                return (tx.query as any)[table].findMany(queryInstance);
+
+                return run(tx);
               });
             }
 
-            return (db.query as any)[table].findMany(queryInstance);
+            return run(db);
           },
         }),
         [singularName]: t.drizzleField({
@@ -218,15 +239,17 @@ export const createQueryImplementer = <
               .filter(readAction)
               .merge({ where: { [primaryKeyField.name]: args.id } })
               .query.single;
-            const q = query(filter);
+            const queryArgs = query(filter);
 
             if (filter.columns) {
-              q.columns = filter.columns;
+              queryArgs.columns = filter.columns;
             }
 
-            return (db.query as any)[table]
-              .findFirst(q)
-              .then(assertFindFirstExists);
+            return findFirst
+              ? findFirst({ tx: db, filter: filter as any, queryArgs })
+              : (db.query as any)[table]
+                  .findFirst(queryArgs)
+                  .then(assertFindFirstExists);
           },
         }),
       };
