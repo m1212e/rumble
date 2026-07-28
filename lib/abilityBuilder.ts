@@ -3,6 +3,7 @@ import { relationsFilterToSQL } from "drizzle-orm";
 import { debounce } from "es-toolkit";
 import { lazy } from "./helpers/lazy";
 import { mergeFilters } from "./helpers/mergeFilters";
+import { sanitizeFilterValue } from "./helpers/sanitizeFilterValue";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
 import { tableHelper } from "./helpers/tableHelpers";
 import type {
@@ -22,22 +23,6 @@ import type {
   RumbleInput,
   RumbleLogger,
 } from "./types/rumbleInput";
-
-/**
- * drizzle-orm's sentinel value for "this filter field is deliberately
- * skipped", as opposed to `undefined`, which some drizzle-orm versions
- * reject when it ends up as an explicit (present but `undefined`) `where`
- * property nested inside a relational `with` query.
- *
- * drizzle-orm defines this via `Symbol.for("drizzle:EmptyFilter")` — a
- * globally registered symbol — so recreating it the same way here yields
- * the exact same value drizzle-orm's relational query engine checks for,
- * without importing it directly: not every drizzle-orm version rumble
- * supports exports it as a named export, and older versions that don't know
- * about it at all still handle it safely (`Object.entries` on a symbol
- * yields no entries, i.e. "no filter").
- */
-const EmptyFilter = Symbol.for("drizzle:EmptyFilter") as unknown as any;
 
 //TODO: optimize this for v8 & refactor
 
@@ -442,7 +427,7 @@ export const createAbilityBuilder = <
                 return filters?.where
                   ? relationsFilterToSQL(
                       tableSchema.foundRelation.table,
-                      filters.where,
+                      sanitizeFilterValue(filters.where) as any,
                       tableSchema.relations,
                       db._.relations,
                       casing,
@@ -470,7 +455,7 @@ export const createAbilityBuilder = <
                      */
                     single: {
                       extras: filters?.extras,
-                      where: filters?.where ?? EmptyFilter,
+                      where: sanitizeFilterValue(filters?.where),
                       columns: filters?.columns,
                     } as Pick<
                       NonNullable<
@@ -485,7 +470,7 @@ export const createAbilityBuilder = <
                      */
                     many: {
                       extras: filters?.extras,
-                      where: filters?.where ?? EmptyFilter,
+                      where: sanitizeFilterValue(filters?.where),
                       columns: filters?.columns,
                       get limit() {
                         return limit();
@@ -541,7 +526,7 @@ export const createAbilityBuilder = <
                      */
                     single: {
                       extras: filters?.extras,
-                      where: filters?.where ?? EmptyFilter,
+                      where: sanitizeFilterValue(filters?.where),
                     } as Pick<
                       NonNullable<
                         NonNullable<
@@ -555,7 +540,7 @@ export const createAbilityBuilder = <
                      */
                     many: {
                       extras: filters?.extras,
-                      where: filters?.where ?? EmptyFilter,
+                      where: sanitizeFilterValue(filters?.where),
                       get limit() {
                         return limit();
                       },

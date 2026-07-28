@@ -368,4 +368,78 @@ describe("test rumble abilities and filters", async () => {
 
     expect(prefetch).toBeCalledTimes(2);
   });
+
+  // Regression coverage for tables that are `.allow(...)`ed with no `.when()`
+  // at all (i.e. fully unrestricted at the DB level) and rely entirely on an
+  // application-level (`.filter().by()`) runtime filter — a common setup for
+  // apps that delegate row-level authorization to an external system (e.g.
+  // SpiceDB) instead of expressing it as a drizzle `where`. This is also the
+  // shape that produced the "Unexpected 'undefined' in filter value" crash
+  // in some drizzle-orm versions before EmptyFilter handling was added.
+  describe("unrestricted ability + application-level filter only", () => {
+    test("three levels of nested relations resolve without a query-building error", async () => {
+      rumble.abilityBuilder.users.allow(["read"]);
+      rumble.abilityBuilder.posts.allow(["read"]);
+      rumble.abilityBuilder.comments.allow(["read"]);
+
+      rumble.abilityBuilder.users.filter("read").by(({ entities }) => entities);
+      rumble.abilityBuilder.posts.filter("read").by(({ entities }) => entities);
+      rumble.abilityBuilder.comments
+        .filter("read")
+        .by(({ entities }) => entities);
+
+      const { executor, yogaInstance: _yogaInstance } = build();
+      const r = await executor({
+        document: parse(/* GraphQL */ `
+          query {
+            users {
+              id
+              posts {
+                id
+                comments {
+                  id
+                }
+              }
+            }
+          }
+        `),
+      });
+
+      expect((r as any).errors).toBeUndefined();
+      expect((r as any).data.users.length).toEqual(data.users.length);
+    });
+
+    test("mutation returning nested relations resolves without a query-building error", async () => {
+      rumble.abilityBuilder.users.allow(["read", "update"]);
+      rumble.abilityBuilder.posts.allow(["read"]);
+      rumble.abilityBuilder.comments.allow(["read"]);
+
+      rumble.abilityBuilder.users.filter("read").by(({ entities }) => entities);
+      rumble.abilityBuilder.posts.filter("read").by(({ entities }) => entities);
+      rumble.abilityBuilder.comments
+        .filter("read")
+        .by(({ entities }) => entities);
+
+      const { executor, yogaInstance: _yogaInstance } = build();
+      const r = await executor({
+        document: parse(/* GraphQL */ `
+          mutation {
+            updateUsername(userId: "${data.users[0].id}", firstName: "Changed") {
+              id
+              firstName
+              posts {
+                id
+                comments {
+                  id
+                }
+              }
+            }
+          }
+        `),
+      });
+
+      expect((r as any).errors).toBeUndefined();
+      expect((r as any).data.updateUsername.firstName).toEqual("Changed");
+    });
+  });
 });

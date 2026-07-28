@@ -1,7 +1,7 @@
 import { toMerged } from "es-toolkit";
 
-// See the comment on `EmptyFilter` in `../abilityBuilder.ts` for why this is
-// recreated locally instead of imported from drizzle-orm.
+// See the comment on `EmptyFilter` in `./sanitizeFilterValue.ts` for why this
+// is recreated locally instead of imported from drizzle-orm.
 const EmptyFilter = Symbol.for("drizzle:EmptyFilter");
 
 /**
