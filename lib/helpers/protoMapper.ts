@@ -6,11 +6,19 @@ export function deepSetProto(
   if (obj === null || typeof obj !== "object") return;
   if (seen.has(obj)) return;
   seen.add(obj);
-  // Arrays must keep Array.prototype (e.g. .map/.filter) - only plain
-  // objects (which graphql-js may hand back with a null prototype) need fixing up.
-  if (!Array.isArray(obj)) {
-    Object.setPrototypeOf(obj, proto);
+
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      deepSetProto(item, proto, seen);
+    }
+    return;
   }
+
+  const currentProto = Object.getPrototypeOf(obj);
+  if (currentProto !== Object.prototype && currentProto !== null) {
+    return;
+  }
+  Object.setPrototypeOf(obj, proto);
   for (const key of Object.keys(obj)) {
     deepSetProto(obj[key], proto, seen);
   }
