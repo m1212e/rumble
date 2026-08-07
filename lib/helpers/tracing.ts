@@ -5,6 +5,8 @@ import {
   subscribe as defaultSubscribe,
   type ExecutionArgs,
   type ExecutionResult,
+  getOperationAST,
+  print,
 } from "graphql";
 import type { DrizzleInstance } from "../types/drizzleInstanceType";
 import type {
@@ -12,6 +14,30 @@ import type {
   RumbleInput,
   RumbleLogger,
 } from "../types/rumbleInput";
+import { errorLogField, errorsLogField } from "./errorLogging";
+
+// @pothos/tracing-opentelemetry's SpanNames enum has no subscribe member.
+const SUBSCRIBE_SPAN_NAME = "graphql.subscribe";
+
+function getOperationType(options: ExecutionArgs) {
+  return getOperationAST(options.document, options.operationName)?.operation;
+}
+
+function operationLogFields(operationName: string, operationType?: string) {
+  return {
+    "graphql.operation.name": operationName,
+    ...(operationType ? { "graphql.operation.type": operationType } : {}),
+  };
+}
+
+function traceIdLogFields(span: Span) {
+  const { traceId, spanId, traceFlags } = span.spanContext();
+  return {
+    trace_id: traceId,
+    span_id: spanId,
+    trace_flags: traceFlags.toString(16).padStart(2, "0"),
+  };
+}
 
 export function isAsyncIterable(
   value: unknown,
@@ -25,6 +51,7 @@ export async function* wrapSubscriptionIterator(
   iterator: AsyncIterable<ExecutionResult>,
   log: RumbleLogger,
   operationName: string,
+  operationType?: string,
 ): AsyncGenerator<ExecutionResult> {
   let eventCount = 0;
   try {
@@ -33,9 +60,9 @@ export async function* wrapSubscriptionIterator(
       if (event.errors?.length) {
         log.error(
           {
-            "graphql.operation.name": operationName,
-            eventCount,
-            errors: event.errors.map((e: { message: string }) => e.message),
+            ...operationLogFields(operationName, operationType),
+            event_count: eventCount,
+            ...errorsLogField(event.errors),
           },
           "graphql subscription event error",
         );
@@ -43,12 +70,19 @@ export async function* wrapSubscriptionIterator(
       yield event;
     }
     log.info(
-      { "graphql.operation.name": operationName, eventCount },
+      {
+        ...operationLogFields(operationName, operationType),
+        event_count: eventCount,
+      },
       "graphql subscription completed",
     );
   } catch (error) {
     log.error(
-      { "graphql.operation.name": operationName, eventCount, err: error },
+      {
+        ...operationLogFields(operationName, operationType),
+        event_count: eventCount,
+        ...errorLogField(error),
+      },
       "graphql subscription threw",
     );
     throw error;
@@ -72,10 +106,11 @@ export function buildTracedExecute<
       ? rumbleInput.logger.logger
       : undefined;
     const operationName = options.operationName ?? "anonymous";
+    const operationType = getOperationType(options);
     const start = Date.now();
 
     log?.info(
-      { "graphql.operation.name": operationName },
+      operationLogFields(operationName, operationType),
       "graphql execute start",
     );
 
@@ -84,17 +119,17 @@ export function buildTracedExecute<
       if (result && "errors" in result && result.errors?.length) {
         log?.error(
           {
-            "graphql.operation.name": operationName,
-            durationMs: Date.now() - start,
-            errors: result.errors.map((e: { message: string }) => e.message),
+            ...operationLogFields(operationName, operationType),
+            duration_ms: Date.now() - start,
+            ...errorsLogField(result.errors),
           },
           "graphql execute completed with errors",
         );
       } else {
         log?.info(
           {
-            "graphql.operation.name": operationName,
-            durationMs: Date.now() - start,
+            ...operationLogFields(operationName, operationType),
+            duration_ms: Date.now() - start,
           },
           "graphql execute completed",
         );
@@ -108,13 +143,15 @@ export function buildTracedExecute<
         {
           attributes: {
             [AttributeNames.OPERATION_NAME]: operationName,
-            [AttributeNames.SOURCE]: options.document as any,
+            ...(operationType
+              ? { [AttributeNames.OPERATION_TYPE]: operationType }
+              : {}),
+            "graphql.document": print(options.document),
           },
         },
         async (span: Span) => {
           if (log && rumbleInput.logger?.injectTraceId !== false) {
-            const { traceId, spanId } = span.spanContext();
-            log = log.child({ traceId, spanId });
+            log = log.child(traceIdLogFields(span));
           }
           try {
             const result = await run();
@@ -127,9 +164,9 @@ export function buildTracedExecute<
             if (error instanceof Error) span.recordException(error);
             log?.error(
               {
-                "graphql.operation.name": operationName,
-                durationMs: Date.now() - start,
-                err: error,
+                ...operationLogFields(operationName, operationType),
+                duration_ms: Date.now() - start,
+                ...errorLogField(error),
               },
               "graphql execute threw",
             );
@@ -147,9 +184,9 @@ export function buildTracedExecute<
     } catch (error) {
       log?.error(
         {
-          "graphql.operation.name": operationName,
-          durationMs: Date.now() - start,
-          err: error,
+          ...operationLogFields(operationName, operationType),
+          duration_ms: Date.now() - start,
+          ...errorLogField(error),
         },
         "graphql execute threw",
       );
@@ -182,13 +219,14 @@ export function buildTracedSubscribe<
       ? rumbleInput.logger.logger
       : undefined;
     const operationName = options.operationName ?? "anonymous";
+    const operationType = getOperationType(options);
     const start = Date.now();
 
     const doSubscribe = async (): Promise<
       AsyncIterable<ExecutionResult> | ExecutionResult
     > => {
       log?.info(
-        { "graphql.operation.name": operationName },
+        operationLogFields(operationName, operationType),
         "graphql subscribe start",
       );
 
@@ -199,11 +237,9 @@ export function buildTracedSubscribe<
         if (execResult.errors?.length) {
           log?.error(
             {
-              "graphql.operation.name": operationName,
-              durationMs: Date.now() - start,
-              errors: execResult.errors.map(
-                (e: { message: string }) => e.message,
-              ),
+              ...operationLogFields(operationName, operationType),
+              duration_ms: Date.now() - start,
+              ...errorsLogField(execResult.errors),
             },
             "graphql subscribe completed with errors",
           );
@@ -213,8 +249,8 @@ export function buildTracedSubscribe<
 
       log?.info(
         {
-          "graphql.operation.name": operationName,
-          durationMs: Date.now() - start,
+          ...operationLogFields(operationName, operationType),
+          duration_ms: Date.now() - start,
         },
         "graphql subscription established",
       );
@@ -224,6 +260,7 @@ export function buildTracedSubscribe<
           result as AsyncIterable<ExecutionResult>,
           log,
           operationName,
+          operationType,
         );
       }
       return result;
@@ -231,11 +268,19 @@ export function buildTracedSubscribe<
 
     if (rumbleInput.otel?.enabled) {
       return rumbleInput.otel.tracer!.startActiveSpan(
-        "graphql.subscribe",
+        SUBSCRIBE_SPAN_NAME,
+        {
+          attributes: {
+            [AttributeNames.OPERATION_NAME]: operationName,
+            ...(operationType
+              ? { [AttributeNames.OPERATION_TYPE]: operationType }
+              : {}),
+            "graphql.document": print(options.document),
+          },
+        },
         async (span: Span) => {
           if (log && rumbleInput.logger?.injectTraceId !== false) {
-            const { traceId, spanId } = span.spanContext();
-            log = log.child({ traceId, spanId });
+            log = log.child(traceIdLogFields(span));
           }
           try {
             const result = await doSubscribe();
@@ -252,9 +297,9 @@ export function buildTracedSubscribe<
             if (error instanceof Error) span.recordException(error);
             log?.error(
               {
-                "graphql.operation.name": operationName,
-                durationMs: Date.now() - start,
-                err: error,
+                ...operationLogFields(operationName, operationType),
+                duration_ms: Date.now() - start,
+                ...errorLogField(error),
               },
               "graphql subscribe threw",
             );
@@ -272,9 +317,9 @@ export function buildTracedSubscribe<
     } catch (error) {
       log?.error(
         {
-          "graphql.operation.name": operationName,
-          durationMs: Date.now() - start,
-          err: error,
+          ...operationLogFields(operationName, operationType),
+          duration_ms: Date.now() - start,
+          ...errorLogField(error),
         },
         "graphql subscribe threw",
       );

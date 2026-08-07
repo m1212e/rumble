@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { cloneDeep } from "es-toolkit";
 import { isPostgresDB } from "./helpers/determineDialectFromSchema";
+import { errorLogField } from "./helpers/errorLogging";
 import {
   isIDLikeSQLTypeString,
   isStringLikeSQLTypeString,
@@ -25,7 +26,7 @@ export async function initSearchIfApplicable(
   } catch (error) {
     const msg =
       "Failed to create pg_trgm extension. Search functionality may not work. Ensure the database user has CREATE privilege or the extension is pre-installed.";
-    log ? log.error({ err: error }, msg) : console.error(msg, error);
+    log ? log.error(errorLogField(error), msg) : console.error(msg, error);
     return;
   }
   if (input.search?.threshold) {

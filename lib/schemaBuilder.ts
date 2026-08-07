@@ -29,6 +29,7 @@ import {
   type StringWhereInputArgument,
 } from "./args/whereArgsImplementer";
 import type { ContextType } from "./context";
+import { errorLogField } from "./helpers/errorLogging";
 import { pluginName } from "./runtimeFiltersPlugin/filterTypes";
 import { registerRuntimeFiltersPlugin } from "./runtimeFiltersPlugin/runtimeFiltersPlugin";
 import type { DrizzleInstance } from "./types/drizzleInstanceType";
@@ -139,8 +140,8 @@ export const createSchemaBuilder = <
                 {
                   "graphql.field.name": config.name,
                   "graphql.parent.type": config.parentType,
-                  durationMs: duration,
-                  err: error,
+                  duration_ms: duration,
+                  ...errorLogField(error),
                 },
                 "resolver failed",
               );
@@ -149,7 +150,7 @@ export const createSchemaBuilder = <
                 {
                   "graphql.field.name": config.name,
                   "graphql.parent.type": config.parentType,
-                  durationMs: duration,
+                  duration_ms: duration,
                 },
                 "resolver completed",
               );

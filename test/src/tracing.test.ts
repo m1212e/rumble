@@ -29,7 +29,11 @@ function makeMockSpan() {
     recordException: mock(() => {}),
     setStatus: mock(() => {}),
     end: mock(() => {}),
-    spanContext: () => ({ traceId: "trace-abc", spanId: "span-xyz" }),
+    spanContext: () => ({
+      traceId: "trace-abc",
+      spanId: "span-xyz",
+      traceFlags: 1,
+    }),
   };
 }
 
@@ -110,7 +114,7 @@ describe("wrapSubscriptionIterator", () => {
     expect(log.error).toHaveBeenCalledTimes(1);
     const [fields, msg] = (log.error as any).mock.calls[0];
     expect(fields["graphql.operation.name"]).toBe("Op");
-    expect(fields.errors).toContain("boom");
+    expect(fields.errors[0]["exception.message"]).toBe("boom");
     expect(msg).toContain("error");
   });
 
@@ -127,7 +131,7 @@ describe("wrapSubscriptionIterator", () => {
     expect(log.info).toHaveBeenCalledTimes(1); // only the completion log
   });
 
-  test("logs completion with eventCount", async () => {
+  test("logs completion with event_count", async () => {
     const source = (async function* () {
       yield { data: {} };
       yield { data: {} };
@@ -141,7 +145,7 @@ describe("wrapSubscriptionIterator", () => {
     expect(log.info).toHaveBeenCalledTimes(1);
     const [fields, msg] = (log.info as any).mock.calls[0];
     expect(fields["graphql.operation.name"]).toBe("MyOp");
-    expect(fields.eventCount).toBe(3);
+    expect(fields.event_count).toBe(3);
     expect(msg).toContain("completed");
   });
 
@@ -159,7 +163,8 @@ describe("wrapSubscriptionIterator", () => {
 
     expect(log.error).toHaveBeenCalledTimes(1);
     const [fields, msg] = (log.error as any).mock.calls[0];
-    expect(fields.err).toBeInstanceOf(Error);
+    expect(fields.errors[0]["exception.type"]).toBe("Error");
+    expect(fields.errors[0]["exception.message"]).toBe("iterator error");
     expect(msg).toContain("threw");
   });
 });
@@ -184,7 +189,7 @@ describe("buildTracedExecute — logger only", () => {
     expect((log.info as any).mock.calls[0][1]).toContain("start");
     expect((log.info as any).mock.calls[1][1]).toContain("completed");
     expect(
-      (log.info as any).mock.calls[1][0].durationMs,
+      (log.info as any).mock.calls[1][0].duration_ms,
     ).toBeGreaterThanOrEqual(0);
   });
 
@@ -203,7 +208,7 @@ describe("buildTracedExecute — logger only", () => {
 
     expect(log.error).toHaveBeenCalledTimes(1);
     const [fields, msg] = (log.error as any).mock.calls[0];
-    expect(fields.errors).toContain("field error");
+    expect(fields.errors[0]["exception.message"]).toBe("field error");
     expect(msg).toContain("errors");
   });
 
@@ -305,7 +310,7 @@ describe("buildTracedExecute — otel only", () => {
 });
 
 describe("buildTracedExecute — logger + otel", () => {
-  test("injects traceId and spanId into child logger by default", async () => {
+  test("injects trace_id and span_id into child logger by default", async () => {
     const log = makeMockLogger();
     const span = makeMockSpan();
     const tracer = makeMockTracer(span);
@@ -321,8 +326,9 @@ describe("buildTracedExecute — logger + otel", () => {
 
     expect(log.child).toHaveBeenCalledTimes(1);
     const childArgs = (log.child as any).mock.calls[0][0];
-    expect(childArgs.traceId).toBe("trace-abc");
-    expect(childArgs.spanId).toBe("span-xyz");
+    expect(childArgs.trace_id).toBe("trace-abc");
+    expect(childArgs.span_id).toBe("span-xyz");
+    expect(childArgs.trace_flags).toBe("01");
   });
 
   test("skips traceId injection when injectTraceId is false", async () => {
@@ -376,7 +382,9 @@ describe("buildTracedSubscribe — logger only", () => {
 
     expect(result).toBe(errorResult as any);
     expect(log.error).toHaveBeenCalledTimes(1);
-    expect((log.error as any).mock.calls[0][0].errors).toContain("sub failed");
+    expect(
+      (log.error as any).mock.calls[0][0].errors[0]["exception.message"],
+    ).toBe("sub failed");
   });
 
   test("logs and rethrows when subscribeFn throws", async () => {
@@ -447,7 +455,7 @@ describe("buildTracedSubscribe — otel only", () => {
 });
 
 describe("buildTracedSubscribe — logger + otel", () => {
-  test("injects traceId and spanId into child logger by default", async () => {
+  test("injects trace_id and span_id into child logger by default", async () => {
     const log = makeMockLogger();
     const span = makeMockSpan();
     const tracer = makeMockTracer(span);
@@ -466,8 +474,9 @@ describe("buildTracedSubscribe — logger + otel", () => {
 
     expect(log.child).toHaveBeenCalledTimes(1);
     const childArgs = (log.child as any).mock.calls[0][0];
-    expect(childArgs.traceId).toBe("trace-abc");
-    expect(childArgs.spanId).toBe("span-xyz");
+    expect(childArgs.trace_id).toBe("trace-abc");
+    expect(childArgs.span_id).toBe("span-xyz");
+    expect(childArgs.trace_flags).toBe("01");
   });
 
   test("skips traceId injection when injectTraceId is false", async () => {

@@ -6,6 +6,7 @@ import SchemaBuilder, {
   type SchemaTypes,
 } from "@pothos/core";
 import type { GraphQLFieldResolver } from "graphql";
+import { errorLogField } from "../helpers/errorLogging";
 import type { RumbleLogger } from "../types/rumbleInput";
 import { type ApplyFiltersField, pluginName } from "./filterTypes";
 
@@ -153,7 +154,10 @@ export class RuntimeFiltersPlugin<
               return await runFilters(span);
             } catch (error) {
               this.logger?.error(
-                { "graphql.field.name": fieldConfig.name, err: error },
+                {
+                  "graphql.field.name": fieldConfig.name,
+                  ...errorLogField(error),
+                },
                 "runtime filter threw",
               );
               throw error;
@@ -167,7 +171,10 @@ export class RuntimeFiltersPlugin<
           return await runFilters();
         } catch (error) {
           this.logger?.error(
-            { "graphql.field.name": fieldConfig.name, err: error },
+            {
+              "graphql.field.name": fieldConfig.name,
+              ...errorLogField(error),
+            },
             "runtime filter threw",
           );
           throw error;
