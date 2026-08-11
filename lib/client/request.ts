@@ -10,7 +10,8 @@ import { DateResolver, DateTimeISOResolver } from "graphql-scalars";
 // since svelte is optional, dub this in case the import is not available, but if it is, use the real one
 let createSubscriber: typeof import("svelte/reactivity").createSubscriber =
   () => () => {};
-import("svelte/reactivity")
+
+const svelteReactivityReady: Promise<void> = import("svelte/reactivity")
   .then((m) => {
     createSubscriber = m.createSubscriber;
   })
@@ -163,12 +164,7 @@ export function makeGraphQLQueryRequest({
       }),
   );
 
-  const svelteSubscriber = createSubscriber((update) => {
-    const unsub = observable.subscribe((_d) => {
-      update();
-    });
-    return () => unsub.unsubscribe();
-  });
+  let svelteSubscriber: () => void = () => {};
 
   const { operationString, variables } = makeOperation({
     operationVerb: "query",
@@ -211,6 +207,15 @@ export function makeGraphQLQueryRequest({
     ),
   );
 
+  const subscriberReady = svelteReactivityReady.then(() => {
+    svelteSubscriber = createSubscriber((update) => {
+      const unsub = observable.subscribe((_d) => {
+        update();
+      });
+      return () => unsub.unsubscribe();
+    });
+  });
+
   const promise = new Promise<any>((resolve, reject) => {
     pipe(
       client.query(operationString, variables) as any,
@@ -227,20 +232,22 @@ export function makeGraphQLQueryRequest({
           return;
         }
         if (typeof forceReactivity === "boolean" && forceReactivity) {
-          resolve(observable);
+          subscriberReady.then(() => resolve(observable));
           return;
         }
 
         currentData = data;
         observableSources.push(fromValue(data));
 
-        try {
-          const r = dataProxy();
-          Object.assign(r, observable);
-          resolve(r);
-        } catch (err) {
-          reject(err);
-        }
+        subscriberReady.then(() => {
+          try {
+            const r = dataProxy();
+            Object.assign(r, observable);
+            resolve(r);
+          } catch (err) {
+            reject(err);
+          }
+        });
       }),
     );
   });
