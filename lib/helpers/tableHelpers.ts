@@ -26,7 +26,7 @@ type RelationEntry = {
   relations: Record<string, One<any, any> | Many<any>>;
   /**
    * Whether the underlying entity is a genuine drizzle Table (as opposed to a
-   * View/MaterializedView, which structurally never has a primary key).
+   * View/MaterializedView)
    */
   isTable: boolean;
   /**

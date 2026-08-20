@@ -23,9 +23,7 @@ export type DrizzleTableSchema<DB extends DrizzleInstance> = ObjectValues<
 export type DrizzleQueryFunction<DB extends DrizzleInstance> = DB["query"];
 
 /**
- * Names of relations backed by a genuine drizzle Table — excludes
- * View/MaterializedView entries, which structurally never have a primary key
- * and so can't support rumble's row-level ability/query filtering.
+ * Names of relations backed by a genuine drizzle Table
  */
 export type TableRelationNames<DB extends DrizzleInstance> = {
   [K in keyof DB["_"]["relations"]]: DB["_"]["relations"][K] extends {

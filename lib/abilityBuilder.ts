@@ -128,8 +128,7 @@ export const createAbilityBuilder = <
   type TableNames = TableRelationNames<DB>;
 
   // Views/materialized views can appear in db.query (if the caller's schema
-  // includes them) but structurally never have a primary key, so they're
-  // excluded here to match the TableNames type above.
+  // includes them)
   const tableRelationNames = (
     Object.keys(db.query) as (keyof DrizzleQueryFunction<DB>)[]
   ).filter(
