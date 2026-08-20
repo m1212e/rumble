@@ -16,6 +16,7 @@ import type {
   DrizzleQueryFunction,
   DrizzleQueryFunctionInput,
   DrizzleTableValueType,
+  TableRelationNames,
 } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
@@ -124,7 +125,16 @@ export const createAbilityBuilder = <
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>) => {
   const log = loggerConfig?.enabled ? loggerConfig.logger : undefined;
   const nothingRegisteredWarningLogger = makeNothingRegisteredWarner(log);
-  type TableNames = keyof DrizzleQueryFunction<DB>;
+  type TableNames = TableRelationNames<DB>;
+
+  // Views/materialized views can appear in db.query (if the caller's schema
+  // includes them) but structurally never have a primary key, so they're
+  // excluded here to match the TableNames type above.
+  const tableRelationNames = (
+    Object.keys(db.query) as (keyof DrizzleQueryFunction<DB>)[]
+  ).filter(
+    (name) => tableHelper({ db, table: name as any }).isTable,
+  ) as TableNames[];
 
   let hasBeenBuilt = false;
 
@@ -287,7 +297,7 @@ export const createAbilityBuilder = <
   };
 
   const buildersPerTable = Object.fromEntries(
-    (Object.keys(db.query) as TableNames[]).map((tableName) => [
+    tableRelationNames.map((tableName) => [
       tableName,
       createBuilderForTable<typeof tableName>(),
     ]),
@@ -359,7 +369,7 @@ export const createAbilityBuilder = <
 
           if (Object.keys(tableSchema.primaryKey).length === 0) {
             throw new RumbleError(
-              `No primary key found for entity ${tableName.toString()}`,
+              `No primary key found for entity ${String(tableName)}`,
             );
           }
 
@@ -625,10 +635,7 @@ export const createAbilityBuilder = <
                         "abilities.status",
                         "blocked_everything",
                       );
-                      nothingRegisteredWarningLogger(
-                        tableName.toString(),
-                        action,
-                      );
+                      nothingRegisteredWarningLogger(String(tableName), action);
                       return transformToResponse(blockEverythingFilter);
                     }
 
@@ -700,12 +707,12 @@ export const createAbilityBuilder = <
                       `rumble.abilities.prepare`,
                       (span) => {
                         span.setAttribute("rumble.action", action);
-                        span.setAttribute("rumble.table", tableName.toString());
+                        span.setAttribute("rumble.table", String(tableName));
                         try {
                           // assembleAbilities sets abilities.* attributes on the span;
                           // we capture them in parallel for logging via a lightweight proxy
                           const attrs: Record<string, unknown> = {
-                            "rumble.table": tableName.toString(),
+                            "rumble.table": String(tableName),
                             "rumble.action": action,
                           };
                           const proxy = new Proxy(span, {
@@ -729,7 +736,7 @@ export const createAbilityBuilder = <
                     );
                   } else {
                     const attrs: Record<string, unknown> = {
-                      "rumble.table": tableName.toString(),
+                      "rumble.table": String(tableName),
                       "rumble.action": action,
                     };
                     const spy = log
@@ -750,7 +757,7 @@ export const createAbilityBuilder = <
         };
 
         const abilitiesPerTable = Object.fromEntries(
-          (Object.keys(db.query) as TableNames[]).map((tableName) => [
+          tableRelationNames.map((tableName) => [
             tableName,
             createFilterForTable(tableName),
           ]),
@@ -762,12 +769,10 @@ export const createAbilityBuilder = <
 
         return (ctx: UserContext) => {
           return Object.fromEntries(
-            (Object.keys(abilitiesPerTable) as TableNames[]).map(
-              (tableName) => [
-                tableName,
-                abilitiesPerTable[tableName].withContext(ctx),
-              ],
-            ),
+            tableRelationNames.map((tableName) => [
+              tableName,
+              abilitiesPerTable[tableName].withContext(ctx),
+            ]),
           ) as {
             [key in TableNames]: ReturnType<
               ReturnType<typeof createFilterForTable<key>>["withContext"]

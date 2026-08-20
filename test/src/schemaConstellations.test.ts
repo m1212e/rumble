@@ -75,10 +75,10 @@ function buildFor(
     },
   } as any);
   for (const name of tableNames) {
-    r.object({ table: name as any });
+    r.object({ table: name } as any);
     (r as any).whereArg({ table: name });
     (r as any).orderArg({ table: name });
-    r.query({ table: name as any });
+    r.query({ table: name } as any);
   }
   const schema = r.buildSchema();
   assertValidSchema(schema);
@@ -311,10 +311,10 @@ describe("order input excludes relation fields", () => {
       },
       disableDefaultObjects: { mutation: true, subscription: true },
     } as any);
-    r.object({ table: "post" as any });
-    r.object({ table: "author" as any });
-    r.query({ table: "post" as any });
-    r.query({ table: "author" as any });
+    r.object({ table: "post" } as any);
+    r.object({ table: "author" } as any);
+    r.query({ table: "post" } as any);
+    r.query({ table: "author" } as any);
     const sdl = printSchema(r.buildSchema());
 
     const postOrderBlock = sdl.match(
@@ -376,8 +376,8 @@ describe("query-only schema (no mutations)", () => {
         return {};
       },
     } as any);
-    r.object({ table: "t" as any });
-    r.query({ table: "t" as any });
+    r.object({ table: "t" } as any);
+    r.query({ table: "t" } as any);
     const schema = r.buildSchema();
     // must not throw — GraphQL validates that Mutation type (if present) has fields
     expect(() => assertValidSchema(schema)).not.toThrow();
@@ -533,8 +533,8 @@ describe("structural constellations", () => {
       },
       disableDefaultObjects: { mutation: true, subscription: true },
     } as any);
-    r.object({ table: "a" as any });
-    r.query({ table: "a" as any });
+    r.object({ table: "a" } as any);
+    r.query({ table: "a" } as any);
     expect(() => r.buildSchema()).toThrow(
       /has not been registered.*rumble\.object/,
     );

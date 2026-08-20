@@ -17,6 +17,7 @@ import type {
   DrizzleInstance,
   DrizzleQueryFunction,
   DrizzleTableValueType,
+  TableRelationNames,
 } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
@@ -125,10 +126,7 @@ export const createObjectImplementer = <
     Action,
     PothosConfig
   >;
-  return <
-    TableName extends keyof DrizzleQueryFunction<DB>,
-    RefName extends string,
-  >({
+  return <TableName extends TableRelationNames<DB>, RefName extends string>({
     table,
     refName,
     readAction = "read" as Action,
@@ -169,9 +167,9 @@ export const createObjectImplementer = <
 
     if (Object.keys(tableSchema.primaryKey).length === 0) {
       const log = loggerConfig?.enabled ? loggerConfig.logger : undefined;
-      const msg = `Could not find primary key for ${table.toString()}. Cannot register subscriptions!`;
+      const msg = `Could not find primary key for ${String(table)}. Cannot register subscriptions!`;
       log
-        ? log.warn({ "rumble.table": table.toString() }, msg)
+        ? log.warn({ "rumble.table": String(table) }, msg)
         : console.warn(msg);
     }
     const primaryKey = Object.values(tableSchema.primaryKey)[0];
@@ -179,15 +177,15 @@ export const createObjectImplementer = <
     const { registerOnInstance } = makePubSubInstance({ table: table });
 
     return schemaBuilder.drizzleObject(table, {
-      name: refName ?? capitalize(table.toString()),
+      name: refName ?? capitalize(String(table)),
       subscribe: (subscriptions, element, _context) => {
         if (!primaryKey) return;
         const primaryKeyValue = (element as any)[primaryKey.name];
         if (!primaryKeyValue) {
           const log = loggerConfig?.enabled ? loggerConfig.logger : undefined;
-          const msg = `Could not find primary key value for element on ${table.toString()}. Cannot register subscription!`;
+          const msg = `Could not find primary key value for element on ${String(table)}. Cannot register subscription!`;
           log
-            ? log.warn({ "rumble.table": table.toString() }, msg)
+            ? log.warn({ "rumble.table": String(table) }, msg)
             : console.warn(msg);
           return;
         }

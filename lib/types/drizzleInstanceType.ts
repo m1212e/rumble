@@ -1,3 +1,4 @@
+import type { Table } from "drizzle-orm";
 import type { MySqlAsyncDatabase } from "drizzle-orm/mysql-core";
 import type { PgAsyncDatabase } from "drizzle-orm/pg-core";
 import type { SQLiteAsyncDatabase } from "drizzle-orm/sqlite-core";
@@ -20,6 +21,22 @@ export type DrizzleTableSchema<DB extends DrizzleInstance> = ObjectValues<
  * Type representing the query function of a Drizzle instance.
  */
 export type DrizzleQueryFunction<DB extends DrizzleInstance> = DB["query"];
+
+/**
+ * Names of relations backed by a genuine drizzle Table — excludes
+ * View/MaterializedView entries, which structurally never have a primary key
+ * and so can't support rumble's row-level ability/query filtering.
+ */
+export type TableRelationNames<DB extends DrizzleInstance> = {
+  [K in keyof DB["_"]["relations"]]: DB["_"]["relations"][K] extends {
+    table: infer TTable;
+  }
+    ? TTable extends Table<any>
+      ? K
+      : never
+    : never;
+}[keyof DB["_"]["relations"]] &
+  keyof DrizzleQueryFunction<DB>;
 
 /**
  * Type representing the input parameters for the `findMany` method of a specific table in the Drizzle query function.

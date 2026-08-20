@@ -12,6 +12,7 @@ import { adjustQueryArgsForSearch } from "./search";
 import type {
   DrizzleInstance,
   DrizzleQueryFunction,
+  TableRelationNames,
 } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
@@ -67,7 +68,7 @@ export const createQueryImplementer = <
 }) => {
   const registeredQueryFieldNames = new Set<string>();
 
-  return <TableName extends keyof DrizzleQueryFunction<DB>>({
+  return <TableName extends TableRelationNames<DB>>({
     table,
     readAction = "read" as Action,
     listAction = "read" as Action,
@@ -117,12 +118,12 @@ export const createQueryImplementer = <
 
     const { registerOnInstance } = makePubSubInstance({ table: table });
 
-    const pluralName = pluralize.plural(table.toString());
-    const singularName = pluralize.singular(table.toString());
+    const pluralName = pluralize.plural(String(table));
+    const singularName = pluralize.singular(String(table));
     for (const name of [pluralName, singularName]) {
       if (registeredQueryFieldNames.has(name)) {
         throw new RumbleError(
-          `Duplicate query field "${name}": the table "${table.toString()}" generates a ` +
+          `Duplicate query field "${name}": the table "${String(table)}" generates a ` +
             `query field that collides with one already registered. Use unique table names ` +
             `(or refNames) to avoid plural/singular collisions (e.g. "post" and "posts").`,
         );

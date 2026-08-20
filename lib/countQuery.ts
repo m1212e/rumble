@@ -9,6 +9,7 @@ import type { MakePubSubInstanceType } from "./pubsub";
 import type {
   DrizzleInstance,
   DrizzleQueryFunction,
+  TableRelationNames,
 } from "./types/drizzleInstanceType";
 import { RumbleErrorSafe } from "./types/rumbleError";
 import type {
@@ -52,7 +53,7 @@ export const createCountQueryImplementer = <
     PothosConfig
   >;
 }) => {
-  return <TableName extends keyof DrizzleQueryFunction<DB>>({
+  return <TableName extends TableRelationNames<DB>>({
     table,
     listAction = "read" as Action,
     isAllowed,
@@ -83,11 +84,11 @@ export const createCountQueryImplementer = <
 
     return schemaBuilder.queryFields((t) => {
       return {
-        [`${pluralize.plural(table.toString())}Count`]: t.field({
+        [`${pluralize.plural(String(table))}Count`]: t.field({
           type: "Int",
           nullable: false,
           smartSubscription: true,
-          description: `Count all ${pluralize.plural(table.toString())}`,
+          description: `Count all ${pluralize.plural(String(table))}`,
           subscribe: (subscriptions, _root, _args, _ctx, _info) => {
             registerOnInstance({
               instance: subscriptions,

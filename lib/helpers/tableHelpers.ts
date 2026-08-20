@@ -25,6 +25,11 @@ type RelationEntry = {
   /** named relations record (one/many) for this table */
   relations: Record<string, One<any, any> | Many<any>>;
   /**
+   * Whether the underlying entity is a genuine drizzle Table (as opposed to a
+   * View/MaterializedView, which structurally never has a primary key).
+   */
+  isTable: boolean;
+  /**
    * The raw entry from db._.relations — preserved for callers that previously
    * read `foundRelation` off tableHelper().
    */
@@ -68,6 +73,7 @@ function buildIndex<DB extends DrizzleInstance>(db: DB): TableIndex {
       columns,
       primaryKey,
       relations: entry.relations ?? {},
+      isTable: isTable(tableObj),
       foundRelation: entry,
     };
 
@@ -140,6 +146,7 @@ export function tableHelper<
     dbName: entry.dbName,
     tsName: entry.name,
     table: entry.table,
+    isTable: entry.isTable,
     foundRelation: entry.foundRelation,
   };
 }
