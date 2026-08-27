@@ -136,6 +136,33 @@ describe("test rumble abilities and filters", async () => {
     ).toEqual(0);
   });
 
+  test("batches application level filter calls across sibling relations into a single invocation", async () => {
+    rumble.abilityBuilder.users.allow(["read"]);
+    rumble.abilityBuilder.posts.allow(["read"]);
+
+    const filter = mock(({ entities }: { entities: any[] }) => entities);
+    rumble.abilityBuilder.posts.filter("read").by(filter);
+
+    const { executor, yogaInstance: _yogaInstance } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          users {
+            id
+            posts {
+              id
+            }
+          }
+        }
+      `),
+    });
+
+    expect((r as any).data.users.length).toEqual(data.users.length);
+
+    // without batching this fires once per user, not once for the whole list
+    expect(filter).toHaveBeenCalledTimes(1);
+  });
+
   // TODO
   // test("filter out some related on application level filters with applied ability", async () => {
   //   rumble.abilityBuilder.users.allow(["read"]);

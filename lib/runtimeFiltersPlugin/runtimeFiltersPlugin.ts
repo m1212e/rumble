@@ -5,12 +5,19 @@ import SchemaBuilder, {
   type PothosTypeConfig,
   type SchemaTypes,
 } from "@pothos/core";
+import DataLoader from "dataloader";
 import type { GraphQLFieldResolver } from "graphql";
 import { errorLogField } from "../helpers/errorLogging";
 import type { RumbleLogger } from "../types/rumbleInput";
-import { type ApplyFiltersField, pluginName } from "./filterTypes";
+import {
+  type ApplyFiltersField,
+  type FilterPrefetchCombo,
+  pluginName,
+} from "./filterTypes";
 
 export const applyFiltersKey = "applyFilters";
+
+type AnyFilterCombo = FilterPrefetchCombo<any, any, any>;
 
 export class RuntimeFiltersPlugin<
   Types extends SchemaTypes,
@@ -18,6 +25,57 @@ export class RuntimeFiltersPlugin<
   private tracer?: Tracer;
   private tracerEnabled?: boolean;
   private logger?: RumbleLogger;
+
+  // graphql-js resolves a relation field once per sibling in a list, concurrently,
+  // so without this a filter like "can read user" would fire once per row instead
+  // of once for the whole list. Keying loaders by context means they get garbage
+  // collected once the request is done, no manual cleanup needed.
+  private filterLoaders = new WeakMap<
+    object,
+    Map<AnyFilterCombo, DataLoader<any, any>>
+  >();
+
+  private getLoader(
+    context: Types["Context"],
+    filter: AnyFilterCombo,
+  ): DataLoader<any, any> {
+    let perContext = this.filterLoaders.get(context as object);
+    if (!perContext) {
+      perContext = new Map();
+      this.filterLoaders.set(context as object, perContext);
+    }
+
+    let loader = perContext.get(filter);
+    if (!loader) {
+      // not awaited here on purpose, so it runs alongside the resolver instead of after it
+      const prefetchPromise = filter.prefetch
+        ? filter.prefetch({ context })
+        : undefined;
+
+      loader = new DataLoader<any, any>(
+        async (entities) => {
+          const prefetched = prefetchPromise
+            ? await prefetchPromise
+            : undefined;
+          const allowed = await filter.filter({
+            context,
+            entities: entities as any[],
+            prefetched,
+          } as any);
+          const allowedSet = new Set(allowed);
+          return entities.map((entity) =>
+            allowedSet.has(entity) ? entity : null,
+          );
+        },
+        // cache off on purpose, we only want the batching, filters should still
+        // run fresh every time like before
+        { cache: false },
+      );
+      perContext.set(filter, loader);
+    }
+
+    return loader;
+  }
 
   override onTypeConfig(typeConfig: PothosTypeConfig) {
     this.tracer = this.builder.options.otel?.tracer;
@@ -33,7 +91,6 @@ export class RuntimeFiltersPlugin<
     fieldConfig: PothosOutputFieldConfig<Types>,
   ): GraphQLFieldResolver<unknown, Types["Context"], object> {
     return async (parent, args, context, info) => {
-      //TODO: https://github.com/hayes/pothos/discussions/1431#discussioncomment-12974130
       let filters: ApplyFiltersField<Types["Context"], any> | undefined;
       const fieldType = fieldConfig?.type as any;
 
@@ -53,76 +110,40 @@ export class RuntimeFiltersPlugin<
         const allFilters = Array.isArray(filters) ? filters : [filters];
         span?.setAttribute("filters.total", allFilters.length);
 
-        // TODO: find out if the aggrefagation across relation and then parallel execution is possible
-        const prefetchedFiltersPromises = Promise.all(
-          allFilters.map(async (filter) => {
-            if (filter.prefetch) {
-              const prefetched = await filter.prefetch({ context });
-              return ({
-                context,
-                entities,
-              }: {
-                context: Types["Context"];
-                entities: any;
-              }) => filter.filter({ context, entities, prefetched });
-            }
-            return ({
-              context,
-              entities,
-            }: {
-              context: Types["Context"];
-              entities: any;
-            }) => filter.filter({ context, entities } as any);
-          }),
+        const loaders = allFilters.map((filter) =>
+          this.getLoader(context, filter as AnyFilterCombo),
         );
 
-        let resolved: any, prefetchedFilters: any;
+        let resolved: any;
 
         if (this.tracer && this.tracerEnabled) {
-          const o = await this.tracer.startActiveSpan(
+          resolved = await this.tracer.startActiveSpan(
             `rumble.filter.resolve`,
             async (span) => {
               span.setAttribute("graphql.field.name", fieldConfig.name);
               try {
-                return await Promise.all([
-                  resolver(parent, args, context, info),
-                  prefetchedFiltersPromises,
-                ]);
+                return await resolver(parent, args, context, info);
               } finally {
                 span.end();
               }
             },
           );
-          resolved = o[0];
-          prefetchedFilters = o[1];
         } else {
-          const o = await Promise.all([
-            resolver(parent, args, context, info),
-            prefetchedFiltersPromises,
-          ]);
-          resolved = o[0];
-          prefetchedFilters = o[1];
+          resolved = await resolver(parent, args, context, info);
         }
 
-        const allowed = Array.from(
-          (
-            await Promise.all(
-              prefetchedFilters.map((f: any) =>
-                f({
-                  context,
-                  entities: Array.isArray(resolved)
-                    ? resolved
-                    : ([resolved] as any),
-                }),
-              ),
-            )
-          ).reduce((acc, val) => {
-            for (const element of val) {
-              acc.add(element);
-            }
-            return acc;
-            // since multiple helpers might return the same entity we use a set to deduplicate
-          }, new Set()),
+        const entities: any[] = Array.isArray(resolved) ? resolved : [resolved];
+
+        // load() instead of loadMany() so a thrown filter still rejects here
+        // instead of getting swallowed into an Error value
+        const perFilterResults = await Promise.all(
+          loaders.map((loader) =>
+            Promise.all(entities.map((entity) => loader.load(entity))),
+          ),
+        );
+
+        const allowed = entities.filter((_, index) =>
+          perFilterResults.some((results) => results[index] != null),
         );
 
         span?.setAttribute("filters.allowed", allowed.length);
