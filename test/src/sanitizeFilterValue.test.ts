@@ -14,8 +14,28 @@ describe("sanitizeFilterValue", () => {
     expect(sanitizeFilterValue(EmptyFilter)).toBe(EmptyFilter);
   });
 
-  test("leaves null untouched (a real IS NULL condition, not a skip)", () => {
-    expect(sanitizeFilterValue(null)).toBeNull();
+  test("replaces a top-level null with EmptyFilter", () => {
+    // `typeof null === "object"`, so a bare `null` column filter used to
+    // reach drizzle-orm's relations filter compiler, which treats it as a
+    // sub-filter object and crashes on `Object.entries(null)` instead of
+    // treating it as an IS NULL shorthand. Use `{ isNull: true }` for a real
+    // IS NULL condition.
+    expect(sanitizeFilterValue(null)).toBe(EmptyFilter);
+  });
+
+  test("replaces null nested inside an OR array element", () => {
+    const filter = { OR: [{ ownerId: "user-1" }, null] };
+    expect(sanitizeFilterValue(filter)).toEqual({
+      OR: [{ ownerId: "user-1" }, EmptyFilter],
+    });
+  });
+
+  test("replaces null used as a bare column filter value", () => {
+    const filter = { author: null, name: "bob" };
+    expect(sanitizeFilterValue(filter)).toEqual({
+      author: EmptyFilter,
+      name: "bob",
+    });
   });
 
   test("leaves a filter with no undefineds unchanged in shape", () => {

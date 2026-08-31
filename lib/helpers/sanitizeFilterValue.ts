@@ -7,7 +7,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 export function sanitizeFilterValue(value: unknown): unknown {
-  if (value === undefined) return EmptyFilter;
+  if (value === undefined || value === null) return EmptyFilter;
   if (Array.isArray(value)) return value.map(sanitizeFilterValue);
   if (isPlainObject(value)) {
     return Object.fromEntries(
