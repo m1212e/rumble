@@ -1,4 +1,4 @@
-import type { useSofa } from "sofa-api";
+import type { useSofa } from "@m1212e/sofa-api";
 
 export const sofaOpenAPIWebhookDocs: NonNullable<
   Parameters<typeof useSofa>[0]["openAPI"]

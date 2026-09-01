@@ -9,7 +9,7 @@ import {
   type Plugin,
   type YogaServerOptions,
 } from "graphql-yoga";
-import type { useSofa } from "sofa-api";
+import type { useSofa } from "@m1212e/sofa-api";
 import packagejson from "../package.json";
 import { createAbilityBuilder } from "./abilityBuilder";
 import { createOrderArgImplementer } from "./args/orderArg";
@@ -322,7 +322,7 @@ export const r = rumble({
   const createSofa = async (
     args: Omit<Parameters<typeof useSofa>[0], "schema" | "context">,
   ) => {
-    const { useSofa: useSofaFn } = await import("sofa-api");
+    const { useSofa: useSofaFn } = await import("@m1212e/sofa-api");
     if (args.openAPI) {
       merge(args.openAPI, sofaOpenAPIWebhookDocs);
     }
