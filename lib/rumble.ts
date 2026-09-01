@@ -23,6 +23,7 @@ import { lazy } from "./helpers/lazy";
 import { sofaOpenAPIWebhookDocs } from "./helpers/sofaOpenAPIWebhookDocs";
 import {
   ATTR_TRANSPORT,
+  errorsAlreadyReported,
   recordSpanErrors,
   telemetryEnabled,
   telemetryLogger,
@@ -439,24 +440,20 @@ export const r = rumble({
         rumbleInput,
         "rest",
       ) as any,
-      // Errors that never reach execute (invalid body, depth limit, a failing
-      // context factory) are only visible here, so this is where the REST
-      // transport gets the same span/log treatment the other two get from the
-      // execute wrapper.
       errorHandler(errors) {
-        // Not the operation span, which sofa has already left at this point:
-        // whatever request level span the surrounding instrumentation opened.
-        recordSpanErrors(trace.getActiveSpan(), errors);
+        if (!errorsAlreadyReported(errors)) {
+          recordSpanErrors(trace.getActiveSpan(), errors);
 
-        const log = telemetryLogger(rumbleInput);
-        log?.error(
-          {
-            [ATTR_TRANSPORT]: "rest",
-            ...traceCorrelationFields(rumbleInput),
-            ...errorsLogField(errors),
-          },
-          "rest request failed",
-        );
+          const log = telemetryLogger(rumbleInput);
+          log?.error(
+            {
+              [ATTR_TRANSPORT]: "rest",
+              ...traceCorrelationFields(rumbleInput),
+              ...errorsLogField(errors),
+            },
+            "rest request failed",
+          );
+        }
 
         return (userErrorHandler?.(errors) ??
           sofaErrorResponse(errors)) as ReturnType<

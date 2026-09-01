@@ -431,6 +431,64 @@ describe("telemetry is uniform across transports", async () => {
   });
 });
 
+describe("the REST adapter reports a failure exactly once", async () => {
+  const { db } = await makeSeededDBInstanceForTest();
+
+  async function restRequest(path: string) {
+    const { tracer, spans } = makeRecordingTracer();
+    const { logger, entries } = makeRecordingLogger();
+    const r = makeInstance(db, tracer, logger);
+    r.query({ table: "posts" });
+
+    const sofa = await r.createSofa({ basePath: "/api" });
+    const response = await sofa.handleRequest(
+      new Request(`http://localhost${path}`),
+      {},
+    );
+
+    return {
+      spans,
+      response,
+      errorMessages: entries
+        .filter((entry) => entry.level === "error")
+        .map((entry) => entry.msg),
+    };
+  }
+
+  // a resolver level failure: the entity does not exist and the field is not
+  // nullable, so execute returns errors and sofa hands them to the error handler
+  const resolverFailure = await restRequest(
+    "/api/post/00000000-0000-0000-0000-000000000000",
+  );
+  // a transport level failure: this never reaches execute at all
+  const transportFailure = await restRequest("/api/posts?limit=notanumber");
+
+  test("a resolver failure is reported once, by the operation wrapper", () => {
+    expect(resolverFailure.errorMessages).toContain(
+      "graphql execute completed with errors",
+    );
+    // and not a second time by the sofa error handler
+    expect(resolverFailure.errorMessages).not.toContain("rest request failed");
+  });
+
+  test("a resolver failure answers with sofa's status and JSON body", async () => {
+    expect(resolverFailure.response.status).toBe(500);
+    expect(resolverFailure.response.headers.get("content-type")).toContain(
+      "application/json",
+    );
+    expect((await resolverFailure.response.json()).errors).toBeDefined();
+  });
+
+  test("a failure that never reaches execute is reported by the error handler", () => {
+    expect(transportFailure.errorMessages).toEqual(["rest request failed"]);
+  });
+
+  test("a client error keeps its 4xx status instead of becoming a 500", async () => {
+    expect(transportFailure.response.status).toBe(400);
+    expect((await transportFailure.response.json()).errors).toBeDefined();
+  });
+});
+
 describe("telemetry stays out of the way when disabled", async () => {
   const { db } = await makeSeededDBInstanceForTest();
 

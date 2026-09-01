@@ -169,6 +169,34 @@ export function recordSpanError(span: Span | undefined, error: unknown): void {
   recordSpanErrors(span, [error]);
 }
 
+/**
+ * Errors the operation wrapper has already reported.
+ *
+ * A transport can see the same failure twice: sofa, for instance, hands
+ * `result.errors` to its error handler *after* execute has returned, so without
+ * this the very same error would produce two log lines and two exception events,
+ * which quietly doubles error counts in dashboards. A WeakSet keeps this free of
+ * bookkeeping — entries disappear with the errors themselves.
+ */
+const reportedErrors = new WeakSet<object>();
+
+export function markErrorsReported(errors: readonly unknown[]): void {
+  for (const error of errors) {
+    if (typeof error === "object" && error !== null) {
+      reportedErrors.add(error);
+    }
+  }
+}
+
+/** True when every error was already reported by the operation wrapper. */
+export function errorsAlreadyReported(errors: readonly unknown[]): boolean {
+  if (errors.length === 0) return false;
+  return errors.every(
+    (error) =>
+      typeof error === "object" && error !== null && reportedErrors.has(error),
+  );
+}
+
 // ─── attribute values ────────────────────────────────────────────────────────
 
 function safeJsonStringify(value: unknown): string {

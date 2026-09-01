@@ -2,6 +2,8 @@ import { describe, expect, mock, test } from "bun:test";
 import {
   attributeValue,
   durationMs,
+  errorsAlreadyReported,
+  markErrorsReported,
   recordSpanError,
   recordSpanErrors,
   resolveVariables,
@@ -219,6 +221,32 @@ describe("recordSpanErrors", () => {
     recordSpanErrors(span, []);
     expect(span.recordException).not.toHaveBeenCalled();
     expect(span.setStatus).not.toHaveBeenCalled();
+  });
+});
+
+// ─── duplicate reporting ─────────────────────────────────────────────────────
+
+describe("markErrorsReported / errorsAlreadyReported", () => {
+  test("recognises errors the operation wrapper already handled", () => {
+    const error = new Error("already handled");
+    expect(errorsAlreadyReported([error])).toBe(false);
+    markErrorsReported([error]);
+    expect(errorsAlreadyReported([error])).toBe(true);
+  });
+
+  test("only counts as reported when every error is known", () => {
+    const known = new Error("known");
+    markErrorsReported([known]);
+    expect(errorsAlreadyReported([known, new Error("fresh")])).toBe(false);
+  });
+
+  test("an empty list counts as not reported", () => {
+    expect(errorsAlreadyReported([])).toBe(false);
+  });
+
+  test("non object errors are never considered reported", () => {
+    markErrorsReported(["a string error"]);
+    expect(errorsAlreadyReported(["a string error"])).toBe(false);
   });
 });
 

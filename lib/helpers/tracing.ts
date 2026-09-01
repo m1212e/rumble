@@ -23,6 +23,7 @@ import {
   durationMs,
   FIELD_DURATION_MS,
   FIELD_EVENT_COUNT,
+  markErrorsReported,
   type RumbleTransport,
   recordSpanError,
   recordSpanErrors,
@@ -213,6 +214,7 @@ export function buildTracedExecute<
             "graphql execute completed with errors",
           );
           recordSpanErrors(span, result.errors);
+          markErrorsReported(result.errors);
         } else {
           log?.info(
             {
@@ -234,6 +236,7 @@ export function buildTracedExecute<
           "graphql execute threw",
         );
         recordSpanError(span, error);
+        markErrorsReported([error]);
         throw error;
       }
     };
@@ -317,6 +320,7 @@ export function buildTracedSubscribe<
               "graphql subscribe completed with errors",
             );
             recordSpanErrors(span, execResult.errors);
+            markErrorsReported(execResult.errors);
           }
           return execResult;
         }
@@ -349,6 +353,7 @@ export function buildTracedSubscribe<
           "graphql subscribe threw",
         );
         recordSpanError(span, error);
+        markErrorsReported([error]);
         throw error;
       }
     };
