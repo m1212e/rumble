@@ -1,5 +1,6 @@
 import { EnvelopArmorPlugin } from "@escape.tech/graphql-armor";
 import { useDisableIntrospection } from "@graphql-yoga/plugin-disable-introspection";
+import type { useSofa } from "@m1212e/sofa-api";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { merge } from "es-toolkit";
 import { GraphQLSchema } from "graphql";
@@ -9,7 +10,6 @@ import {
   type Plugin,
   type YogaServerOptions,
 } from "graphql-yoga";
-import type { useSofa } from "@m1212e/sofa-api";
 import packagejson from "../package.json";
 import { createAbilityBuilder } from "./abilityBuilder";
 import { createOrderArgImplementer } from "./args/orderArg";
