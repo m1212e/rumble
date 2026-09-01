@@ -7,6 +7,10 @@ import { isPostgresDB } from "./helpers/determineDialectFromSchema";
 import { mapNullFieldsToUndefined } from "./helpers/mapNullFieldsToUndefined";
 import { deepSetProto } from "./helpers/protoMapper";
 import { tableHelper } from "./helpers/tableHelpers";
+import {
+  type TelemetryConfig,
+  traceCorrelationFields,
+} from "./helpers/telemetry";
 import type { MakePubSubInstanceType } from "./pubsub";
 import { adjustQueryArgsForSearch } from "./search";
 import type {
@@ -32,6 +36,7 @@ export const createQueryImplementer = <
   db,
   schemaBuilder,
   search,
+  otel,
   logger: loggerConfig,
   whereArgImplementer,
   orderArgImplementer,
@@ -67,6 +72,7 @@ export const createQueryImplementer = <
   >;
 }) => {
   const registeredQueryFieldNames = new Set<string>();
+  const telemetryConfig: TelemetryConfig = { otel, logger: loggerConfig };
 
   return <TableName extends TableRelationNames<DB>>({
     table,
@@ -215,7 +221,9 @@ export const createQueryImplementer = <
                   const log = loggerConfig?.enabled
                     ? loggerConfig.logger
                     : undefined;
-                  log ? log.info({}, msg) : console.info(msg);
+                  log
+                    ? log.info(traceCorrelationFields(telemetryConfig), msg)
+                    : console.info(msg);
                 }
 
                 return run(tx);

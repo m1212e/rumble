@@ -11,6 +11,11 @@ import { type EnumImplementerType, isEnumSchema } from "./enum";
 import { buildPothosResponseTypeFromGraphQLType } from "./helpers/sqlTypes/mapDrizzleTypeToGraphQlType";
 import type { PossibleSQLType } from "./helpers/sqlTypes/types";
 import { tableHelper } from "./helpers/tableHelpers";
+import {
+  ATTR_TABLE,
+  type TelemetryConfig,
+  traceCorrelationFields,
+} from "./helpers/telemetry";
 import type { MakePubSubInstanceType } from "./pubsub";
 import { adjustQueryArgsForSearch } from "./search";
 import type {
@@ -67,6 +72,7 @@ export const createObjectImplementer = <
 >({
   db,
   search,
+  otel,
   logger: loggerConfig,
   schemaBuilder,
   makePubSubInstance,
@@ -126,6 +132,20 @@ export const createObjectImplementer = <
     Action,
     PothosConfig
   >;
+  const telemetryConfig: TelemetryConfig = { otel, logger: loggerConfig };
+  /**
+   * Schema construction warnings go through the configured logger when there is
+   * one, so they end up in the same structured stream as everything else, and
+   * fall back to the console otherwise.
+   */
+  const warn = (msg: string, fields: Record<string, unknown> = {}) => {
+    const log = loggerConfig?.enabled ? loggerConfig.logger : undefined;
+    if (log) {
+      log.warn({ ...fields, ...traceCorrelationFields(telemetryConfig) }, msg);
+    } else {
+      console.warn(msg);
+    }
+  };
   return <TableName extends TableRelationNames<DB>, RefName extends string>({
     table,
     refName,
@@ -166,11 +186,10 @@ export const createObjectImplementer = <
     const tableSchema = tableHelper({ db, table });
 
     if (Object.keys(tableSchema.primaryKey).length === 0) {
-      const log = loggerConfig?.enabled ? loggerConfig.logger : undefined;
-      const msg = `Could not find primary key for ${String(table)}. Cannot register subscriptions!`;
-      log
-        ? log.warn({ "rumble.table": String(table) }, msg)
-        : console.warn(msg);
+      warn(
+        `Could not find primary key for ${String(table)}. Cannot register subscriptions!`,
+        { [ATTR_TABLE]: String(table) },
+      );
     }
     const primaryKey = Object.values(tableSchema.primaryKey)[0];
 
@@ -182,11 +201,10 @@ export const createObjectImplementer = <
         if (!primaryKey) return;
         const primaryKeyValue = (element as any)[primaryKey.name];
         if (!primaryKeyValue) {
-          const log = loggerConfig?.enabled ? loggerConfig.logger : undefined;
-          const msg = `Could not find primary key value for element on ${String(table)}. Cannot register subscription!`;
-          log
-            ? log.warn({ "rumble.table": String(table) }, msg)
-            : console.warn(msg);
+          warn(
+            `Could not find primary key value for element on ${String(table)}. Cannot register subscription!`,
+            { [ATTR_TABLE]: String(table) },
+          );
           return;
         }
 
@@ -272,8 +290,9 @@ export const createObjectImplementer = <
             // Skip such columns silently — the user must expose them manually
             // via `adjust` if they truly need them.
             if (key.startsWith("__")) {
-              console.warn(
+              warn(
                 `Skipping column "${key}" on table "${tableSchema.tsName}": names starting with "__" are reserved by GraphQL introspection. Use a custom adjust() call if you really need to expose this column.`,
+                { [ATTR_TABLE]: tableSchema.tsName },
               );
               return acc;
             }

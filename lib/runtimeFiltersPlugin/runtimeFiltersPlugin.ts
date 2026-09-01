@@ -8,6 +8,16 @@ import SchemaBuilder, {
 import DataLoader from "dataloader";
 import type { GraphQLFieldResolver } from "graphql";
 import { errorLogField } from "../helpers/errorLogging";
+import {
+  ATTR_FIELD_NAME,
+  ATTR_FILTERS_ALLOWED,
+  ATTR_FILTERS_TOTAL,
+  recordSpanError,
+  SPAN_FILTERS_APPLY,
+  SPAN_FILTERS_RESOLVE,
+  type TelemetryConfig,
+  traceCorrelationFields,
+} from "../helpers/telemetry";
 import type { RumbleLogger } from "../types/rumbleInput";
 import {
   type ApplyFiltersField,
@@ -25,6 +35,7 @@ export class RuntimeFiltersPlugin<
   private tracer?: Tracer;
   private tracerEnabled?: boolean;
   private logger?: RumbleLogger;
+  private telemetryConfig: TelemetryConfig = {};
 
   // graphql-js resolves a relation field once per sibling in a list, concurrently,
   // so without this a filter like "can read user" would fire once per row instead
@@ -83,6 +94,10 @@ export class RuntimeFiltersPlugin<
     this.logger = this.builder.options.logger?.enabled
       ? this.builder.options.logger.logger
       : undefined;
+    this.telemetryConfig = {
+      otel: this.builder.options.otel,
+      logger: this.builder.options.logger,
+    };
     return typeConfig;
   }
 
@@ -108,7 +123,7 @@ export class RuntimeFiltersPlugin<
 
       const runFilters = async (span?: Span) => {
         const allFilters = Array.isArray(filters) ? filters : [filters];
-        span?.setAttribute("filters.total", allFilters.length);
+        span?.setAttribute(ATTR_FILTERS_TOTAL, allFilters.length);
 
         const loaders = allFilters.map((filter) =>
           this.getLoader(context, filter as AnyFilterCombo),
@@ -118,11 +133,14 @@ export class RuntimeFiltersPlugin<
 
         if (this.tracer && this.tracerEnabled) {
           resolved = await this.tracer.startActiveSpan(
-            `rumble.filter.resolve`,
+            SPAN_FILTERS_RESOLVE,
             async (span) => {
-              span.setAttribute("graphql.field.name", fieldConfig.name);
+              span.setAttribute(ATTR_FIELD_NAME, fieldConfig.name);
               try {
                 return await resolver(parent, args, context, info);
+              } catch (error) {
+                recordSpanError(span, error);
+                throw error;
               } finally {
                 span.end();
               }
@@ -146,12 +164,13 @@ export class RuntimeFiltersPlugin<
           perFilterResults.some((results) => results[index] != null),
         );
 
-        span?.setAttribute("filters.allowed", allowed.length);
+        span?.setAttribute(ATTR_FILTERS_ALLOWED, allowed.length);
         this.logger?.debug(
           {
-            "graphql.field.name": fieldConfig.name,
-            "filters.total": allFilters.length,
-            "filters.allowed": allowed.length,
+            [ATTR_FIELD_NAME]: fieldConfig.name,
+            [ATTR_FILTERS_TOTAL]: allFilters.length,
+            [ATTR_FILTERS_ALLOWED]: allowed.length,
+            ...traceCorrelationFields(this.telemetryConfig),
           },
           "runtime filters applied",
         );
@@ -166,38 +185,35 @@ export class RuntimeFiltersPlugin<
         return allowed[0] ?? null;
       };
 
-      if (this.tracer && this.tracerEnabled) {
-        return this.tracer.startActiveSpan(
-          `rumble.filter.apply`,
-          async (span) => {
-            span.setAttribute("graphql.field.name", fieldConfig.name);
-            try {
-              return await runFilters(span);
-            } catch (error) {
-              this.logger?.error(
-                {
-                  "graphql.field.name": fieldConfig.name,
-                  ...errorLogField(error),
-                },
-                "runtime filter threw",
-              );
-              throw error;
-            } finally {
-              span.end();
-            }
+      const logFilterError = (error: unknown) => {
+        this.logger?.error(
+          {
+            [ATTR_FIELD_NAME]: fieldConfig.name,
+            ...traceCorrelationFields(this.telemetryConfig),
+            ...errorLogField(error),
           },
+          "runtime filter threw",
         );
+      };
+
+      if (this.tracer && this.tracerEnabled) {
+        return this.tracer.startActiveSpan(SPAN_FILTERS_APPLY, async (span) => {
+          span.setAttribute(ATTR_FIELD_NAME, fieldConfig.name);
+          try {
+            return await runFilters(span);
+          } catch (error) {
+            logFilterError(error);
+            recordSpanError(span, error);
+            throw error;
+          } finally {
+            span.end();
+          }
+        });
       } else {
         try {
           return await runFilters();
         } catch (error) {
-          this.logger?.error(
-            {
-              "graphql.field.name": fieldConfig.name,
-              ...errorLogField(error),
-            },
-            "runtime filter threw",
-          );
+          logFilterError(error);
           throw error;
         }
       }

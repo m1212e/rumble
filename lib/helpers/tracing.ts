@@ -1,5 +1,4 @@
-import { type Span, SpanStatusCode } from "@opentelemetry/api";
-import { AttributeNames, SpanNames } from "@pothos/tracing-opentelemetry";
+import type { Attributes, Span, SpanContext, Tracer } from "@opentelemetry/api";
 import {
   execute as defaultExecute,
   subscribe as defaultSubscribe,
@@ -15,29 +14,30 @@ import type {
   RumbleLogger,
 } from "../types/rumbleInput";
 import { errorLogField, errorsLogField } from "./errorLogging";
-
-// @pothos/tracing-opentelemetry's SpanNames enum has no subscribe member.
-const SUBSCRIBE_SPAN_NAME = "graphql.subscribe";
-
-function getOperationType(options: ExecutionArgs) {
-  return getOperationAST(options.document, options.operationName)?.operation;
-}
-
-function operationLogFields(operationName: string, operationType?: string) {
-  return {
-    "graphql.operation.name": operationName,
-    ...(operationType ? { "graphql.operation.type": operationType } : {}),
-  };
-}
-
-function traceIdLogFields(span: Span) {
-  const { traceId, spanId, traceFlags } = span.spanContext();
-  return {
-    trace_id: traceId,
-    span_id: spanId,
-    trace_flags: traceFlags.toString(16).padStart(2, "0"),
-  };
-}
+import {
+  ATTR_DOCUMENT,
+  ATTR_OPERATION_NAME,
+  ATTR_OPERATION_TYPE,
+  ATTR_SUBSCRIPTION_EVENT_INDEX,
+  ATTR_TRANSPORT,
+  durationMs,
+  FIELD_DURATION_MS,
+  FIELD_EVENT_COUNT,
+  type RumbleTransport,
+  recordSpanError,
+  recordSpanErrors,
+  SPAN_EXECUTE,
+  SPAN_SUBSCRIBE,
+  SPAN_SUBSCRIBE_EVENT,
+  startTimer,
+  type TelemetryConfig,
+  telemetryEnabled,
+  telemetryLogger,
+  telemetryTracer,
+  traceCorrelationFields,
+  variableAttributes,
+  variableLogField,
+} from "./telemetry";
 
 export function isAsyncIterable(
   value: unknown,
@@ -47,44 +47,126 @@ export function isAsyncIterable(
   );
 }
 
+/**
+ * Everything the operation telemetry of a single execute/subscribe call needs.
+ * Built once per operation so spans and logs cannot drift apart, and so the three
+ * transports (GraphQL, SOFA REST, WebSocket) share one code path.
+ */
+type OperationTelemetry = {
+  operationName: string;
+  operationType?: string;
+  /** Identical keys for spans and logs, minus the payload specific ones. */
+  logFields: Record<string, unknown>;
+  /** Only on the "start" entry, so variables are not repeated on every line. */
+  variableLogFields: Record<string, unknown>;
+  /** Lazy: printing the document and encoding variables is only worth it for otel. */
+  attributes: () => Attributes;
+};
+
+function buildOperationTelemetry(
+  config: TelemetryConfig,
+  transport: RumbleTransport,
+  options: ExecutionArgs,
+): OperationTelemetry {
+  const operationAst = getOperationAST(options.document, options.operationName);
+  const operationName =
+    options.operationName ?? operationAst?.name?.value ?? "anonymous";
+  const operationType = operationAst?.operation;
+
+  const logFields = {
+    [ATTR_OPERATION_NAME]: operationName,
+    ...(operationType ? { [ATTR_OPERATION_TYPE]: operationType } : {}),
+    [ATTR_TRANSPORT]: transport,
+  };
+
+  return {
+    operationName,
+    operationType,
+    logFields,
+    variableLogFields: variableLogField(
+      options.variableValues,
+      config.logger?.includeVariables,
+    ),
+    attributes: () => ({
+      ...(logFields as Attributes),
+      ...(config.otel?.includeDocument === false
+        ? {}
+        : { [ATTR_DOCUMENT]: print(options.document) }),
+      ...variableAttributes(
+        options.variableValues,
+        config.otel?.includeVariables,
+      ),
+    }),
+  };
+}
+
+/**
+ * Wraps a subscription's event stream so delivered events are observable no
+ * matter which transport consumes them.
+ */
 export async function* wrapSubscriptionIterator(
   iterator: AsyncIterable<ExecutionResult>,
-  log: RumbleLogger,
-  operationName: string,
-  operationType?: string,
+  telemetry: {
+    log?: RumbleLogger;
+    tracer?: Tracer;
+    setupSpanContext?: SpanContext;
+    logFields: Record<string, unknown>;
+    attributes: Attributes;
+  },
 ): AsyncGenerator<ExecutionResult> {
+  const { log, tracer, setupSpanContext, logFields, attributes } = telemetry;
+
+  const recordEventErrors = (
+    eventCount: number,
+    errors: readonly unknown[],
+  ) => {
+    if (!tracer) return;
+    const span = tracer.startSpan(SPAN_SUBSCRIBE_EVENT, {
+      root: true,
+      links: setupSpanContext ? [{ context: setupSpanContext }] : undefined,
+      attributes: {
+        ...attributes,
+        [ATTR_SUBSCRIPTION_EVENT_INDEX]: eventCount,
+      },
+    });
+    recordSpanErrors(span, errors);
+    span.end();
+  };
+
   let eventCount = 0;
   try {
     for await (const event of iterator) {
       eventCount++;
       if (event.errors?.length) {
-        log.error(
+        log?.error(
           {
-            ...operationLogFields(operationName, operationType),
-            event_count: eventCount,
+            ...logFields,
+            [FIELD_EVENT_COUNT]: eventCount,
             ...errorsLogField(event.errors),
           },
           "graphql subscription event error",
         );
+        recordEventErrors(eventCount, event.errors);
       }
       yield event;
     }
-    log.info(
+    log?.info(
       {
-        ...operationLogFields(operationName, operationType),
-        event_count: eventCount,
+        ...logFields,
+        [FIELD_EVENT_COUNT]: eventCount,
       },
       "graphql subscription completed",
     );
   } catch (error) {
-    log.error(
+    log?.error(
       {
-        ...operationLogFields(operationName, operationType),
-        event_count: eventCount,
+        ...logFields,
+        [FIELD_EVENT_COUNT]: eventCount,
         ...errorLogField(error),
       },
       "graphql subscription threw",
     );
+    recordEventErrors(eventCount, [error]);
     throw error;
   }
 }
@@ -100,98 +182,81 @@ export function buildTracedExecute<
     args: ExecutionArgs,
   ) => Promise<ExecutionResult> | ExecutionResult,
   rumbleInput: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>,
+  transport: RumbleTransport,
 ): (args: ExecutionArgs) => Promise<ExecutionResult> {
+  if (!telemetryEnabled(rumbleInput)) {
+    return executeFn as (args: ExecutionArgs) => Promise<ExecutionResult>;
+  }
+
   return async (options: ExecutionArgs): Promise<ExecutionResult> => {
-    let log = rumbleInput.logger?.enabled
-      ? rumbleInput.logger.logger
-      : undefined;
-    const operationName = options.operationName ?? "anonymous";
-    const operationType = getOperationType(options);
-    const start = Date.now();
+    const tracer = telemetryTracer(rumbleInput);
+    let log = telemetryLogger(rumbleInput);
+    const telemetry = buildOperationTelemetry(rumbleInput, transport, options);
+    const start = startTimer();
 
-    log?.info(
-      operationLogFields(operationName, operationType),
-      "graphql execute start",
-    );
+    const run = async (span?: Span) => {
+      log?.info(
+        { ...telemetry.logFields, ...telemetry.variableLogFields },
+        "graphql execute start",
+      );
 
-    const run = async () => {
-      const result = await executeFn(options);
-      if (result && "errors" in result && result.errors?.length) {
+      try {
+        const result = await executeFn(options);
+
+        if (result && "errors" in result && result.errors?.length) {
+          log?.error(
+            {
+              ...telemetry.logFields,
+              [FIELD_DURATION_MS]: durationMs(start),
+              ...errorsLogField(result.errors),
+            },
+            "graphql execute completed with errors",
+          );
+          recordSpanErrors(span, result.errors);
+        } else {
+          log?.info(
+            {
+              ...telemetry.logFields,
+              [FIELD_DURATION_MS]: durationMs(start),
+            },
+            "graphql execute completed",
+          );
+        }
+
+        return result;
+      } catch (error) {
         log?.error(
           {
-            ...operationLogFields(operationName, operationType),
-            duration_ms: Date.now() - start,
-            ...errorsLogField(result.errors),
+            ...telemetry.logFields,
+            [FIELD_DURATION_MS]: durationMs(start),
+            ...errorLogField(error),
           },
-          "graphql execute completed with errors",
+          "graphql execute threw",
         );
-      } else {
-        log?.info(
-          {
-            ...operationLogFields(operationName, operationType),
-            duration_ms: Date.now() - start,
-          },
-          "graphql execute completed",
-        );
+        recordSpanError(span, error);
+        throw error;
       }
-      return result;
     };
 
-    if (rumbleInput.otel?.enabled) {
-      return rumbleInput.otel.tracer!.startActiveSpan(
-        SpanNames.EXECUTE,
-        {
-          attributes: {
-            [AttributeNames.OPERATION_NAME]: operationName,
-            ...(operationType
-              ? { [AttributeNames.OPERATION_TYPE]: operationType }
-              : {}),
-            "graphql.document": print(options.document),
-          },
-        },
-        async (span: Span) => {
-          if (log && rumbleInput.logger?.injectTraceId !== false) {
-            log = log.child(traceIdLogFields(span));
-          }
-          try {
-            const result = await run();
-            if (result && "errors" in result && result.errors?.length) {
-              for (const error of result.errors) span.recordException(error);
-              span.setStatus({ code: SpanStatusCode.ERROR });
-            }
-            return result;
-          } catch (error) {
-            if (error instanceof Error) span.recordException(error);
-            log?.error(
-              {
-                ...operationLogFields(operationName, operationType),
-                duration_ms: Date.now() - start,
-                ...errorLogField(error),
-              },
-              "graphql execute threw",
-            );
-            span.setStatus({ code: SpanStatusCode.ERROR });
-            throw error;
-          } finally {
-            span.end();
-          }
-        },
-      );
-    }
+    if (!tracer) return run();
 
-    try {
-      return await run();
-    } catch (error) {
-      log?.error(
-        {
-          ...operationLogFields(operationName, operationType),
-          duration_ms: Date.now() - start,
-          ...errorLogField(error),
-        },
-        "graphql execute threw",
-      );
-      throw error;
-    }
+    return tracer.startActiveSpan(
+      SPAN_EXECUTE,
+      { attributes: telemetry.attributes() },
+      async (span: Span) => {
+        if (log) {
+          const correlation = traceCorrelationFields(rumbleInput, span);
+          if (Object.keys(correlation).length > 0) {
+            log = log.child(correlation);
+          }
+        }
+        try {
+          return await run(span);
+        } finally {
+          span.end();
+        }
+      },
+    );
   };
 }
 
@@ -209,122 +274,106 @@ export function buildTracedSubscribe<
     | AsyncIterable<ExecutionResult>
     | ExecutionResult,
   rumbleInput: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>,
+  transport: RumbleTransport,
 ): (
   args: ExecutionArgs,
 ) => Promise<AsyncIterable<ExecutionResult> | ExecutionResult> {
+  if (!telemetryEnabled(rumbleInput)) {
+    return subscribeFn as (
+      args: ExecutionArgs,
+    ) => Promise<AsyncIterable<ExecutionResult> | ExecutionResult>;
+  }
+
   return async (
     options: ExecutionArgs,
   ): Promise<AsyncIterable<ExecutionResult> | ExecutionResult> => {
-    let log = rumbleInput.logger?.enabled
-      ? rumbleInput.logger.logger
-      : undefined;
-    const operationName = options.operationName ?? "anonymous";
-    const operationType = getOperationType(options);
-    const start = Date.now();
+    const tracer = telemetryTracer(rumbleInput);
+    let log = telemetryLogger(rumbleInput);
+    const telemetry = buildOperationTelemetry(rumbleInput, transport, options);
+    const start = startTimer();
+    // Built once so the event spans carry the same attributes as the setup span.
+    const attributes = tracer ? telemetry.attributes() : {};
 
-    const doSubscribe = async (): Promise<
-      AsyncIterable<ExecutionResult> | ExecutionResult
-    > => {
+    const doSubscribe = async (
+      span?: Span,
+    ): Promise<AsyncIterable<ExecutionResult> | ExecutionResult> => {
       log?.info(
-        operationLogFields(operationName, operationType),
+        { ...telemetry.logFields, ...telemetry.variableLogFields },
         "graphql subscribe start",
       );
 
-      const result = await subscribeFn(options);
+      try {
+        const result = await subscribeFn(options);
 
-      if (!isAsyncIterable(result)) {
-        const execResult = result as ExecutionResult;
-        if (execResult.errors?.length) {
-          log?.error(
-            {
-              ...operationLogFields(operationName, operationType),
-              duration_ms: Date.now() - start,
-              ...errorsLogField(execResult.errors),
-            },
-            "graphql subscribe completed with errors",
-          );
-        }
-        return execResult;
-      }
-
-      log?.info(
-        {
-          ...operationLogFields(operationName, operationType),
-          duration_ms: Date.now() - start,
-        },
-        "graphql subscription established",
-      );
-
-      if (log) {
-        return wrapSubscriptionIterator(
-          result as AsyncIterable<ExecutionResult>,
-          log,
-          operationName,
-          operationType,
-        );
-      }
-      return result;
-    };
-
-    if (rumbleInput.otel?.enabled) {
-      return rumbleInput.otel.tracer!.startActiveSpan(
-        SUBSCRIBE_SPAN_NAME,
-        {
-          attributes: {
-            [AttributeNames.OPERATION_NAME]: operationName,
-            ...(operationType
-              ? { [AttributeNames.OPERATION_TYPE]: operationType }
-              : {}),
-            "graphql.document": print(options.document),
-          },
-        },
-        async (span: Span) => {
-          if (log && rumbleInput.logger?.injectTraceId !== false) {
-            log = log.child(traceIdLogFields(span));
-          }
-          try {
-            const result = await doSubscribe();
-            if (!isAsyncIterable(result)) {
-              const execResult = result as ExecutionResult;
-              if (execResult.errors?.length) {
-                for (const error of execResult.errors)
-                  span.recordException(error);
-                span.setStatus({ code: SpanStatusCode.ERROR });
-              }
-            }
-            return result;
-          } catch (error) {
-            if (error instanceof Error) span.recordException(error);
+        if (!isAsyncIterable(result)) {
+          const execResult = result as ExecutionResult;
+          if (execResult.errors?.length) {
             log?.error(
               {
-                ...operationLogFields(operationName, operationType),
-                duration_ms: Date.now() - start,
-                ...errorLogField(error),
+                ...telemetry.logFields,
+                [FIELD_DURATION_MS]: durationMs(start),
+                ...errorsLogField(execResult.errors),
               },
-              "graphql subscribe threw",
+              "graphql subscribe completed with errors",
             );
-            span.setStatus({ code: SpanStatusCode.ERROR });
-            throw error;
-          } finally {
-            span.end();
+            recordSpanErrors(span, execResult.errors);
           }
-        },
-      );
-    }
+          return execResult;
+        }
 
-    try {
-      return await doSubscribe();
-    } catch (error) {
-      log?.error(
-        {
-          ...operationLogFields(operationName, operationType),
-          duration_ms: Date.now() - start,
-          ...errorLogField(error),
-        },
-        "graphql subscribe threw",
-      );
-      throw error;
-    }
+        log?.info(
+          {
+            ...telemetry.logFields,
+            [FIELD_DURATION_MS]: durationMs(start),
+          },
+          "graphql subscription established",
+        );
+
+        return wrapSubscriptionIterator(
+          result as AsyncIterable<ExecutionResult>,
+          {
+            log,
+            tracer,
+            setupSpanContext: span?.spanContext(),
+            logFields: telemetry.logFields,
+            attributes,
+          },
+        );
+      } catch (error) {
+        log?.error(
+          {
+            ...telemetry.logFields,
+            [FIELD_DURATION_MS]: durationMs(start),
+            ...errorLogField(error),
+          },
+          "graphql subscribe threw",
+        );
+        recordSpanError(span, error);
+        throw error;
+      }
+    };
+
+    if (!tracer) return doSubscribe();
+
+    return tracer.startActiveSpan(
+      SPAN_SUBSCRIBE,
+      { attributes },
+      async (span: Span) => {
+        if (log) {
+          const correlation = traceCorrelationFields(rumbleInput, span);
+          if (Object.keys(correlation).length > 0) {
+            log = log.child(correlation);
+          }
+        }
+        try {
+          return await doSubscribe(span);
+        } finally {
+          // Ends after setup, not after the last event: a span kept open for the
+          // lifetime of a subscription would never be exported in time.
+          span.end();
+        }
+      },
+    );
   };
 }
 

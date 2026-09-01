@@ -87,6 +87,10 @@ export type RumbleInput<
     | undefined;
   /**
    * rumble can set up otel tracing if you want to. This will provide details of execution time and outcome to the provided tracer. See https://pothos-graphql.dev/docs/plugins/tracing#install for more information.
+   *
+   * The emitted spans and attributes are identical for every transport, so an
+   * operation served via GraphQL, the SOFA REST adapter or WebSockets produces
+   * the same trace shape (see `rumble.transport` to tell them apart).
    */
   otel?: {
     /**
@@ -101,6 +105,37 @@ export type RumbleInput<
      * You can pass options to the tracing wrapper
      */
     options?: TracingWrapperOptions<unknown>;
+    /**
+     * Whether the operation source is attached to operation spans as
+     * `graphql.document`.
+     *
+     * Keep in mind that a document can carry inline argument literals, so this
+     * may contain user data.
+     * @default true
+     */
+    includeDocument?: boolean;
+    /**
+     * Whether the incoming operation variables are attached to operation spans
+     * as `graphql.variables.<name>` attributes.
+     *
+     * Variables regularly carry personal data, so you can turn this off
+     * entirely (`false`) or pass a function to redact or drop single entries
+     * before they leave the process.
+     *
+     * @example
+     * ```ts
+     * otel: {
+     *   enabled: true,
+     *   includeVariables: ({ password, ...rest }) => rest,
+     * }
+     * ```
+     * @default true
+     */
+    includeVariables?:
+      | boolean
+      | ((
+          variables: Record<string, unknown>,
+        ) => Record<string, unknown> | undefined);
   };
   /**
    * Structured logging for rumble internals. Pass a pino (or compatible) logger instance.
@@ -117,11 +152,34 @@ export type RumbleInput<
      */
     logger: RumbleLogger;
     /**
-     * When both logger and otel are enabled, inject `traceId` and `spanId` fields into every
-     * log entry emitted during a GraphQL operation. Useful for correlating log lines with
-     * traces in backends like Jaeger or Grafana Tempo.
+     * When both logger and otel are enabled, inject `trace_id`, `span_id` and `trace_flags`
+     * fields into every log entry emitted during a GraphQL operation. Useful for correlating
+     * log lines with traces in backends like Jaeger or Grafana Tempo.
      * @default true
      */
     injectTraceId?: boolean;
+    /**
+     * Whether the incoming operation variables are attached to the operation
+     * start log entry as a `graphql.variables` object.
+     *
+     * Variables regularly carry personal data, so you can turn this off
+     * entirely (`false`) or pass a function to redact or drop single entries
+     * before they are logged.
+     *
+     * @example
+     * ```ts
+     * logger: {
+     *   enabled: true,
+     *   logger: pino(),
+     *   includeVariables: ({ password, ...rest }) => rest,
+     * }
+     * ```
+     * @default true
+     */
+    includeVariables?:
+      | boolean
+      | ((
+          variables: Record<string, unknown>,
+        ) => Record<string, unknown> | undefined);
   };
 };

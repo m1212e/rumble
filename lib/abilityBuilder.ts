@@ -1,11 +1,24 @@
-import type { Span } from "@opentelemetry/api";
+import type { AttributeValue, Span } from "@opentelemetry/api";
 import { relationsFilterToSQL } from "drizzle-orm";
 import { debounce } from "es-toolkit";
+import { errorLogField } from "./helpers/errorLogging";
 import { lazy } from "./helpers/lazy";
 import { mergeFilters } from "./helpers/mergeFilters";
 import { sanitizeFilterValue } from "./helpers/sanitizeFilterValue";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
 import { tableHelper } from "./helpers/tableHelpers";
+import {
+  ATTR_ABILITIES_DYNAMIC,
+  ATTR_ABILITIES_STATIC,
+  ATTR_ABILITIES_STATUS,
+  ATTR_ABILITIES_TOTAL,
+  ATTR_ACTION,
+  ATTR_TABLE,
+  recordSpanError,
+  SPAN_ABILITIES_PREPARE,
+  type TelemetryConfig,
+  traceCorrelationFields,
+} from "./helpers/telemetry";
 import type {
   Filter,
   FilterPrefetchCombo,
@@ -100,11 +113,21 @@ function isStaticQueryFilter<
   return typeof filter !== "function";
 }
 
-const makeNothingRegisteredWarner = (logger?: RumbleLogger) =>
+const makeNothingRegisteredWarner = (
+  config: TelemetryConfig,
+  logger?: RumbleLogger,
+) =>
   debounce((model: string, action: string) => {
     const msg = `No abilities registered for ${model}/${action} — blocking everything. Register the ability or ignore this warning if intentional.`;
     if (logger) {
-      logger.warn({ "rumble.table": model, "rumble.action": action }, msg);
+      logger.warn(
+        {
+          [ATTR_TABLE]: model,
+          [ATTR_ACTION]: action,
+          ...traceCorrelationFields(config),
+        },
+        msg,
+      );
     } else {
       console.warn(msg);
     }
@@ -124,7 +147,11 @@ export const createAbilityBuilder = <
   logger: loggerConfig,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>) => {
   const log = loggerConfig?.enabled ? loggerConfig.logger : undefined;
-  const nothingRegisteredWarningLogger = makeNothingRegisteredWarner(log);
+  const telemetryConfig: TelemetryConfig = { otel, logger: loggerConfig };
+  const nothingRegisteredWarningLogger = makeNothingRegisteredWarner(
+    telemetryConfig,
+    log,
+  );
   type TableNames = TableRelationNames<DB>;
 
   // Views/materialized views can appear in db.query (if the caller's schema
@@ -619,21 +646,20 @@ export const createAbilityBuilder = <
             withContext: (userContext: UserContext) => {
               return {
                 filter: (action: Action) => {
-                  const assembleAbilities = (span?: Span) => {
+                  const assembleAbilities = (
+                    attributes: Record<string, AttributeValue>,
+                  ) => {
                     const filters = queryFilters.get(action);
 
                     // in case we have a wildcard ability, skip the rest and return no filters at all
                     if (filters === "unrestricted") {
-                      span?.setAttribute("abilities.status", "unrestricted");
+                      attributes[ATTR_ABILITIES_STATUS] = "unrestricted";
                       return transformToResponse();
                     }
 
                     // if nothing has been allowed, block everything
                     if (!filters) {
-                      span?.setAttribute(
-                        "abilities.status",
-                        "blocked_everything",
-                      );
+                      attributes[ATTR_ABILITIES_STATUS] = "blocked_everything";
                       nothingRegisteredWarningLogger(String(tableName), action);
                       return transformToResponse(blockEverythingFilter);
                     }
@@ -652,6 +678,7 @@ export const createAbilityBuilder = <
                       const result = func(userContext);
                       // if one of the dynamic filters returns "allow", we want to allow everything
                       if (result === "allow") {
+                        attributes[ATTR_ABILITIES_STATUS] = "unrestricted";
                         return transformToResponse();
                       }
                       // if nothing is returned, nothing is allowed by this filter
@@ -661,31 +688,20 @@ export const createAbilityBuilder = <
                     }
                     dynamicResults.length = filtersReturned;
 
-                    span?.setAttribute(
-                      "abilities.dynamic",
-                      dynamicResults.length,
-                    );
-                    span?.setAttribute(
-                      "abilities.static",
-                      simpleQueryFilters[action].length,
-                    );
+                    attributes[ATTR_ABILITIES_DYNAMIC] = dynamicResults.length;
+                    attributes[ATTR_ABILITIES_STATIC] =
+                      simpleQueryFilters[action].length;
 
                     const allQueryFilters = [
                       ...simpleQueryFilters[action],
                       ...dynamicResults,
                     ];
 
-                    span?.setAttribute(
-                      "abilities.total",
-                      allQueryFilters.length,
-                    );
+                    attributes[ATTR_ABILITIES_TOTAL] = allQueryFilters.length;
 
                     // if we don't have any permitted filters then block everything
                     if (allQueryFilters.length === 0) {
-                      span?.setAttribute(
-                        "abilities.status",
-                        "blocked_everything",
-                      );
+                      attributes[ATTR_ABILITIES_STATUS] = "blocked_everything";
 
                       return transformToResponse(blockEverythingFilter);
                     }
@@ -697,58 +713,58 @@ export const createAbilityBuilder = <
                             return mergeFilters(a, b, "OR");
                           });
 
-                    span?.setAttribute("abilities.status", "applied");
+                    attributes[ATTR_ABILITIES_STATUS] = "applied";
                     return transformToResponse(mergedFilters as any);
+                  };
+
+                  // one attribute set, fed to both sinks, so a trace and a log
+                  // line describing the same ability check cannot disagree
+                  const run = (span?: Span) => {
+                    const attributes: Record<string, AttributeValue> = {
+                      [ATTR_TABLE]: String(tableName),
+                      [ATTR_ACTION]: action,
+                    };
+
+                    try {
+                      const result = assembleAbilities(attributes);
+                      log?.debug(
+                        {
+                          ...attributes,
+                          ...traceCorrelationFields(telemetryConfig, span),
+                        },
+                        "abilities prepared",
+                      );
+                      return result;
+                    } catch (error) {
+                      recordSpanError(span, error);
+                      log?.error(
+                        {
+                          ...attributes,
+                          ...traceCorrelationFields(telemetryConfig, span),
+                          ...errorLogField(error),
+                        },
+                        "abilities failed",
+                      );
+                      throw error;
+                    } finally {
+                      span?.setAttributes(attributes);
+                    }
                   };
 
                   if (otel?.enabled && otel.tracer) {
                     return otel.tracer.startActiveSpan(
-                      `rumble.abilities.prepare`,
+                      SPAN_ABILITIES_PREPARE,
                       (span) => {
-                        span.setAttribute("rumble.action", action);
-                        span.setAttribute("rumble.table", String(tableName));
                         try {
-                          // assembleAbilities sets abilities.* attributes on the span;
-                          // we capture them in parallel for logging via a lightweight proxy
-                          const attrs: Record<string, unknown> = {
-                            "rumble.table": String(tableName),
-                            "rumble.action": action,
-                          };
-                          const proxy = new Proxy(span, {
-                            get(target, prop) {
-                              if (prop === "setAttribute") {
-                                return (k: string, v: unknown) => {
-                                  attrs[k] = v;
-                                  return target.setAttribute(k, v as any);
-                                };
-                              }
-                              return (target as any)[prop];
-                            },
-                          });
-                          const result = assembleAbilities(proxy);
-                          log?.debug(attrs, "abilities prepared");
-                          return result;
+                          return run(span);
                         } finally {
                           span.end();
                         }
                       },
                     );
-                  } else {
-                    const attrs: Record<string, unknown> = {
-                      "rumble.table": String(tableName),
-                      "rumble.action": action,
-                    };
-                    const spy = log
-                      ? ({
-                          setAttribute: (k: string, v: unknown) => {
-                            attrs[k] = v;
-                          },
-                        } as unknown as Span)
-                      : undefined;
-                    const result = assembleAbilities(spy);
-                    log?.debug(attrs, "abilities prepared");
-                    return result;
                   }
+
+                  return run();
                 },
               };
             },

@@ -30,6 +30,12 @@ import {
 } from "./args/whereArgsImplementer";
 import type { ContextType } from "./context";
 import { errorLogField } from "./helpers/errorLogging";
+import {
+  ATTR_FIELD_NAME,
+  ATTR_PARENT_TYPE,
+  FIELD_DURATION_MS,
+  traceCorrelationFields,
+} from "./helpers/telemetry";
 import { pluginName } from "./runtimeFiltersPlugin/filterTypes";
 import { registerRuntimeFiltersPlugin } from "./runtimeFiltersPlugin/runtimeFiltersPlugin";
 import type { DrizzleInstance } from "./types/drizzleInstanceType";
@@ -134,26 +140,25 @@ export const createSchemaBuilder = <
         let r = createSpan ? createSpan(resolver, options) : resolver;
         if (logger?.enabled) {
           const log = logger.logger;
+          const telemetryConfig = { otel, logger };
           r = wrapResolver(r, (error, duration) => {
+            const fields = {
+              [ATTR_FIELD_NAME]: config.name,
+              [ATTR_PARENT_TYPE]: config.parentType,
+              [FIELD_DURATION_MS]: duration,
+              // read from the active span, which at this point is the resolver
+              // span pothos opened, so resolver logs correlate as precisely as
+              // the operation level ones do
+              ...traceCorrelationFields(telemetryConfig),
+            };
+
             if (error) {
               log.error(
-                {
-                  "graphql.field.name": config.name,
-                  "graphql.parent.type": config.parentType,
-                  duration_ms: duration,
-                  ...errorLogField(error),
-                },
+                { ...fields, ...errorLogField(error) },
                 "resolver failed",
               );
             } else {
-              log.debug(
-                {
-                  "graphql.field.name": config.name,
-                  "graphql.parent.type": config.parentType,
-                  duration_ms: duration,
-                },
-                "resolver completed",
-              );
+              log.debug(fields, "resolver completed");
             }
           });
         }

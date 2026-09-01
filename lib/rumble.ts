@@ -1,7 +1,7 @@
 import { EnvelopArmorPlugin } from "@escape.tech/graphql-armor";
 import { useDisableIntrospection } from "@graphql-yoga/plugin-disable-introspection";
 import type { useSofa } from "@m1212e/sofa-api";
-import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { trace } from "@opentelemetry/api";
 import { merge } from "es-toolkit";
 import { GraphQLSchema } from "graphql";
 import type { ServerOptions } from "graphql-ws";
@@ -18,8 +18,16 @@ import { clientCreatorImplementer } from "./client/client";
 import { createContextFunction } from "./context";
 import { createCountQueryImplementer } from "./countQuery";
 import { createEnumImplementer, type EnumFieldKeys } from "./enum";
+import { errorsLogField } from "./helpers/errorLogging";
 import { lazy } from "./helpers/lazy";
 import { sofaOpenAPIWebhookDocs } from "./helpers/sofaOpenAPIWebhookDocs";
+import {
+  ATTR_TRANSPORT,
+  recordSpanErrors,
+  telemetryEnabled,
+  telemetryLogger,
+  traceCorrelationFields,
+} from "./helpers/telemetry";
 import {
   buildTracedExecute,
   buildTracedSubscribe,
@@ -37,6 +45,42 @@ import type {
   CustomRumblePothosConfig,
   RumbleInput,
 } from "./types/rumbleInput";
+
+/**
+ * Mirrors sofa's own default error handler: it derives the HTTP status from
+ * `extensions.http` and returns the errors as JSON. rumble only adds telemetry
+ * around error handling, so a request that fails must still answer with the
+ * status and body a plain sofa setup would have produced.
+ */
+function sofaErrorResponse(errors: ReadonlyArray<any>): Response {
+  let status: number | undefined;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json; charset=utf-8",
+  };
+
+  for (const error of errors) {
+    const http = error?.extensions?.http;
+    if (!http) continue;
+
+    if (http.status && (!status || http.status > status)) {
+      status = http.status;
+    }
+    if (http.headers) {
+      Object.assign(headers, http.headers);
+    }
+    // sofa strips this before serializing so the transport hint does not leak
+    // into the response body
+    delete error.extensions.http;
+  }
+
+  return Response.json(
+    { errors },
+    {
+      status: status ?? 500,
+      headers,
+    },
+  );
+}
 
 export const rumble = <
   UserContext extends Record<string, any>,
@@ -264,6 +308,44 @@ export const r = rumble({
     });
   });
 
+  /**
+   * Adapts the configured rumble logger to the logger interface yoga expects,
+   * so yoga's own diagnostics end up in the same structured stream (with the
+   * same `rumble.transport` and trace correlation fields) as rumble's entries.
+   */
+  const yogaLogging = () => {
+    const log = telemetryLogger(rumbleInput);
+    if (!log) return undefined;
+
+    const emit =
+      (level: "debug" | "info" | "warn" | "error") =>
+      (...args: unknown[]) => {
+        const messages = args.filter(
+          (arg): arg is string => typeof arg === "string",
+        );
+        const rest = args.filter((arg) => typeof arg !== "string");
+        const errors = rest.filter((entry) => entry instanceof Error);
+        const details = rest.filter((entry) => !(entry instanceof Error));
+
+        log[level](
+          {
+            [ATTR_TRANSPORT]: "graphql",
+            ...traceCorrelationFields(rumbleInput),
+            ...(errors.length > 0 ? errorsLogField(errors) : {}),
+            ...(details.length > 0 ? { details } : {}),
+          },
+          messages.join(" ") || "yoga diagnostic",
+        );
+      };
+
+    return {
+      debug: emit("debug"),
+      info: emit("info"),
+      warn: emit("warn"),
+      error: emit("error"),
+    };
+  };
+
   const createYoga = (
     args?:
       | (Omit<YogaServerOptions<RequestEvent, any>, "schema" | "context"> & {
@@ -296,12 +378,16 @@ export const r = rumble({
       graphiql: enableApiDocs,
       schema: builtSchema(),
       context,
+      // Yoga logs its own diagnostics (unexpected errors, warnings) to the
+      // console by default. Routing them into the rumble logger keeps every log
+      // line of a request in one structured, trace correlated stream.
+      logging: args?.logging ?? yogaLogging() ?? true,
       plugins: [
         ...(args?.plugins ?? []),
         ...(enableApiDocs
           ? []
           : [useDisableIntrospection(), EnvelopArmorPlugin(args?.armorConfig)]),
-        rumbleInput.otel?.enabled || rumbleInput.logger?.enabled
+        telemetryEnabled(rumbleInput)
           ? ({
               // TODO: add trace header per default in http response
               // TODO: Automatic Persisted Queries
@@ -310,7 +396,17 @@ export const r = rumble({
                   buildTracedExecute(
                     executeFn,
                     rumbleInput,
+                    "graphql",
                   ) as typeof executeFn,
+                );
+              },
+              onSubscribe: ({ setSubscribeFn, subscribeFn }) => {
+                setSubscribeFn(
+                  buildTracedSubscribe(
+                    subscribeFn,
+                    rumbleInput,
+                    "graphql",
+                  ) as typeof subscribeFn,
                 );
               },
             } as Plugin)
@@ -326,18 +422,9 @@ export const r = rumble({
     if (args.openAPI) {
       merge(args.openAPI, sofaOpenAPIWebhookDocs);
     }
-    if (args.errorHandler) {
-      const originalHandler = args.errorHandler;
-      args.errorHandler = (errors) => {
-        const span = trace.getActiveSpan();
 
-        for (const error of errors) {
-          span?.recordException(error);
-        }
-        span?.setStatus({ code: SpanStatusCode.ERROR });
-        return originalHandler(errors);
-      };
-    }
+    const userErrorHandler = args.errorHandler;
+
     return useSofaFn({
       ...args,
       schema: builtSchema(),
@@ -345,22 +432,36 @@ export const r = rumble({
       execute: buildTracedExecute(
         args.execute ?? defaultExecute,
         rumbleInput,
+        "rest",
       ) as any,
       subscribe: buildTracedSubscribe(
         args.subscribe ?? defaultSubscribe,
         rumbleInput,
+        "rest",
       ) as any,
+      // Errors that never reach execute (invalid body, depth limit, a failing
+      // context factory) are only visible here, so this is where the REST
+      // transport gets the same span/log treatment the other two get from the
+      // execute wrapper.
       errorHandler(errors) {
-        const span = trace.getActiveSpan();
+        // Not the operation span, which sofa has already left at this point:
+        // whatever request level span the surrounding instrumentation opened.
+        recordSpanErrors(trace.getActiveSpan(), errors);
 
-        for (const error of errors) {
-          span?.recordException(error);
-        }
-        span?.setStatus({ code: SpanStatusCode.ERROR });
+        const log = telemetryLogger(rumbleInput);
+        log?.error(
+          {
+            [ATTR_TRANSPORT]: "rest",
+            ...traceCorrelationFields(rumbleInput),
+            ...errorsLogField(errors),
+          },
+          "rest request failed",
+        );
 
-        return new Response(errors[0].message, {
-          status: 500,
-        }) as any;
+        return (userErrorHandler?.(errors) ??
+          sofaErrorResponse(errors)) as ReturnType<
+          NonNullable<typeof userErrorHandler>
+        >;
       },
     });
   };
@@ -382,10 +483,12 @@ export const r = rumble({
         execute: buildTracedExecute(
           (args as any).execute ?? defaultExecute,
           rumbleInput,
+          "ws",
         ) as any,
         subscribe: buildTracedSubscribe(
           (args as any).subscribe ?? defaultSubscribe,
           rumbleInput,
+          "ws",
         ) as any,
       } as Options,
       ...rest,
