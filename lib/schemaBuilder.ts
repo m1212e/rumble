@@ -15,7 +15,6 @@ import {
   ByteResolver,
   DateResolver,
   DateTimeISOResolver,
-  EmailAddressResolver,
   JSONResolver,
   LocaleResolver,
 } from "graphql-scalars";
@@ -47,6 +46,7 @@ import {
   type AddressShape,
   implementDefaultAddressTypes,
 } from "./scalars/address";
+import { EmailAddressResolver } from "./scalars/emailAddress";
 import { PersonNameResolver } from "./scalars/personName";
 import { PhoneNumberResolver } from "./scalars/phoneNumber";
 import type { DrizzleInstance } from "./types/drizzleInstanceType";
