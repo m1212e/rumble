@@ -14,7 +14,7 @@ export interface RumbleLogger {
 
 export type CustomRumblePothosConfig = Omit<
   ConstructorParameters<typeof SchemaBuilder>[0],
-  "smartSubscriptions" | "drizzle"
+  "smartSubscriptions" | "drizzle" | "validation"
 >;
 
 export type RumbleInput<
@@ -182,4 +182,11 @@ export type RumbleInput<
           variables: Record<string, unknown>,
         ) => Record<string, unknown> | undefined);
   };
+  /**
+   * Configures `@pothos/plugin-validation`, which rumble installs by default to power
+   * `Address`/`AddressInput`'s country-aware validation (see `implementDefaultAddressTypes`).
+   */
+  validation?: NonNullable<
+    ConstructorParameters<typeof SchemaBuilder>[0]
+  >["validation"];
 };

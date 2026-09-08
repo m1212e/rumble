@@ -67,6 +67,7 @@
     "@pothos/plugin-drizzle": "^0.17.4",
     "@pothos/plugin-smart-subscriptions": "^4.1.4",
     "@pothos/plugin-tracing": "^1.1.2",
+    "@pothos/plugin-validation": "^4.3.2",
     "@pothos/tracing-opentelemetry": "^1.2.0",
     "@urql/core": "^6.0.3",
     "@urql/exchange-graphcache": "^9.0.1",
@@ -76,8 +77,11 @@
     "es-toolkit": "^1.49.0",
     "graphql-scalars": "^1.25.0",
     "graphql-yoga": "^5.21.2",
+    "lib-address": "^0.7.0",
+    "libphonenumber-js": "^1.13.12",
     "pluralize": "^8.0.0",
-    "wonka": "^6.3.6"
+    "wonka": "^6.3.6",
+    "zod": "^4.5.4"
   },
   "main": "./out/index.cjs",
   "types": "./out/index.d.cts",

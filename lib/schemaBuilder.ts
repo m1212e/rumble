@@ -7,6 +7,7 @@ import TracingPlugin, {
   isRootField,
   wrapResolver,
 } from "@pothos/plugin-tracing";
+import ValidationPlugin from "@pothos/plugin-validation";
 import { createOpenTelemetryWrapper } from "@pothos/tracing-opentelemetry";
 import { getTableColumns, isTable, type Table } from "drizzle-orm";
 import {
@@ -14,9 +15,12 @@ import {
   ByteResolver,
   DateResolver,
   DateTimeISOResolver,
+  EmailAddressResolver,
   JSONResolver,
+  LocaleResolver,
 } from "graphql-scalars";
 import type { createPubSub } from "graphql-yoga";
+import type { PhoneNumber as LibPhoneNumber } from "libphonenumber-js";
 import {
   type BigIntWhereInputArgument,
   type BooleanWhereInputArgument,
@@ -38,6 +42,13 @@ import {
 } from "./helpers/telemetry";
 import { pluginName } from "./runtimeFiltersPlugin/filterTypes";
 import { registerRuntimeFiltersPlugin } from "./runtimeFiltersPlugin/runtimeFiltersPlugin";
+import {
+  type AddressInputShape,
+  type AddressShape,
+  implementDefaultAddressTypes,
+} from "./scalars/address";
+import { PersonNameResolver } from "./scalars/personName";
+import { PhoneNumberResolver } from "./scalars/phoneNumber";
 import type { DrizzleInstance } from "./types/drizzleInstanceType";
 import type {
   CustomRumblePothosConfig,
@@ -56,6 +67,7 @@ export const createSchemaBuilder = <
   pothosConfig,
   otel,
   logger,
+  validation,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
   pubsub: ReturnType<typeof createPubSub>;
 }) => {
@@ -68,6 +80,9 @@ export const createSchemaBuilder = <
   const schemaBuilder = new SchemaBuilder<{
     Context: ContextType<UserContext, DB, RequestEvent, Action, PothosConfig>;
     DrizzleRelations: DB["_"]["relations"];
+    Objects: {
+      Address: AddressShape;
+    };
     Scalars: {
       JSON: {
         Input: unknown;
@@ -89,6 +104,22 @@ export const createSchemaBuilder = <
         Input: string;
         Output: string;
       };
+      EmailAddress: {
+        Input: string;
+        Output: string;
+      };
+      PhoneNumber: {
+        Input: LibPhoneNumber;
+        Output: LibPhoneNumber | string;
+      };
+      Locale: {
+        Input: string;
+        Output: string;
+      };
+      PersonName: {
+        Input: string;
+        Output: string;
+      };
     };
     Inputs: {
       IntWhereInputArgument: NumberWhereInputArgument;
@@ -100,6 +131,7 @@ export const createSchemaBuilder = <
       BooleanWhereInputArgument: BooleanWhereInputArgument;
       IDWhereInputArgument: IDWhereInputArgument;
       JSONWhereInputArgument: JSONWhereInputArgument;
+      AddressInput: AddressInputShape;
     };
     DefaultFieldNullability: false;
   }>({
@@ -109,6 +141,7 @@ export const createSchemaBuilder = <
       DrizzlePlugin,
       SmartSubscriptionsPlugin,
       TracingPlugin,
+      ValidationPlugin,
       ...(pothosConfig?.plugins ?? []),
     ],
     drizzle: {
@@ -167,6 +200,11 @@ export const createSchemaBuilder = <
     },
     otel,
     logger,
+    // `RumbleValidationConfig` is deliberately generic-unbound (extracted from the plugin's
+    // own type, not hand-declared), so it doesn't line up with this builder's concrete
+    // SchemaTypes — same category of mismatch `otel`/`logger`/`tracing` avoid by not
+    // referencing Pothos generics at all.
+    validation: validation as any,
   });
 
   schemaBuilder.addScalarType("JSON", JSONResolver);
@@ -174,7 +212,12 @@ export const createSchemaBuilder = <
   schemaBuilder.addScalarType("DateTime", DateTimeISOResolver);
   schemaBuilder.addScalarType("BigInt", BigIntResolver);
   schemaBuilder.addScalarType("Bytes", ByteResolver);
+  schemaBuilder.addScalarType("EmailAddress", EmailAddressResolver);
+  schemaBuilder.addScalarType("PhoneNumber", PhoneNumberResolver);
+  schemaBuilder.addScalarType("Locale", LocaleResolver);
+  schemaBuilder.addScalarType("PersonName", PersonNameResolver);
   implementDefaultWhereInputArgs(schemaBuilder);
+  implementDefaultAddressTypes(schemaBuilder);
 
   schemaBuilder.queryType({});
   schemaBuilder.subscriptionType({});
