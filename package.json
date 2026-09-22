@@ -99,13 +99,5 @@
       "require": "./out/client/generate.cjs"
     },
     "./package.json": "./package.json"
-  },
-  "inlinedDependencies": {
-    "@whatwg-node/promise-helpers": "1.3.2",
-    "@whatwg-node/server": "0.11.0",
-    "fets": "0.8.10",
-    "hotscript": "1.0.13",
-    "json-schema-to-ts": "3.1.1",
-    "ts-algebra": "2.0.0"
   }
 }
