@@ -1,15 +1,23 @@
-import "lib-address";
-import {
+import { createRequire } from "node:module";
+import type * as LibAddress from "lib-address";
+import { z } from "zod";
+import type { AddressShape } from "./address";
+
+const requireFromHere = createRequire(import.meta.url);
+const libAddress: typeof LibAddress = requireFromHere("lib-address");
+
+const {
   AddressValidationError,
   CountryMissingError,
   InvalidStateError,
   InvalidZipError,
   isValidCountryCode,
   MissingFieldError,
-  validateAddress,
-} from "lib-address";
-import { z } from "zod";
-import type { AddressShape } from "./address";
+} = libAddress;
+
+//TODO: https://github.com/LancelotP/lib-address/issues/42
+const validateAddress: typeof LibAddress.validateAddress =
+  libAddress.validateAddress;
 
 const FIELD_PATH_MAP: Partial<Record<string, keyof AddressShape>> = {
   addressLine1: "streetAddress",
