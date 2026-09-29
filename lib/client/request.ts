@@ -492,22 +492,12 @@ function serializeArgValue({
       type = type.ofType;
     }
 
-    // if (type.kind !== "INPUT_OBJECT") {
-    //   throw new Error("Expected an INPUT_OBJECT type");
-    // }
-
     const referenceInputObject = types.find(
       (t) => t.name === (type as any).name,
     );
 
-    if (!referenceInputObject) {
-      throw new Error(
-        `Expected an INPUT_OBJECT hit in name based lookup for name ${(type as any).name} with arg ${JSON.stringify(arg)}`,
-      );
-    }
-
-    if (referenceInputObject.kind !== "INPUT_OBJECT") {
-      throw new Error("Expected an INPUT_OBJECT hit in named based lookup");
+    if (referenceInputObject?.kind !== "INPUT_OBJECT") {
+      return arg;
     }
 
     const result: Record<string, any> = {};
