@@ -1,5 +1,5 @@
 import type { Client } from "@urql/core";
-import { capitalize } from "es-toolkit";
+import { capitalize, isEqual } from "es-toolkit";
 import type {
   IntrospectionInputValue,
   IntrospectionQuery,
@@ -18,9 +18,11 @@ const svelteReactivityReady: Promise<void> = import("svelte/reactivity")
   .catch(() => {});
 
 import {
+  filter,
   fromValue,
   map,
   merge,
+  onStart,
   pipe,
   type Source,
   share,
@@ -29,6 +31,34 @@ import {
   toObservable,
 } from "wonka";
 import { lazy } from "../helpers/lazy";
+
+/**
+ * Drops results whose data is deeply equal to the previously emitted one, so
+ * observers are only notified when something actually changed. Errors always pass.
+ * State is reset on every (re)start of the pipeline so new subscriptions still
+ * receive their initial value.
+ */
+function dedupeResults(queryName: string) {
+  return (source: Source<any>): Source<any> => {
+    let hasLast = false;
+    let last: unknown;
+    return pipe(
+      source,
+      onStart(() => {
+        hasLast = false;
+        last = undefined;
+      }),
+      filter((v: any) => {
+        if (v.error) return true;
+        const data = v.data?.[queryName];
+        if (hasLast && isEqual(last, data)) return false;
+        hasLast = true;
+        last = data;
+        return true;
+      }),
+    );
+  };
+}
 
 // TODO: this could use some refactoring and less type check disable (remove uses of any)
 // TODO: the client needs tests
@@ -191,6 +221,7 @@ export function makeGraphQLQueryRequest({
   const observable = toObservable(
     pipe(
       merge(observableSources),
+      dedupeResults(queryName),
       share,
       map((v: any) => {
         if (v.error) {
