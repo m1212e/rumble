@@ -3,6 +3,22 @@ import { RumbleError } from "../../types/rumbleError";
 import { mapSQLTypeToGraphQLType } from "./mapSQLTypeToTSType";
 import type { PossibleSQLType } from "./types";
 
+type AnyFieldBuilder = DrizzleObjectFieldBuilder<any, any, any, any>;
+
+// explicit so declaration emit doesn't have to name pothos' internal FieldRef
+type PothosResponseFieldRef =
+  | ReturnType<AnyFieldBuilder["exposeInt"]>
+  | ReturnType<AnyFieldBuilder["exposeIntList"]>
+  | ReturnType<AnyFieldBuilder["exposeString"]>
+  | ReturnType<AnyFieldBuilder["exposeStringList"]>
+  | ReturnType<AnyFieldBuilder["exposeBoolean"]>
+  | ReturnType<AnyFieldBuilder["exposeBooleanList"]>
+  | ReturnType<AnyFieldBuilder["exposeFloat"]>
+  | ReturnType<AnyFieldBuilder["exposeFloatList"]>
+  | ReturnType<AnyFieldBuilder["exposeID"]>
+  | ReturnType<AnyFieldBuilder["exposeIDList"]>
+  | ReturnType<AnyFieldBuilder["field"]>;
+
 export function buildPothosResponseTypeFromGraphQLType<
   Builder extends DrizzleObjectFieldBuilder<any, any, any, any>,
 >({
@@ -17,7 +33,7 @@ export function buildPothosResponseTypeFromGraphQLType<
   fieldName: string;
   nullable: boolean;
   isArray: boolean;
-}) {
+}): PothosResponseFieldRef {
   const gqlType = mapSQLTypeToGraphQLType({
     sqlType,
     fieldName,

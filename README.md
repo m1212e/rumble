@@ -64,6 +64,10 @@ abilityBuilder.posts
  .allow(["update", "delete"])
  .when(({ userId }) => ({ where: { authorId: userId } }));
 
+abilityBuilder.posts.allow("read").when(async ({ userId }) => ({
+ where: { teamId: { in: await permissions.teamsOf(userId) } },
+}));
+
 ```
 
 ### Application level filters
@@ -87,10 +91,10 @@ schemaBuilder.queryFields((t) => {
  return {
   posts: t.drizzleField({
    type: [PostRef],
-   resolve: (query, root, args, ctx, info) => {
+   resolve: async (query, root, args, ctx, info) => {
     return db.query.posts.findMany(
-     // here we apply our filter
-     query(ctx.abilities.posts.filter("read").query.many),
+     // here we apply our filter (filter() is async, so remember to await it)
+     query((await ctx.abilities.posts.filter("read")).query.many),
     );
    },
   }),
@@ -147,11 +151,11 @@ schemaBuilder.queryFields((t) => {
     // here we set our generated type as type for the where argument
     where: t.arg({ type: WhereArgs }),
    },
-   resolve: (query, root, args, ctx, info) => {
+   resolve: async (query, root, args, ctx, info) => {
     return db.query.posts.findMany(
      query(
       // here we apply the ability filter
-      ctx.abilities.users.filter("read")
+      (await ctx.abilities.users.filter("read"))
       // we can merge one time filters into the permission filter for this specific request
         .merge({ where: args.where }).query.many,
      ),

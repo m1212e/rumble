@@ -441,7 +441,7 @@ export const createObjectImplementer = <
                 subscribe,
                 nullable,
                 description: `Get the ${pluralize.plural(relationSchema.tsName)} related to this ${pluralize.singular(tableSchema.tsName)}`,
-                query: (args: any, ctx: any) => {
+                query: async (args: any, ctx: any) => {
                   // transform null prototyped object
                   args = JSON.parse(JSON.stringify(args));
 
@@ -451,17 +451,21 @@ export const createObjectImplementer = <
                       args,
                       tableSchema: relationSchema,
                       abilities:
-                        ctx.abilities[relationSchema.tsName].filter(readAction),
+                        await ctx.abilities[relationSchema.tsName].filter(
+                          readAction,
+                        ),
                     });
                   }
 
-                  const filter = ctx.abilities[relationSchema.tsName]
-                    .filter(readAction)
-                    .merge({
-                      where: args.where,
-                      limit: args.limit,
-                      extras: args.extras,
-                    }).query[filterSpecifier];
+                  const filter = (
+                    await ctx.abilities[relationSchema.tsName].filter(
+                      readAction,
+                    )
+                  ).merge({
+                    where: args.where,
+                    limit: args.limit,
+                    extras: args.extras,
+                  }).query[filterSpecifier];
 
                   if (args.offset) {
                     (filter as any).offset = args.offset;

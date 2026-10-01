@@ -48,8 +48,8 @@ describe("unrestricted ability query filter shape", async () => {
       userId: data.users[0].id,
     });
 
-    const single = abilities.users.filter("read").query.single;
-    const many = abilities.users.filter("read").query.many;
+    const single = (await abilities.users.filter("read")).query.single;
+    const many = (await abilities.users.filter("read")).query.many;
 
     expect(single.where).toBe(EmptyFilter);
     expect(many.where).toBe(EmptyFilter);
@@ -64,9 +64,11 @@ describe("unrestricted ability query filter shape", async () => {
 
     // mirrors how rumble auto-builds a nested relation's `with.<relation>`
     // config when the GraphQL selection passes no `where` argument
-    const merged = abilities.users
-      .filter("read")
-      .merge({ where: undefined, limit: undefined, extras: undefined });
+    const merged = (await abilities.users.filter("read")).merge({
+      where: undefined,
+      limit: undefined,
+      extras: undefined,
+    });
 
     expect(merged.query.single.where).toBe(EmptyFilter);
     expect(merged.query.many.where).toBe(EmptyFilter);
@@ -79,7 +81,7 @@ describe("unrestricted ability query filter shape", async () => {
       userId: data.users[0].id,
     });
 
-    const merged = abilities.users.filter("read").merge({
+    const merged = (await abilities.users.filter("read")).merge({
       where: { id: data.users[0].id },
     });
 
@@ -92,7 +94,7 @@ describe("unrestricted ability query filter shape", async () => {
       userId: data.users[0].id,
     });
 
-    const single = abilities.posts.filter("read").query.single;
+    const single = (await abilities.posts.filter("read")).query.single;
     expect(single.where).toBeDefined();
   });
 });

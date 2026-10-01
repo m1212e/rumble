@@ -75,7 +75,11 @@ type DynamicQueryFilter<
   Context,
 > = (
   context: Context,
-) => StaticQueryFilter<DB, Table, Filter> | undefined | "allow";
+) =>
+  | StaticQueryFilter<DB, Table, Filter>
+  | undefined
+  | "allow"
+  | Promise<StaticQueryFilter<DB, Table, Filter> | undefined | "allow">;
 
 /**
  * Combined query filter type for a specific table. May be static or dynamic.
@@ -97,9 +101,7 @@ function isDynamicQueryFilter<
 >(
   filter: QueryFilter<DB, Table, Filter, Context>,
 ): filter is DynamicQueryFilter<DB, Table, Filter, Context> {
-  return (
-    typeof filter === "function" && filter.constructor.name !== "AsyncFunction"
-  );
+  return typeof filter === "function";
 }
 
 function isStaticQueryFilter<
@@ -111,6 +113,24 @@ function isStaticQueryFilter<
   filter: QueryFilter<DB, Table, Filter, Context>,
 ): filter is StaticQueryFilter<DB, Table, Filter> {
   return typeof filter !== "function";
+}
+
+/**
+ * filter() is async. Without type checking (plain JS, `any`) a forgotten await would
+ * hand the promise itself to drizzle
+ */
+function guardAgainstMissingAwait<T>(promise: Promise<T>): Promise<T> {
+  for (const key of ["query", "sql", "merge"]) {
+    Object.defineProperty(promise, key, {
+      enumerable: true,
+      get() {
+        throw new RumbleError(
+          `Tried to access "${key}" on the result of abilities.<table>.filter(...) which is a Promise. filter() is async, did you forget to await it?`,
+        );
+      },
+    });
+  }
+  return promise;
 }
 
 const makeNothingRegisteredWarner = (
@@ -481,7 +501,7 @@ export const createAbilityBuilder = <
                    * @example
                    * ```ts
                    * author: t.relation("author", {
-                   *  query: (_args, ctx) => ctx.abilities.users.filter("read").query.single,
+                   *  query: async (_args, ctx) => (await ctx.abilities.users.filter("read")).query.single,
                    * }),
                    * ´´´
                    */
@@ -533,7 +553,7 @@ export const createAbilityBuilder = <
                    *	.where(
                    *	  and(
                    *	    eq(schema.users.id, args.userId),
-                   *	    ctx.abilities.users.filter("update").sql.where,
+                   *	    (await ctx.abilities.users.filter("update")).sql.where,
                    *	  ),
                    *	);
                    * ```
@@ -552,7 +572,7 @@ export const createAbilityBuilder = <
                    * @example
                    * ```ts
                    * author: t.relation("author", {
-                   *  query: (_args, ctx) => ctx.abilities.users.filter("read").query.single,
+                   *  query: async (_args, ctx) => (await ctx.abilities.users.filter("read")).query.single,
                    * }),
                    * ´´´
                    */
@@ -602,7 +622,7 @@ export const createAbilityBuilder = <
                    *	.where(
                    *	  and(
                    *	    eq(schema.users.id, args.userId),
-                   *	    ctx.abilities.users.filter("update").sql.where,
+                   *	    (await ctx.abilities.users.filter("update")).sql.where,
                    *	  ),
                    *	);
                    * ```
@@ -644,127 +664,136 @@ export const createAbilityBuilder = <
 
           return {
             withContext: (userContext: UserContext) => {
-              return {
-                filter: (action: Action) => {
-                  const assembleAbilities = (
-                    attributes: Record<string, AttributeValue>,
-                  ) => {
-                    const filters = queryFilters.get(action);
+              const prepare = (action: Action) => {
+                const assembleAbilities = async (
+                  attributes: Record<string, AttributeValue>,
+                ) => {
+                  const filters = queryFilters.get(action);
 
-                    // in case we have a wildcard ability, skip the rest and return no filters at all
-                    if (filters === "unrestricted") {
-                      attributes[ATTR_ABILITIES_STATUS] = "unrestricted";
-                      return transformToResponse();
-                    }
-
-                    // if nothing has been allowed, block everything
-                    if (!filters) {
-                      attributes[ATTR_ABILITIES_STATUS] = "blocked_everything";
-                      nothingRegisteredWarningLogger(String(tableName), action);
-                      return transformToResponse(blockEverythingFilter);
-                    }
-
-                    // run all dynamic filters
-                    const dynamicResults = new Array<
-                      DrizzleQueryFunctionInput<DB, TableName>
-                    >(dynamicQueryFilters[action].length);
-                    let filtersReturned = 0;
-                    for (
-                      let i = 0;
-                      i < dynamicQueryFilters[action].length;
-                      i++
-                    ) {
-                      const func = dynamicQueryFilters[action][i];
-                      const result = func(userContext);
-                      // if one of the dynamic filters returns "allow", we want to allow everything
-                      if (result === "allow") {
-                        attributes[ATTR_ABILITIES_STATUS] = "unrestricted";
-                        return transformToResponse();
-                      }
-                      // if nothing is returned, nothing is allowed by this filter
-                      if (result === undefined) continue;
-
-                      dynamicResults[filtersReturned++] = result;
-                    }
-                    dynamicResults.length = filtersReturned;
-
-                    attributes[ATTR_ABILITIES_DYNAMIC] = dynamicResults.length;
-                    attributes[ATTR_ABILITIES_STATIC] =
-                      simpleQueryFilters[action].length;
-
-                    const allQueryFilters = [
-                      ...simpleQueryFilters[action],
-                      ...dynamicResults,
-                    ];
-
-                    attributes[ATTR_ABILITIES_TOTAL] = allQueryFilters.length;
-
-                    // if we don't have any permitted filters then block everything
-                    if (allQueryFilters.length === 0) {
-                      attributes[ATTR_ABILITIES_STATUS] = "blocked_everything";
-
-                      return transformToResponse(blockEverythingFilter);
-                    }
-
-                    const mergedFilters =
-                      allQueryFilters.length === 1
-                        ? allQueryFilters[0]
-                        : allQueryFilters.reduce((a, b) => {
-                            return mergeFilters(a, b, "OR");
-                          });
-
-                    attributes[ATTR_ABILITIES_STATUS] = "applied";
-                    return transformToResponse(mergedFilters as any);
-                  };
-
-                  // one attribute set, fed to both sinks, so a trace and a log
-                  // line describing the same ability check cannot disagree
-                  const run = (span?: Span) => {
-                    const attributes: Record<string, AttributeValue> = {
-                      [ATTR_TABLE]: String(tableName),
-                      [ATTR_ACTION]: action,
-                    };
-
-                    try {
-                      const result = assembleAbilities(attributes);
-                      log?.debug(
-                        {
-                          ...attributes,
-                          ...traceCorrelationFields(telemetryConfig, span),
-                        },
-                        "abilities prepared",
-                      );
-                      return result;
-                    } catch (error) {
-                      recordSpanError(span, error);
-                      log?.error(
-                        {
-                          ...attributes,
-                          ...traceCorrelationFields(telemetryConfig, span),
-                          ...errorLogField(error),
-                        },
-                        "abilities failed",
-                      );
-                      throw error;
-                    } finally {
-                      span?.setAttributes(attributes);
-                    }
-                  };
-
-                  if (otel?.enabled && otel.tracer) {
-                    return otel.tracer.startActiveSpan(
-                      SPAN_ABILITIES_PREPARE,
-                      (span) => {
-                        try {
-                          return run(span);
-                        } finally {
-                          span.end();
-                        }
-                      },
-                    );
+                  // in case we have a wildcard ability, skip the rest and return no filters at all
+                  if (filters === "unrestricted") {
+                    attributes[ATTR_ABILITIES_STATUS] = "unrestricted";
+                    return transformToResponse();
                   }
 
-                  return run();
+                  // if nothing has been allowed, block everything
+                  if (!filters) {
+                    attributes[ATTR_ABILITIES_STATUS] = "blocked_everything";
+                    nothingRegisteredWarningLogger(String(tableName), action);
+                    return transformToResponse(blockEverythingFilter);
+                  }
+
+                  // run all dynamic filters, they may be async so we start all of them first
+                  const rawResults = await Promise.all(
+                    dynamicQueryFilters[action].map((func) =>
+                      func(userContext),
+                    ),
+                  );
+
+                  // if one of the dynamic filters returns "allow", we want to allow everything
+                  if (rawResults.includes("allow")) {
+                    attributes[ATTR_ABILITIES_STATUS] = "unrestricted";
+                    return transformToResponse();
+                  }
+
+                  // if nothing is returned, nothing is allowed by this filter
+                  const dynamicResults = rawResults.filter(
+                    (r): r is Exclude<typeof r, undefined | "allow"> =>
+                      r !== undefined,
+                  ) as DrizzleQueryFunctionInput<DB, TableName>[];
+
+                  attributes[ATTR_ABILITIES_DYNAMIC] = dynamicResults.length;
+                  attributes[ATTR_ABILITIES_STATIC] =
+                    simpleQueryFilters[action].length;
+
+                  const allQueryFilters = [
+                    ...simpleQueryFilters[action],
+                    ...dynamicResults,
+                  ];
+
+                  attributes[ATTR_ABILITIES_TOTAL] = allQueryFilters.length;
+
+                  // if we don't have any permitted filters then block everything
+                  if (allQueryFilters.length === 0) {
+                    attributes[ATTR_ABILITIES_STATUS] = "blocked_everything";
+
+                    return transformToResponse(blockEverythingFilter);
+                  }
+
+                  const mergedFilters =
+                    allQueryFilters.length === 1
+                      ? allQueryFilters[0]
+                      : allQueryFilters.reduce((a, b) => {
+                          return mergeFilters(a, b, "OR");
+                        });
+
+                  attributes[ATTR_ABILITIES_STATUS] = "applied";
+                  return transformToResponse(mergedFilters as any);
+                };
+
+                // one attribute set, fed to both sinks, so a trace and a log
+                // line describing the same ability check cannot disagree
+                const run = async (span?: Span) => {
+                  const attributes: Record<string, AttributeValue> = {
+                    [ATTR_TABLE]: String(tableName),
+                    [ATTR_ACTION]: action,
+                  };
+
+                  try {
+                    const result = await assembleAbilities(attributes);
+                    log?.debug(
+                      {
+                        ...attributes,
+                        ...traceCorrelationFields(telemetryConfig, span),
+                      },
+                      "abilities prepared",
+                    );
+                    return result;
+                  } catch (error) {
+                    recordSpanError(span, error);
+                    log?.error(
+                      {
+                        ...attributes,
+                        ...traceCorrelationFields(telemetryConfig, span),
+                        ...errorLogField(error),
+                      },
+                      "abilities failed",
+                    );
+                    throw error;
+                  } finally {
+                    span?.setAttributes(attributes);
+                  }
+                };
+
+                if (otel?.enabled && otel.tracer) {
+                  return otel.tracer.startActiveSpan(
+                    SPAN_ABILITIES_PREPARE,
+                    async (span) => {
+                      try {
+                        return await run(span);
+                      } finally {
+                        span.end();
+                      }
+                    },
+                  );
+                }
+
+                return run();
+              };
+
+              // abilities are resolved once per request and action, since
+              // filter() is called by every field and the (possibly async)
+              // callbacks may be expensive, e.g. calling an external service
+              const cache = new Map<Action, ReturnType<typeof prepare>>();
+
+              return {
+                filter: (action: Action) => {
+                  let prepared = cache.get(action);
+                  if (!prepared) {
+                    prepared = guardAgainstMissingAwait(prepare(action));
+                    cache.set(action, prepared);
+                  }
+                  return prepared;
                 },
               };
             },

@@ -167,7 +167,7 @@ export const createQueryImplementer = <
             });
           },
           args: manyArgs,
-          resolve: (query, _root, args, ctx, _info) => {
+          resolve: async (query, _root, args, ctx, _info) => {
             // args does not have Object.prototype as prototype, so we need to set it
             // otherwise some libraries (like drizzle-orm) might have issues with it
             deepSetProto(args);
@@ -176,13 +176,13 @@ export const createQueryImplementer = <
               search,
               args,
               tableSchema,
-              abilities: ctx.abilities[table].filter(listAction),
+              abilities: await ctx.abilities[table].filter(listAction),
             });
 
             const mappedArgs = mapNullFieldsToUndefined(args);
-            const filter = ctx.abilities[table]
-              .filter(listAction)
-              .merge(mappedArgs as any).query.many;
+            const filter = (
+              await ctx.abilities[table].filter(listAction)
+            ).merge(mappedArgs as any).query.many;
 
             if (mappedArgs.offset) {
               (filter as any).offset = mappedArgs.offset;
@@ -241,13 +241,13 @@ export const createQueryImplementer = <
           args: {
             id: t.arg.id({ required: true }),
           },
-          resolve: (query, _root, args, ctx, _info) => {
+          resolve: async (query, _root, args, ctx, _info) => {
             deepSetProto(args);
 
-            const filter = (ctx.abilities as any)[table]
-              .filter(readAction)
-              .merge({ where: { [primaryKeyField.name]: args.id } })
-              .query.single;
+            const filter = (
+              await (ctx.abilities as any)[table].filter(readAction)
+            ).merge({ where: { [primaryKeyField.name]: args.id } }).query
+              .single;
             const queryArgs = query(filter);
 
             if (filter.columns) {

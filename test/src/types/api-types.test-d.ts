@@ -174,8 +174,12 @@ r.schemaBuilder.queryFields((t) => ({
       expectTypeOf(ctx.abilities).toHaveProperty("posts");
       expectTypeOf(ctx.abilities).toHaveProperty("comments");
 
-      // filter("read") returns a `{ query: { many, single }, sql, merge }` shape.
-      const f = ctx.abilities.users.filter("read");
+      // filter("read") is async and resolves to a `{ query: { many, single }, sql, merge }` shape.
+      expectTypeOf(ctx.abilities.users.filter("read")).toBeObject();
+      expectTypeOf(ctx.abilities.users.filter("read")).resolves.toHaveProperty(
+        "query",
+      );
+      const f = await ctx.abilities.users.filter("read");
       expectTypeOf(f).toHaveProperty("query");
       expectTypeOf(f).toHaveProperty("sql");
       expectTypeOf(f).toHaveProperty("merge");

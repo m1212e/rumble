@@ -343,13 +343,12 @@ describe("telemetry is uniform across transports", async () => {
   test("the ability spans are emitted for every transport", () => {
     for (const [, run] of all) {
       const spans = run.named("rumble.abilities.prepare");
-      expect(spans.length).toBeGreaterThan(0);
-      expect(spans[0].attributes["rumble.table"]).toBe("users");
-      expect(spans[0].attributes["rumble.action"]).toBe("read");
+      // related tables may be prepared before the queried one, so look it up by table
+      const span = spans.find((s) => s.attributes["rumble.table"] === "users");
+      expect(span).toBeDefined();
+      expect(span?.attributes["rumble.action"]).toBe("read");
       // a plain allow() is a wildcard, so no filters have to be applied
-      expect(spans[0].attributes["rumble.abilities.status"]).toBe(
-        "unrestricted",
-      );
+      expect(span?.attributes["rumble.abilities.status"]).toBe("unrestricted");
     }
   });
 

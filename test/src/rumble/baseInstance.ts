@@ -68,7 +68,7 @@ export function makeRumbleSeedInstance(
               firstName: args.firstName,
             })
             .where(
-              ctx.abilities.users.filter("update").merge({
+              (await ctx.abilities.users.filter("update")).merge({
                 where: { id: args.userId },
               }).sql.where,
             )
@@ -84,7 +84,7 @@ export function makeRumbleSeedInstance(
           return db.query.users
             .findFirst(
               query(
-                ctx.abilities.users.filter("read").merge({
+                (await ctx.abilities.users.filter("read")).merge({
                   where: { id: r.id },
                 }).query.single,
               ),

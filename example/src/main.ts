@@ -167,10 +167,11 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
     author: t.relation("author", {
       // this is how you can apply the above abilities to the queries
       // you define the action you want the filters for by passing it to the filter call
-      query: (_args, ctx) =>
+      // the query callback may be async since abilities can be async
+      query: async (_args, ctx) =>
         // for a findFirst query (1:1 relation)
         // we want a query filter
-        ctx.abilities.users.filter("read").query.single,
+        (await ctx.abilities.users.filter("read")).query.single,
     }),
   }),
 });
@@ -220,10 +221,10 @@ schemaBuilder.queryFields((t) => {
   return {
     posts: t.drizzleField({
       type: [PostRef],
-      resolve: (query, _root, _args, ctx, _info) => {
+      resolve: async (query, _root, _args, ctx, _info) => {
         return db.query.posts.findMany(
           // here we again apply our filters based on the defined abilities
-          query(ctx.abilities.posts.filter("read").query.many),
+          query((await ctx.abilities.posts.filter("read")).query.many),
         );
       },
     }),
@@ -255,13 +256,12 @@ schemaBuilder.queryFields((t) => {
         // here we set our generated type as type for the where argument
         where: t.arg({ type: PostWhere }),
       },
-      resolve: (query, _root, args, ctx, _info) => {
+      resolve: async (query, _root, args, ctx, _info) => {
         // a helper to map null fields to undefined in any object
         const mappedArgs = mapNullFieldsToUndefined(args);
         return db.query.posts.findMany(
           query(
-            ctx.abilities.posts
-              .filter("read")
+            (await ctx.abilities.posts.filter("read"))
               // merge is a helper to merge multiple filter objects into one
               // so we can easily apply both the permissions filter and the user provided filter
               // just for this one query call
@@ -331,7 +331,7 @@ schemaBuilder.mutationFields((t) => {
           })
           .where(
             // we need an sql condition here sowe use .sql.where instead of .query.x as we did above
-            ctx.abilities.users.filter("update").merge({
+            (await ctx.abilities.users.filter("update")).merge({
               where: { id: args.userId },
             }).sql.where,
             // the output of this is a normal drizzle sql condition and can be further processed with e.g. `and()` etc.
@@ -344,9 +344,12 @@ schemaBuilder.mutationFields((t) => {
           db.query.users
             .findFirst(
               query(
-                mergeFilters(ctx.abilities.users.filter("read").query.single, {
-                  where: { id: args.userId },
-                }),
+                mergeFilters(
+                  (await ctx.abilities.users.filter("read")).query.single,
+                  {
+                    where: { id: args.userId },
+                  },
+                ),
               ),
             )
             // this helper maps the db response to a graphql response
@@ -392,7 +395,7 @@ schemaBuilder.mutationFields((t) => {
               query(
                 // merge multiple filter objects which should be applied to the query
                 // only retrieve the user if the caller is allowed to read it
-                ctx.abilities.users.filter("read").merge({
+                (await ctx.abilities.users.filter("read")).merge({
                   // only retrieve the newly created user
                   where: { id: newUser.id },
                 }).query.single,

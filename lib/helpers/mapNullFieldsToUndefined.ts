@@ -42,7 +42,7 @@
         return db.query.user
           .findFirst(
             query(
-              ctx.abilities.user.filter('read').merge(
+              (await ctx.abilities.user.filter('read')).merge(
                 {
                   where: { id: user.id },
                 }

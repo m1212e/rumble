@@ -80,6 +80,7 @@ export const createSchemaBuilder = <
   const schemaBuilder = new SchemaBuilder<{
     Context: ContextType<UserContext, DB, RequestEvent, Action, PothosConfig>;
     DrizzleRelations: DB["_"]["relations"];
+    AsyncSelections: true;
     Objects: {
       Address: AddressShape;
     };
@@ -145,6 +146,9 @@ export const createSchemaBuilder = <
       ...(pothosConfig?.plugins ?? []),
     ],
     drizzle: {
+      // plugin-drizzle >=0.19.1 checks the client structurally against the
+      // relations of the generic DB, which TS can't resolve for an unresolved DB
+      // @ts-expect-error
       client: db,
       relations: db._.relations,
       getTableConfig(table) {

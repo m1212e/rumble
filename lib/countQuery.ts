@@ -113,9 +113,9 @@ export const createCountQueryImplementer = <
               .select({ count: count() })
               .from(tableSchema.table)
               .where(
-                ctx.abilities[table]
-                  .filter(listAction)
-                  .merge(mapNullFieldsToUndefined(args) as any).sql.where,
+                (await ctx.abilities[table].filter(listAction)).merge(
+                  mapNullFieldsToUndefined(args) as any,
+                ).sql.where,
               )
               .then(assertFirstEntryExists)
               .then((r: any) => r.count);
