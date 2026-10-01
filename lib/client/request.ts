@@ -268,7 +268,7 @@ export function makeGraphQLQueryRequest({
         }
 
         currentData = data;
-        observableSources.push(fromValue(data));
+        observableSources.push(fromValue({ data: { [queryName]: data } }));
 
         subscriberReady.then(() => {
           try {
@@ -364,6 +364,7 @@ export function makeGraphQLSubscriptionRequest({
 
   return pipe(
     client.subscription(operationString, variables) as any,
+    dedupeResults(subscriptionName),
     map((v: any) => {
       if (v.error) {
         throw v.error;
