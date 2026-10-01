@@ -40,10 +40,10 @@
     "typescript": "^7.0"
   },
   "peerDependencies": {
-    "typescript": "^4 || ^5 || ^6",
+    "typescript": "^4 || ^5 || ^6 || ^7",
     "drizzle-orm": "^1",
-    "graphql": "^16",
-    "@m1212e/sofa-api": "^0.18.12",
+    "graphql": "^16 || ^17",
+    "@m1212e/sofa-api": "^0.18",
     "graphql-ws": "^6",
     "svelte": "^5"
   },
