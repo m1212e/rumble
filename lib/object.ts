@@ -20,7 +20,6 @@ import type { MakePubSubInstanceType } from "./pubsub";
 import { adjustQueryArgsForSearch } from "./search";
 import type {
   DrizzleInstance,
-  DrizzleQueryFunction,
   DrizzleTableValueType,
   TableRelationNames,
 } from "./types/drizzleInstanceType";

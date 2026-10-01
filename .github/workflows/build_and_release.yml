@@ -8,9 +8,9 @@ on:
 jobs:
   test_and_build:
     name: Build and publish
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
       - name: Install dependencies
         run: bun i
@@ -21,7 +21,7 @@ jobs:
       - name: Run typecheck
         run: bun run typecheck
       - name: Run Trivy scanner on fs
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -44,7 +44,7 @@ jobs:
             README.md
             LICENSE
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: github.ref_type == 'tag'
         with:
           generate_release_notes: true
@@ -56,7 +56,7 @@ jobs:
       fail-fast: false
       matrix:
         registry-url: ["https://npm.pkg.github.com", "https://registry.npmjs.org"]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       packages: write
       contents: read
@@ -78,7 +78,7 @@ jobs:
         if [[ "${{ matrix.registry-url }}" == "https://registry.npmjs.org" ]]; then
           echo "token=${{ secrets.NPM_TOKEN }}" >> $GITHUB_OUTPUT
         fi
-    - uses: actions/setup-node@v6
+    - uses: actions/setup-node@v7
       with:
         node-version: "24"
         registry-url: ${{ matrix.registry-url }}

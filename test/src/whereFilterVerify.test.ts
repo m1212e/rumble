@@ -25,7 +25,7 @@ describe("verify where filter alignment fixes", async () => {
     });
     expect(r.errors).toBeUndefined();
     expect(r.data.users.length).toBeGreaterThan(0);
-    expect(r.data.users.every((u: any) => true)).toBe(true);
+    expect(r.data.users.every(() => true)).toBe(true);
   });
 
   test("string ne operator", async () => {

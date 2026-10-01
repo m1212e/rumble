@@ -8,7 +8,6 @@ import { tableHelper } from "./helpers/tableHelpers";
 import type { MakePubSubInstanceType } from "./pubsub";
 import type {
   DrizzleInstance,
-  DrizzleQueryFunction,
   TableRelationNames,
 } from "./types/drizzleInstanceType";
 import { RumbleErrorSafe } from "./types/rumbleError";
