@@ -183,6 +183,7 @@ export const createObjectImplementer = <
       | undefined;
   }) => {
     const tableSchema = tableHelper({ db, table });
+    abilityBuilder._.registerReadAction(table, readAction);
 
     if (Object.keys(tableSchema.primaryKey).length === 0) {
       warn(
@@ -218,6 +219,13 @@ export const createObjectImplementer = <
         table,
         action: readAction,
       }),
+      maskColumns: ({ context, entities, action }) =>
+        abilityBuilder._.maskColumns({
+          table,
+          action: (action as Action | undefined) ?? readAction,
+          abilities: (context as any).abilities,
+          entities,
+        }),
       fields: (t) => {
         const columns = tableSchema.columns;
 

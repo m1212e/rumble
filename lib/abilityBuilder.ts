@@ -1,9 +1,9 @@
 import type { AttributeValue, Span } from "@opentelemetry/api";
-import { relationsFilterToSQL } from "drizzle-orm";
+import { aliasedTable, or, relationsFilterToSQL, sql } from "drizzle-orm";
 import { debounce } from "es-toolkit";
 import { errorLogField } from "./helpers/errorLogging";
 import { lazy } from "./helpers/lazy";
-import { mergeFilters } from "./helpers/mergeFilters";
+import { mergeFilters, realWhere } from "./helpers/mergeFilters";
 import { sanitizeFilterValue } from "./helpers/sanitizeFilterValue";
 import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
 import { tableHelper } from "./helpers/tableHelpers";
@@ -131,6 +131,69 @@ function guardAgainstMissingAwait<T>(promise: Promise<T>): Promise<T> {
     });
   }
   return promise;
+}
+
+// per row: actionIndex + actionCount * bits of the matched column groups
+const COLUMN_FLAG_KEY = "__rumble_columns";
+
+export type ColumnMask = {
+  guaranteed: Set<string>;
+  conditional: Set<string>[];
+  hiddenPerBits: Map<number, string[]>;
+};
+
+export const columnMaskKey = Symbol.for("rumble:columnMask");
+const resolvedFilterKey = Symbol.for("rumble:resolvedFilter");
+
+// A second pass in the same request would see the cleared flag and hide the
+// conditionally granted columns. Rows reused by another request are masked again.
+const maskedByKey = Symbol.for("rumble:maskedBy");
+
+function referencesRelation(
+  filter: unknown,
+  relations: Record<string, unknown>,
+): boolean {
+  if (!filter || typeof filter !== "object") return false;
+  for (const [key, value] of Object.entries(filter)) {
+    if (key === "AND" || key === "OR") {
+      if ((value as unknown[]).some((v) => referencesRelation(v, relations))) {
+        return true;
+      }
+    } else if (key === "NOT") {
+      if (referencesRelation(value, relations)) return true;
+    } else if (key in relations) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function selectedColumns(
+  columns: Record<string, boolean | undefined> | undefined,
+  allColumns: string[],
+) {
+  if (!columns) return new Set(allColumns);
+  const entries = Object.entries(columns).filter(([, v]) => v !== undefined);
+  if (entries.some(([, v]) => v)) {
+    return new Set(entries.filter(([, v]) => v).map(([k]) => k));
+  }
+  if (entries.length === 0) return new Set<string>();
+  return new Set(allColumns.filter((c) => columns[c] !== false));
+}
+
+function hiddenColumns(mask: ColumnMask, bits: number, allColumns: string[]) {
+  let hidden = mask.hiddenPerBits.get(bits);
+  if (!hidden) {
+    hidden = allColumns.filter(
+      (column) =>
+        !mask.guaranteed.has(column) &&
+        !mask.conditional.some(
+          (columns, bit) => bits & (1 << bit) && columns.has(column),
+        ),
+    );
+    mask.hiddenPerBits.set(bits, hidden);
+  }
+  return hidden;
 }
 
 const makeNothingRegisteredWarner = (
@@ -351,6 +414,66 @@ export const createAbilityBuilder = <
     [key in TableNames]: ReturnType<typeof createBuilderForTable<key>>;
   };
 
+  const columnNamesPerTable = new Map(
+    tableRelationNames.map((tableName) => [
+      tableName,
+      Object.keys(tableHelper({ db, table: tableName }).columns),
+    ]),
+  );
+
+  type MaskColumnsInput = {
+    table: TableNames;
+    action: Action;
+    abilities: Record<string, any>;
+    entities: unknown[];
+  };
+
+  const maskColumns = (
+    { table, action, abilities, entities }: MaskColumnsInput,
+    start = 0,
+  ): void | Promise<void> => {
+    const tableAbilities = abilities[table];
+    const columnNames = columnNamesPerTable.get(table)!;
+    const actionCount = actions!.length;
+
+    for (let i = start; i < entities.length; i++) {
+      const row = entities[i] as Record<PropertyKey, unknown> | null;
+      if (!row || typeof row !== "object" || row[maskedByKey] === abilities) {
+        continue;
+      }
+
+      const code = row[COLUMN_FLAG_KEY];
+      const flagged = code !== undefined && code !== null;
+      const encoded = flagged ? Number(code) : 0;
+      const rowAction = flagged ? actions![encoded % actionCount]! : action;
+
+      const resolved = tableAbilities[resolvedFilterKey](rowAction);
+      if (!resolved) {
+        return tableAbilities
+          .filter(rowAction)
+          .then(() => maskColumns({ table, action, abilities, entities }, i));
+      }
+
+      const mask: ColumnMask | undefined = resolved[columnMaskKey];
+      if (!mask) continue;
+
+      // assign instead of delete to keep the row's hidden class
+      row[maskedByKey] = abilities;
+      if (flagged) row[COLUMN_FLAG_KEY] = undefined;
+      const hidden = hiddenColumns(
+        mask,
+        Math.floor(encoded / actionCount),
+        columnNames,
+      );
+      for (let h = 0; h < hidden.length; h++) {
+        const column = hidden[h]!;
+        if (row[column] !== undefined) row[column] = undefined;
+      }
+    }
+  };
+
+  const readActionPerTable = new Map<TableNames, Action>();
+
   return {
     ...buildersPerTable,
     /**
@@ -358,6 +481,13 @@ export const createAbilityBuilder = <
      * @ignore
      */
     _: {
+      maskColumns: (input: MaskColumnsInput) => maskColumns(input),
+      registerReadAction(table: TableNames, action: Action) {
+        readActionPerTable.set(table, action);
+      },
+      readActionOf(table: TableNames): Action {
+        return readActionPerTable.get(table) ?? ("read" as Action);
+      },
       registeredFilters({
         action,
         table,
@@ -420,6 +550,7 @@ export const createAbilityBuilder = <
           }
 
           const primaryKeyField: any = Object.values(tableSchema.primaryKey)[0];
+          const primaryKeyName = Object.keys(tableSchema.primaryKey)[0]!;
           // we want a filter that excludes everything
           const distinctValues = createDistinctValuesFromSQLType(
             primaryKeyField.getSQLType() as any,
@@ -438,11 +569,129 @@ export const createAbilityBuilder = <
             },
           };
 
+          const allColumnNames = Object.keys(tableSchema.columns);
+
+          // An ability's columns only apply to the rows matched by its where.
+          function resolveColumnAccess(
+            action: Action,
+            filters: DrizzleQueryFunctionInput<DB, TableName>[],
+          ) {
+            const rules = filters.map((f) => ({
+              where: realWhere(f?.where),
+              columns: selectedColumns(f?.columns as any, allColumnNames),
+            }));
+
+            // every returned row matches at least one ability
+            const guaranteed = new Set<string>();
+            for (const rule of rules) {
+              if (rule.where && Object.keys(rule.where).length > 0) continue;
+              for (const column of rule.columns) guaranteed.add(column);
+            }
+            for (const column of allColumnNames) {
+              if (rules.every((r) => r.columns.has(column))) {
+                guaranteed.add(column);
+              }
+            }
+
+            const groups = new Map<
+              string,
+              { columns: Set<string>; wheres: unknown[] }
+            >();
+            for (const rule of rules) {
+              if (!rule.where || Object.keys(rule.where).length === 0) continue;
+              const additional = [...rule.columns]
+                .filter((c) => !guaranteed.has(c))
+                .sort();
+              if (additional.length === 0) continue;
+              const key = additional.join(",");
+              const group = groups.get(key);
+              if (group) {
+                group.wheres.push(rule.where);
+              } else {
+                groups.set(key, {
+                  columns: new Set(additional),
+                  wheres: [rule.where],
+                });
+              }
+            }
+
+            const selected = new Set(rules.flatMap((r) => [...r.columns]));
+            const columns =
+              selected.size === allColumnNames.length
+                ? undefined
+                : Object.fromEntries([...selected].map((c) => [c, true]));
+
+            if (guaranteed.size === allColumnNames.length) {
+              return { columns, extras: undefined, mask: undefined };
+            }
+
+            const actionCount = actions!.length;
+            // the flag has to fit a signed 32 bit integer in every dialect
+            const maxGroups = Math.floor(Math.log2(2 ** 31 / actionCount));
+            if (groups.size > maxGroups) {
+              throw new RumbleError(
+                `Too many abilities with differing columns on ${String(tableName)}/${action}: ${groups.size}, at most ${maxGroups} are supported.`,
+              );
+            }
+
+            const mask: ColumnMask = {
+              guaranteed,
+              conditional: [...groups.values()].map((g) => g.columns),
+              hiddenPerBits: new Map(),
+            };
+            const groupWheres = [...groups.values()].map((g) => ({
+              wheres: g.wheres,
+              relational: g.wheres.some((w) =>
+                referencesRelation(w, tableSchema.relations),
+              ),
+            }));
+            const toSQL = (table: any, wheres: unknown[]) =>
+              or(
+                ...wheres.map((where) =>
+                  relationsFilterToSQL(
+                    table,
+                    sanitizeFilterValue(where) as any,
+                    tableSchema.relations,
+                    db._.relations,
+                  ),
+                ),
+              );
+            const actionIndex = actions!.indexOf(action);
+            const extras: Record<string, (table: any) => any> = {
+              // a callback, so nested relation queries pass their aliased table
+              [COLUMN_FLAG_KEY]: (table: any) => {
+                const bits = groupWheres.map(({ wheres, relational }, bit) => {
+                  // Relational filters become correlated subqueries, which would
+                  // run once per row. Uncorrelated, the database runs it once.
+                  const condition = relational
+                    ? (() => {
+                        const inner = aliasedTable(
+                          tableSchema.table,
+                          `rumble_columns_${bit}`,
+                        );
+                        return sql`${table[primaryKeyName]} in (${(db as any)
+                          .select({ pk: inner[primaryKeyName] })
+                          .from(inner)
+                          .where(toSQL(inner, wheres))})`;
+                      })()
+                    : toSQL(table, wheres);
+                  return sql`case when ${condition} then ${sql.raw(String(2 ** bit))} else 0 end`;
+                });
+                return bits.length
+                  ? sql`(${sql.raw(String(actionIndex))} + ${sql.raw(String(actionCount))} * (${sql.join(bits, sql` + `)}))`
+                  : sql`${sql.raw(String(actionIndex))}`;
+              },
+            };
+
+            return { columns, extras, mask };
+          }
+
           /**
            * Packs the filters into a response object that can be applied for queries by the user
            */
           function transformToResponse(
             queryFilters?: DrizzleQueryFunctionInput<DB, TableName>,
+            columnMask?: ColumnMask,
           ) {
             const internalTransformer = (
               filters?: DrizzleQueryFunctionInput<DB, TableName>,
@@ -656,6 +905,7 @@ export const createAbilityBuilder = <
             }
 
             (ret as any).merge = merge;
+            (ret as any)[columnMaskKey] = columnMask;
 
             return ret as typeof ret & {
               merge: typeof merge;
@@ -720,15 +970,32 @@ export const createAbilityBuilder = <
                     return transformToResponse(blockEverythingFilter);
                   }
 
-                  const mergedFilters =
+                  const mergedFilters = (
                     allQueryFilters.length === 1
-                      ? allQueryFilters[0]
+                      ? { ...allQueryFilters[0] }
                       : allQueryFilters.reduce((a, b) => {
                           return mergeFilters(a, b, "OR");
-                        });
+                        })
+                  ) as Record<string, any>;
+
+                  const { columns, extras, mask } = resolveColumnAccess(
+                    action,
+                    allQueryFilters,
+                  );
+                  if (columns) {
+                    mergedFilters.columns = columns;
+                  } else {
+                    delete mergedFilters.columns;
+                  }
+                  if (extras) {
+                    mergedFilters.extras = {
+                      ...mergedFilters.extras,
+                      ...extras,
+                    };
+                  }
 
                   attributes[ATTR_ABILITIES_STATUS] = "applied";
-                  return transformToResponse(mergedFilters as any);
+                  return transformToResponse(mergedFilters as any, mask);
                 };
 
                 // one attribute set, fed to both sinks, so a trace and a log
@@ -785,6 +1052,10 @@ export const createAbilityBuilder = <
               // filter() is called by every field and the (possibly async)
               // callbacks may be expensive, e.g. calling an external service
               const cache = new Map<Action, ReturnType<typeof prepare>>();
+              const resolved = new Map<
+                Action,
+                Awaited<ReturnType<typeof prepare>>
+              >();
 
               return {
                 filter: (action: Action) => {
@@ -792,9 +1063,14 @@ export const createAbilityBuilder = <
                   if (!prepared) {
                     prepared = guardAgainstMissingAwait(prepare(action));
                     cache.set(action, prepared);
+                    prepared.then(
+                      (result) => resolved.set(action, result),
+                      () => {},
+                    );
                   }
                   return prepared;
                 },
+                [resolvedFilterKey]: (action: Action) => resolved.get(action),
               };
             },
           };

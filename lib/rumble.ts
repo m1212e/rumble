@@ -190,7 +190,7 @@ export const r = rumble({
     RequestEvent,
     Action,
     PothosConfig
-  >({ ...rumbleInput, pubsub });
+  >({ ...rumbleInput, pubsub, abilityBuilder });
 
   const enum_ = createEnumImplementer<
     UserContext,

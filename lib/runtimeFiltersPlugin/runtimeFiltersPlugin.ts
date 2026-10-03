@@ -8,6 +8,7 @@ import SchemaBuilder, {
 import DataLoader from "dataloader";
 import type { GraphQLFieldResolver } from "graphql";
 import { errorLogField } from "../helpers/errorLogging";
+import { objectTypeOptionsOfField } from "../helpers/objectTypeOptions";
 import {
   ATTR_FIELD_NAME,
   ATTR_FILTERS_ALLOWED,
@@ -105,24 +106,20 @@ export class RuntimeFiltersPlugin<
     resolver: GraphQLFieldResolver<unknown, Types["Context"], object>,
     fieldConfig: PothosOutputFieldConfig<Types>,
   ): GraphQLFieldResolver<unknown, Types["Context"], object> {
-    return async (parent, args, context, info) => {
-      let filters: ApplyFiltersField<Types["Context"], any> | undefined;
-      const fieldType = fieldConfig?.type as any;
+    const filters = objectTypeOptionsOfField(this.buildCache, fieldConfig)?.[
+      applyFiltersKey
+    ] as ApplyFiltersField<Types["Context"], any>;
+    if (!filters) return resolver;
+    // filters can still be registered after the schema is built
+    const allFilters = Array.isArray(filters) ? filters : [filters];
 
-      if (fieldType.kind === "List") {
-        filters =
-          fieldType.type?.ref.currentConfig.pothosOptions[applyFiltersKey];
-      } else if (fieldType.kind === "Object") {
-        filters = fieldType.ref.currentConfig.pothosOptions[applyFiltersKey];
-      }
-
-      if (!filters || !Array.isArray(filters) || filters.length === 0) {
-        // if no filter should be applied, just continue
-        return resolver(parent, args, context, info);
-      }
-
+    const applyFilters = async (
+      parent: unknown,
+      args: object,
+      context: Types["Context"],
+      info: Parameters<typeof resolver>[3],
+    ) => {
       const runFilters = async (span?: Span) => {
-        const allFilters = Array.isArray(filters) ? filters : [filters];
         span?.setAttribute(ATTR_FILTERS_TOTAL, allFilters.length);
 
         const loaders = allFilters.map((filter) =>
@@ -218,6 +215,11 @@ export class RuntimeFiltersPlugin<
         }
       }
     };
+
+    return (parent, args, context, info) =>
+      allFilters.length === 0
+        ? resolver(parent, args, context, info)
+        : applyFilters(parent, args, context, info);
   }
 }
 

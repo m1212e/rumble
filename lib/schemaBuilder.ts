@@ -9,7 +9,16 @@ import TracingPlugin, {
 } from "@pothos/plugin-tracing";
 import ValidationPlugin from "@pothos/plugin-validation";
 import { createOpenTelemetryWrapper } from "@pothos/tracing-opentelemetry";
-import { getTableColumns, isTable, type Table } from "drizzle-orm";
+import { getTableColumns, is, isTable, type Table } from "drizzle-orm";
+import {
+  MySqlTable,
+  getTableConfig as mysqlTableConfig,
+} from "drizzle-orm/mysql-core";
+import { PgTable, getTableConfig as pgTableConfig } from "drizzle-orm/pg-core";
+import {
+  SQLiteTable,
+  getTableConfig as sqliteTableConfig,
+} from "drizzle-orm/sqlite-core";
 import {
   BigIntResolver,
   ByteResolver,
@@ -20,6 +29,7 @@ import {
 } from "graphql-scalars";
 import type { createPubSub } from "graphql-yoga";
 import type { PhoneNumber as LibPhoneNumber } from "libphonenumber-js";
+import type { AbilityBuilderType } from "./abilityBuilder";
 import {
   type BigIntWhereInputArgument,
   type BooleanWhereInputArgument,
@@ -31,7 +41,10 @@ import {
   type NumberWhereInputArgument,
   type StringWhereInputArgument,
 } from "./args/whereArgsImplementer";
+import { registerColumnMaskPlugin } from "./columnMaskPlugin/columnMaskPlugin";
+import { columnMaskPluginName } from "./columnMaskPlugin/maskTypes";
 import type { ContextType } from "./context";
+import { createAbilityAwareClient } from "./helpers/abilityAwareClient";
 import { errorLogField } from "./helpers/errorLogging";
 import {
   ATTR_FIELD_NAME,
@@ -68,8 +81,16 @@ export const createSchemaBuilder = <
   otel,
   logger,
   validation,
+  abilityBuilder,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig> & {
   pubsub: ReturnType<typeof createPubSub>;
+  abilityBuilder: AbilityBuilderType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig
+  >;
 }) => {
   const createSpan =
     otel?.enabled && otel.tracer
@@ -77,6 +98,7 @@ export const createSchemaBuilder = <
       : undefined;
 
   registerRuntimeFiltersPlugin();
+  registerColumnMaskPlugin();
   const schemaBuilder = new SchemaBuilder<{
     Context: ContextType<UserContext, DB, RequestEvent, Action, PothosConfig>;
     DrizzleRelations: DB["_"]["relations"];
@@ -138,6 +160,8 @@ export const createSchemaBuilder = <
   }>({
     ...pothosConfig,
     plugins: [
+      // must wrap the runtime filters, so filters see unmasked rows
+      columnMaskPluginName,
       pluginName,
       DrizzlePlugin,
       SmartSubscriptionsPlugin,
@@ -149,16 +173,18 @@ export const createSchemaBuilder = <
       // plugin-drizzle >=0.19.1 checks the client structurally against the
       // relations of the generic DB, which TS can't resolve for an unresolved DB
       // @ts-expect-error
-      client: db,
+      client: createAbilityAwareClient({ db, abilityBuilder }),
       relations: db._.relations,
       getTableConfig(table) {
-        //TODO support composite primary keys
-        const columns = isTable(table)
-          ? Object.values(getTableColumns(table as Table))
-          : [];
+        if (is(table, PgTable)) return pgTableConfig(table) as any;
+        if (is(table, MySqlTable)) return mysqlTableConfig(table) as any;
+        if (is(table, SQLiteTable)) return sqliteTableConfig(table) as any;
         return {
-          columns,
-          primaryKeys: columns.filter((v: any) => v.primary),
+          columns: isTable(table)
+            ? Object.values(getTableColumns(table as Table))
+            : [],
+          primaryKeys: [],
+          uniqueConstraints: [],
         } as any;
       },
     },

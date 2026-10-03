@@ -11,7 +11,7 @@ const EmptyFilter = Symbol.for("drizzle:EmptyFilter");
  * a real `where` would needlessly wrap it as `{ AND: [EmptyFilter, where] }`
  * instead of just `where`.
  */
-function realWhere(where: unknown) {
+export function realWhere(where: unknown) {
   return where === EmptyFilter ? undefined : where;
 }
 
@@ -31,7 +31,9 @@ export function mergeFilters<
       ? mode === "OR"
         ? { OR: [filterAWhere, filterBWhere] }
         : { AND: [filterAWhere, filterBWhere] }
-      : (filterAWhere ?? filterBWhere);
+      : mode === "OR"
+        ? undefined
+        : (filterAWhere ?? filterBWhere);
 
   const columns =
     filterA?.columns || filterB?.columns

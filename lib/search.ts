@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { cloneDeep } from "es-toolkit";
+import { type ColumnMask, columnMaskKey } from "./abilityBuilder";
 import { isPostgresDB } from "./helpers/determineDialectFromSchema";
 import { errorLogField } from "./helpers/errorLogging";
 import {
@@ -85,13 +86,18 @@ export function adjustQueryArgsForSearch({
     // this prevents columns beeing searched which are not accessible to the user
     // if the abilities defined the user not to be allowed to read something, we need
     // to prevent it from beeing included in the search since this could
-    // leak information
+    // leak information. The same goes for columns only some rows may expose.
+    const columnMask: ColumnMask | undefined = abilities[columnMaskKey];
     const columnsToSearch = (
-      abilities.query.many.columns
-        ? Object.entries(tableSchema.columns).filter(
-            ([key]) => abilities.query.many.columns[key],
+      columnMask
+        ? Object.entries(tableSchema.columns).filter(([key]) =>
+            columnMask.guaranteed.has(key),
           )
-        : Object.entries(tableSchema.columns)
+        : abilities.query.many.columns
+          ? Object.entries(tableSchema.columns).filter(
+              ([key]) => abilities.query.many.columns[key],
+            )
+          : Object.entries(tableSchema.columns)
     ).filter(
       ([_key, col]) =>
         isStringLikeSQLTypeString(col.getSQLType()) ||

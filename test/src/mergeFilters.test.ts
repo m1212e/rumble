@@ -106,9 +106,9 @@ describe("mergeFilters", () => {
       expect(result.offset).toBeUndefined();
     });
 
-    test("passes through single where clause when other is absent", () => {
+    test("returns undefined where when one filter has no where", () => {
       const result = mergeFilters({ where: { published: true } }, {}, "OR");
-      expect((result as any).where).toEqual({ published: true });
+      expect((result as any).where).toBeUndefined();
     });
 
     test("returns undefined where when both filters have no where", () => {

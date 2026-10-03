@@ -155,6 +155,7 @@ export const createQueryImplementer = <
           type: [table],
           nullable: false,
           smartSubscription: true,
+          maskColumnsAction: listAction,
           description: `List all ${pluralName}`,
           subscribe: (subscriptions, _root, _args, _ctx, _info) => {
             registerOnInstance({
@@ -237,6 +238,7 @@ export const createQueryImplementer = <
           type: table,
           nullable: false,
           smartSubscription: true,
+          maskColumnsAction: readAction,
           description: `Get a single ${singularName} by ID`,
           args: {
             id: t.arg.id({ required: true }),
