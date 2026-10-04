@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { buildHTTPExecutor } from "@graphql-tools/executor-http";
 import { eq } from "drizzle-orm";
 import { parse } from "graphql";
+import { rumble as makeRumble } from "../../lib";
 import { makeSeededDBInstanceForTest } from "./db/db";
 import * as schema from "./db/schema";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
@@ -319,11 +321,11 @@ describe("per row column abilities", async () => {
     expect(foreign.errors[0].path).toEqual(["updateUsername", "email"]);
   });
 
-  test("rows reused by another request are masked for that request", async () => {
-    const [first, second] = data.users;
-    const cache = new Map<string, any>();
-
-    const makeInstance = (userId: string) => {
+  describe("rows shared across requests", () => {
+    const makeCachedUserExecutor = (
+      cache: Map<string, any>,
+      userId: string,
+    ) => {
       const instance = makeRumbleSeedInstance(db, userId);
       instance.rumble.abilityBuilder.users
         .allow("read")
@@ -350,22 +352,99 @@ describe("per row column abilities", async () => {
       return instance.build().executor;
     };
 
-    const document = parse(/* GraphQL */ `
-      query {
-        cachedUser(id: "${first.id}") {
-          id
-          email
+    const cachedUserDocument = (id: string) =>
+      parse(/* GraphQL */ `
+        query {
+          cachedUser(id: "${id}") {
+            id
+            email
+          }
         }
-      }
-    `);
+      `);
 
-    const own: any = await makeInstance(first.id)({ document });
-    expect(own.errors).toBeUndefined();
-    expect(own.data.cachedUser.email).toEqual(first.email);
+    test("rows reused by another request are masked for that request", async () => {
+      const [first, second] = data.users;
+      const cache = new Map<string, any>();
+      const document = cachedUserDocument(first.id);
 
-    const foreign: any = await makeInstance(second.id)({ document });
-    expect(foreign.errors.length).toEqual(1);
-    expect(foreign.errors[0].path).toEqual(["cachedUser", "email"]);
+      const own: any = await makeCachedUserExecutor(
+        cache,
+        first.id,
+      )({
+        document,
+      });
+      expect(own.errors).toBeUndefined();
+      expect(own.data.cachedUser.email).toEqual(first.email);
+
+      const foreign: any = await makeCachedUserExecutor(
+        cache,
+        second.id,
+      )({
+        document,
+      });
+      expect(foreign.errors.length).toEqual(1);
+      expect(foreign.errors[0].path).toEqual(["cachedUser", "email"]);
+    });
+
+    test("masking a reused row for one request keeps its columns for the next", async () => {
+      const [first, second] = data.users;
+      const cache = new Map<string, any>();
+      const document = cachedUserDocument(first.id);
+
+      // the restricted request masks the shared row first
+      const foreign: any = await makeCachedUserExecutor(
+        cache,
+        second.id,
+      )({
+        document,
+      });
+      expect(foreign.errors.length).toEqual(1);
+      expect(foreign.errors[0].path).toEqual(["cachedUser", "email"]);
+
+      const own: any = await makeCachedUserExecutor(
+        cache,
+        first.id,
+      )({
+        document,
+      });
+      expect(own.errors).toBeUndefined();
+      expect(own.data.cachedUser.email).toEqual(first.email);
+    });
+  });
+
+  test("list resolvers returning promises are masked per row", async () => {
+    registerSelfAndOthers();
+    rumble.schemaBuilder.queryField("usersByIds", (t) =>
+      t.drizzleField({
+        type: ["users"],
+        args: { ids: t.arg.stringList({ required: true }) },
+        resolve: async (query, _root, args, ctx) => {
+          const abilities = await ctx.abilities.users.filter("read");
+          // a list of promises, which graphql-js resolves item by item
+          return args.ids.map((id) =>
+            db.query.users.findFirst(
+              query(abilities.merge({ where: { id } }).query.single),
+            ),
+          ) as any;
+        },
+      }),
+    );
+    const { executor } = build();
+    const [self, other] = data.users;
+
+    const r: any = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          usersByIds(ids: ["${self.id}", "${other.id}"]) {
+            id
+            email
+          }
+        }
+      `),
+    });
+
+    expect(r.errors?.length).toEqual(1);
+    expect(r.errors[0].path).toEqual(["usersByIds", 1, "email"]);
   });
 
   test("runtime filters see the rows before they are masked", async () => {
@@ -429,6 +508,81 @@ describe("per row column abilities", async () => {
     });
   });
 
+  describe("conditional wheres compiling to no sql", () => {
+    const queryUsers = (executor: any) =>
+      executor({
+        document: parse(/* GraphQL */ `
+          query {
+            users {
+              id
+              firstName
+              lastName
+            }
+          }
+        `),
+      });
+
+    // e.g. `{ id: userId }` on an anonymous request
+    test("an undefined where value does not break the query", async () => {
+      rumble.abilityBuilder.users.allow("read").when(() => ({
+        where: { id: undefined },
+        columns: { id: true, firstName: true, lastName: true },
+      }));
+      rumble.abilityBuilder.users.allow("read").when({
+        columns: { id: true, firstName: true },
+      });
+
+      const { executor } = build();
+      const r: any = await queryUsers(executor);
+
+      expect(r.errors).toBeUndefined();
+      expect(r.data.users.length).toEqual(data.users.length);
+    });
+
+    test("a nested undefined where value does not break the query", async () => {
+      rumble.abilityBuilder.users.allow("read").when(() => ({
+        where: { AND: [{ id: undefined }] },
+        columns: { id: true, firstName: true, lastName: true },
+      }));
+      rumble.abilityBuilder.users.allow("read").when({
+        columns: { id: true, firstName: true },
+      });
+
+      const { executor } = build();
+      const r: any = await queryUsers(executor);
+
+      expect(r.errors).toBeUndefined();
+      expect(r.data.users.length).toEqual(data.users.length);
+    });
+
+    test("a where matching every row grants its columns to every row", async () => {
+      const self = data.users[0];
+      // both grant lastName, so they end up in the same flag group
+      rumble.abilityBuilder.users.allow("read").when(() => ({
+        where: { id: undefined },
+        columns: { id: true, firstName: true, lastName: true },
+      }));
+      rumble.abilityBuilder.users.allow("read").when(({ userId }) => ({
+        where: { id: userId },
+        columns: { id: true, firstName: true, lastName: true },
+      }));
+      rumble.abilityBuilder.users.allow("read").when({
+        columns: { id: true, firstName: true },
+      });
+
+      const { executor } = build();
+      const r: any = await queryUsers(executor);
+
+      expect(r.errors).toBeUndefined();
+      expect(r.data.users.length).toEqual(data.users.length);
+      for (const u of r.data.users) {
+        const original = data.users.find((d: any) => d.id === u.id)!;
+        expect(u.lastName).toEqual(original.lastName);
+      }
+      expect(r.data.users.some((u: any) => u.id === self.id)).toBeTrue();
+    });
+  });
+
   describe("rows pothos reloads on its own", () => {
     // returns the row without query(), so pothos reloads it
     const registerDirectUpdate = () => {
@@ -480,6 +634,126 @@ describe("per row column abilities", async () => {
       const foreign: any = await rename(executor, other.id, "id email");
       expect(foreign.errors.length).toEqual(1);
       expect(foreign.errors[0].path).toEqual(["renameDirect", "email"]);
+    });
+
+    test("matches reloaded rows whose primary key is masked", async () => {
+      rumble.abilityBuilder.users.allow("read").when(({ userId }) => ({
+        where: { id: userId },
+      }));
+      // foreign rows don't get the id
+      rumble.abilityBuilder.users.allow("read").when({
+        columns: { firstName: true },
+      });
+      registerDirectUpdate();
+      const { executor } = build();
+      const other = data.users[1];
+
+      // lastName isn't on the returned row's selection, so pothos reloads it
+      const foreign: any = await rename(
+        executor,
+        other.id,
+        "firstName lastName",
+      );
+      expect(foreign.errors).toBeUndefined();
+      expect(foreign.data.renameDirect).toEqual({
+        firstName: "renamed",
+        lastName: null,
+      });
+
+      // the masked id stays hidden from the client
+      const withId: any = await rename(executor, other.id, "id firstName");
+      expect(withId.errors.length).toEqual(1);
+      expect(withId.errors[0].path).toEqual(["renameDirect", "id"]);
+    });
+
+    test("rows reload by a primary key no ability grants", async () => {
+      rumble.abilityBuilder.users.allow("read").when({
+        columns: { firstName: true },
+      });
+      rumble.abilityBuilder.posts.allow("read");
+      const { executor } = build();
+
+      // the same relation with differing args makes pothos reload the users
+      const reloaded: any = await executor({
+        document: parse(/* GraphQL */ `
+          query {
+            users(limit: 3) {
+              firstName
+              a: posts(limit: 1) {
+                id
+              }
+              b: posts(limit: 2) {
+                id
+              }
+            }
+          }
+        `),
+      });
+      expect(reloaded.errors).toBeUndefined();
+      expect(reloaded.data.users.length).toEqual(3);
+
+      const withId: any = await executor({
+        document: parse(/* GraphQL */ `
+          query {
+            users(limit: 3) {
+              id
+            }
+          }
+        `),
+      });
+      expect(withId.data).toBeNull();
+      expect(withId.errors.length).toBeGreaterThan(0);
+      for (const error of withId.errors) {
+        expect(error.path.at(-1)).toEqual("id");
+      }
+    });
+
+    test("reloads of rows listed with a custom listAction use that action", async () => {
+      const r = makeRumble({
+        db,
+        schema,
+        actions: ["read", "list"],
+        context: () => ({ userId: data.users[0].id }),
+      });
+      r.object({ refName: "User", table: "users" });
+      r.object({ refName: "Post", table: "posts" });
+      r.object({ refName: "Comment", table: "comments" });
+      r.query({ table: "users", listAction: "list" });
+      r.abilityBuilder.posts.allow("read");
+
+      let readAbilityUsed = false;
+      r.abilityBuilder.users.allow("list");
+      // grants nothing, only records that the read action was evaluated
+      r.abilityBuilder.users.allow("read").when(() => {
+        readAbilityUsed = true;
+        return undefined;
+      });
+
+      const executor = buildHTTPExecutor({
+        fetch: r.createYoga().fetch,
+        endpoint: "http://yoga/graphql",
+      });
+      // the same relation with differing args can't be merged into the
+      // list query, so pothos reloads the user rows to resolve the second one
+      const result: any = await executor({
+        document: parse(/* GraphQL */ `
+          query {
+            users(limit: 3) {
+              id
+              a: posts(limit: 1) {
+                id
+              }
+              b: posts(limit: 2) {
+                id
+              }
+            }
+          }
+        `),
+      });
+
+      expect(result.errors).toBeUndefined();
+      expect(result.data.users.length).toEqual(3);
+      expect(readAbilityUsed).toBeFalse();
     });
 
     test("does not find rows the requester may not read", async () => {

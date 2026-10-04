@@ -191,15 +191,16 @@ export const createObjectImplementer = <
         { [ATTR_TABLE]: String(table) },
       );
     }
-    const primaryKey = Object.values(tableSchema.primaryKey)[0];
+    // rows are keyed by ts names, not database names
+    const primaryKeyName = Object.keys(tableSchema.primaryKey)[0];
 
     const { registerOnInstance } = makePubSubInstance({ table: table });
 
     return schemaBuilder.drizzleObject(table, {
       name: refName ?? capitalize(String(table)),
       subscribe: (subscriptions, element, _context) => {
-        if (!primaryKey) return;
-        const primaryKeyValue = (element as any)[primaryKey.name];
+        if (!primaryKeyName) return;
+        const primaryKeyValue = (element as any)[primaryKeyName];
         if (!primaryKeyValue) {
           warn(
             `Could not find primary key value for element on ${String(table)}. Cannot register subscription!`,
@@ -226,6 +227,7 @@ export const createObjectImplementer = <
           abilities: (context as any).abilities,
           entities,
         }),
+      maskPrimaryKeys: Object.keys(tableSchema.primaryKey),
       fields: (t) => {
         const columns = tableSchema.columns;
 

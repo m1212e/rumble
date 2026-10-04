@@ -10,6 +10,7 @@ import { RumbleError } from "../types/rumbleError";
 import {
   COLUMN_FLAG_KEY,
   columnMaskKey,
+  hiddenPrimaryKeyKey,
   maskedByKey,
   resolvedFilterKey,
 } from "./keys";
@@ -125,22 +126,29 @@ export function createColumnAccessResolver<
   tableSchema: TableSchema,
 ) {
   const allColumnNames = Object.keys(tableSchema.columns);
-  const primaryKeyName = Object.keys(tableSchema.primaryKey)[0]!;
+  const primaryKeyNames = Object.keys(tableSchema.primaryKey);
+  const primaryKeyName = primaryKeyNames[0]!;
   const actionCount = actions.length;
   // the flag has to fit a signed 32 bit integer in every dialect
   const maxGroups = Math.floor(Math.log2(2 ** 31 / actionCount));
 
-  const toSQL = (table: any, wheres: unknown[]) =>
-    or(
-      ...wheres.map((where) =>
-        relationsFilterToSQL(
-          table,
-          sanitizeFilterValue(where) as any,
-          tableSchema.relations,
-          db._.relations,
-        ),
-      ),
+  const whereToSQL = (table: any, where: unknown) =>
+    relationsFilterToSQL(
+      table,
+      sanitizeFilterValue(where) as any,
+      tableSchema.relations,
+      db._.relations,
     );
+
+  const toSQL = (table: any, wheres: unknown[]) =>
+    or(...wheres.map((where) => whereToSQL(table, where)));
+
+  // A where compiling to no sql (e.g. `{ id: undefined }`) restricts nothing,
+  // so its ability applies to every row.
+  const restrictingWhere = (where: unknown) =>
+    hasWhere(where) && whereToSQL(tableSchema.table, where) !== undefined
+      ? where
+      : undefined;
 
   // Relational filters become correlated subqueries, which would
   // run once per row. Uncorrelated, the database runs it once.
@@ -158,14 +166,19 @@ export function createColumnAccessResolver<
     filters: DrizzleQueryFunctionInput<DB, TableName>[],
   ) {
     const rules = filters.map((f) => ({
-      where: realWhere(f?.where),
+      where: restrictingWhere(realWhere(f?.where)),
       columns: selectedColumns(f?.columns as any, allColumnNames),
     }));
 
     const guaranteed = guaranteedColumns(rules, allColumnNames);
     const groups = conditionalGroups(rules, guaranteed);
 
-    const selected = new Set(rules.flatMap((r) => [...r.columns]));
+    // primary keys are always loaded, pothos reloads rows and subscriptions
+    // by them. If not granted, the mask hides them from the client.
+    const selected = new Set([
+      ...primaryKeyNames,
+      ...rules.flatMap((r) => [...r.columns]),
+    ]);
     const columns =
       selected.size === allColumnNames.length
         ? undefined
@@ -228,6 +241,16 @@ function clearColumns(row: Row, columns: string[]) {
   }
 }
 
+type HiddenColumns = { cleared: string[]; primaryKey: boolean };
+
+function maskRow(row: Row, abilities: object, hidden: HiddenColumns) {
+  // assign instead of delete to keep the row's hidden class
+  row[maskedByKey] = abilities;
+  row[hiddenPrimaryKeyKey] = hidden.primaryKey;
+  if (row[COLUMN_FLAG_KEY] != null) row[COLUMN_FLAG_KEY] = undefined;
+  clearColumns(row, hidden.cleared);
+}
+
 export type MaskColumnsInput<
   DB extends DrizzleInstance,
   Action extends string,
@@ -247,16 +270,58 @@ export function createColumnMasker<
   Action extends string,
 >(
   { actions }: AbilitySettings<DB, Action>,
-  columnNamesPerTable: Map<TableRelationNames<DB>, string[]>,
+  tables: Map<
+    TableRelationNames<DB>,
+    { columns: string[]; primaryKey: string[] }
+  >,
 ) {
   const actionCount = actions.length;
+
+  // Primary keys stay on the row, pothos reloads rows and subscriptions by
+  // them. A flag hides them from the client instead.
+  const splitPerHidden = new WeakMap<string[], HiddenColumns>();
+  const splitHidden = (hidden: string[], primaryKey: string[]) => {
+    let split = splitPerHidden.get(hidden);
+    if (!split) {
+      split = {
+        cleared: hidden.filter((c) => !primaryKey.includes(c)),
+        primaryKey: hidden.some((c) => primaryKey.includes(c)),
+      };
+      splitPerHidden.set(hidden, split);
+    }
+    return split;
+  };
+
+  // per request (keyed by its abilities) the actions rows of a table were
+  // masked with, so reloads of these rows apply the same abilities
+  const actionsPerRequest = new WeakMap<
+    object,
+    Map<TableRelationNames<DB>, Set<Action>>
+  >();
+  const maskedActions = (
+    abilities: object,
+    table: TableRelationNames<DB>,
+  ): Set<Action> => {
+    let perTable = actionsPerRequest.get(abilities);
+    if (!perTable) {
+      perTable = new Map();
+      actionsPerRequest.set(abilities, perTable);
+    }
+    let used = perTable.get(table);
+    if (!used) {
+      used = new Set();
+      perTable.set(table, used);
+    }
+    return used;
+  };
 
   const maskColumns = (
     { table, action, abilities, entities }: MaskColumnsInput<DB, Action>,
     start = 0,
   ): void | Promise<void> => {
     const tableAbilities = abilities[table];
-    const columnNames = columnNamesPerTable.get(table)!;
+    const { columns: columnNames, primaryKey } = tables.get(table)!;
+    const used = maskedActions(abilities, table);
 
     for (let i = start; i < entities.length; i++) {
       const row = entities[i];
@@ -266,6 +331,7 @@ export function createColumnMasker<
       const flagged = code != null;
       const encoded = flagged ? Number(code) : 0;
       const rowAction = flagged ? actions[encoded % actionCount]! : action;
+      used.add(rowAction);
 
       const resolved = tableAbilities[resolvedFilterKey](rowAction);
       if (!resolved) {
@@ -275,17 +341,19 @@ export function createColumnMasker<
       }
 
       const mask: ColumnMask | undefined = resolved[columnMaskKey];
-      if (!mask) continue;
-
-      // assign instead of delete to keep the row's hidden class
-      row[maskedByKey] = abilities;
-      if (flagged) row[COLUMN_FLAG_KEY] = undefined;
-      clearColumns(
-        row,
-        hiddenColumns(mask, Math.floor(encoded / actionCount), columnNames),
-      );
+      if (mask) {
+        const bits = Math.floor(encoded / actionCount);
+        maskRow(
+          row,
+          abilities,
+          splitHidden(hiddenColumns(mask, bits, columnNames), primaryKey),
+        );
+      } else if (row[hiddenPrimaryKeyKey]) {
+        // a row reused from a request which hid it
+        row[hiddenPrimaryKeyKey] = false;
+      }
     }
   };
 
-  return maskColumns;
+  return { maskColumns, maskedActions };
 }

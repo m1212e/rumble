@@ -57,7 +57,10 @@ function createBlockEverythingFilter(
     throw new RumbleError(`No primary key found for entity ${tableName}`);
   }
 
-  const primaryKeyField: any = Object.values(tableSchema.primaryKey)[0];
+  // relational where keys are ts names, not database names
+  const [primaryKeyName, primaryKeyField] = Object.entries(
+    tableSchema.primaryKey,
+  )[0] as [string, any];
   const distinctValues = createDistinctValuesFromSQLType(
     primaryKeyField.getSQLType() as any,
   );
@@ -66,10 +69,10 @@ function createBlockEverythingFilter(
     where: {
       AND: [
         {
-          [primaryKeyField.name]: distinctValues.value1,
+          [primaryKeyName]: distinctValues.value1,
         },
         {
-          [primaryKeyField.name]: distinctValues.value2,
+          [primaryKeyName]: distinctValues.value2,
         },
       ],
     },

@@ -1,5 +1,5 @@
 import type { Span, Tracer } from "@opentelemetry/api";
-import SchemaBuilder, {
+import {
   BasePlugin,
   type PothosOutputFieldConfig,
   type PothosTypeConfig,
@@ -9,6 +9,7 @@ import DataLoader from "dataloader";
 import type { GraphQLFieldResolver } from "graphql";
 import { errorLogField } from "../helpers/errorLogging";
 import { objectTypeOptionsOfField } from "../helpers/objectTypeOptions";
+import { registerPluginOnce } from "../helpers/registerPlugin";
 import {
   ATTR_FIELD_NAME,
   ATTR_FILTERS_ALLOWED,
@@ -225,15 +226,6 @@ export class RuntimeFiltersPlugin<
   }
 }
 
-let registered = false;
 export function registerRuntimeFiltersPlugin() {
-  if (!registered) {
-    // Dev server restarts can re-evaluate this module (e.g. duplicate ESM/CJS
-    // loads of @pothos/core), resetting the registered guard above and
-    // causing pothos to throw on the second registerPlugin call. Reregistering
-    // the same class is harmless, so allow it instead of crashing.
-    SchemaBuilder.allowPluginReRegistration = true;
-    SchemaBuilder.registerPlugin(pluginName, RuntimeFiltersPlugin);
-    registered = true;
-  }
+  registerPluginOnce(pluginName, RuntimeFiltersPlugin);
 }

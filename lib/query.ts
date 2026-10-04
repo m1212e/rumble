@@ -120,7 +120,7 @@ export const createQueryImplementer = <
       db,
       table,
     });
-    const primaryKeyField = Object.values(tableSchema.primaryKey)[0];
+    const primaryKeyName = Object.keys(tableSchema.primaryKey)[0]!;
 
     const { registerOnInstance } = makePubSubInstance({ table: table });
 
@@ -248,8 +248,7 @@ export const createQueryImplementer = <
 
             const filter = (
               await (ctx.abilities as any)[table].filter(readAction)
-            ).merge({ where: { [primaryKeyField.name]: args.id } }).query
-              .single;
+            ).merge({ where: { [primaryKeyName]: args.id } }).query.single;
             const queryArgs = query(filter);
 
             if (filter.columns) {

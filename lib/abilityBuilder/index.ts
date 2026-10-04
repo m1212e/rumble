@@ -90,13 +90,19 @@ export const createAbilityBuilder = <
     >;
   };
 
-  const maskColumns = createColumnMasker(
+  const { maskColumns, maskedActions } = createColumnMasker(
     settings,
     new Map(
-      tableRelationNames.map((tableName) => [
-        tableName,
-        Object.keys(tableHelper({ db, table: tableName }).columns),
-      ]),
+      tableRelationNames.map((tableName) => {
+        const tableSchema = tableHelper({ db, table: tableName });
+        return [
+          tableName,
+          {
+            columns: Object.keys(tableSchema.columns),
+            primaryKey: Object.keys(tableSchema.primaryKey),
+          },
+        ];
+      }),
     ),
   );
 
@@ -110,6 +116,9 @@ export const createAbilityBuilder = <
      */
     _: {
       maskColumns: (input: MaskColumnsInput<DB, Action>) => maskColumns(input),
+      /** The actions rows of the table were masked with in this request. */
+      maskedActions: (abilities: object, table: TableNames) =>
+        maskedActions(abilities, table),
       registerReadAction(table: TableNames, action: Action) {
         readActionPerTable.set(table, action);
       },

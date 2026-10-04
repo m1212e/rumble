@@ -10,6 +10,7 @@ import type {
   MaskColumns,
   maskColumnsActionKey,
   maskColumnsKey,
+  maskPrimaryKeysKey,
 } from "./maskTypes";
 
 declare global {
@@ -20,6 +21,7 @@ declare global {
 
     export interface ObjectTypeOptions<Types extends SchemaTypes, Shape> {
       [maskColumnsKey]?: MaskColumns<Types["Context"]>;
+      [maskPrimaryKeysKey]?: string[];
     }
 
     export interface FieldOptions<

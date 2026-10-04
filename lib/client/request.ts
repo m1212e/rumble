@@ -497,11 +497,8 @@ function unwrapInputType(type: IntrospectionInputValue["type"]) {
 }
 
 function serializeDate(arg: Date, gqlArg: IntrospectionInputValue) {
-  let type = gqlArg.type;
-  if (type.kind === "NON_NULL") {
-    type = type.ofType;
-  }
-  const name = (type as any).name;
+  // list arguments serialize their items with the list's type
+  const name = (unwrapInputType(gqlArg.type) as any).name;
   switch (name) {
     case "Date":
       return DateResolver.serialize(arg);
