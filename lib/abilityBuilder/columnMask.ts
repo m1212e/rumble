@@ -6,10 +6,9 @@ import type {
   DrizzleQueryFunctionInput,
   TableRelationNames,
 } from "../types/drizzleInstanceType";
-import { RumbleError } from "../types/rumbleError";
 import {
-  COLUMN_FLAG_KEY,
-  COLUMN_REQUEST_KEY,
+  ACTION_FLAG_KEY,
+  columnFlagKey,
   columnMaskKey,
   resolvedFilterKey,
 } from "./keys";
@@ -26,7 +25,10 @@ type HiddenColumns = {
 export type ColumnMask = {
   guaranteed: Set<string>;
   conditional: Set<string>[];
-  hiddenPerBits: Map<number, HiddenColumns>;
+  /** the extra flagging each conditional group */
+  flags: string[];
+  /** keyed by the matched groups, e.g. "01" */
+  hiddenPerMatch: Map<string, HiddenColumns>;
 };
 
 function referencesRelation(
@@ -58,24 +60,24 @@ function selectedColumns(
 
 function hiddenColumns(
   mask: ColumnMask,
-  bits: number,
+  matched: string,
   allColumns: string[],
   primaryKey: string[],
 ) {
-  let hidden = mask.hiddenPerBits.get(bits);
+  let hidden = mask.hiddenPerMatch.get(matched);
   if (!hidden) {
     const columns = allColumns.filter(
       (column) =>
         !mask.guaranteed.has(column) &&
         !mask.conditional.some(
-          (columns, bit) => bits & (1 << bit) && columns.has(column),
+          (columns, group) => matched[group] === "1" && columns.has(column),
         ),
     );
     hidden = {
       cleared: columns.filter((c) => !primaryKey.includes(c)),
       primaryKey: columns.some((c) => primaryKey.includes(c)),
     };
-    mask.hiddenPerBits.set(bits, hidden);
+    mask.hiddenPerMatch.set(matched, hidden);
   }
   return hidden;
 }
@@ -103,7 +105,7 @@ function guaranteedColumns(rules: ColumnRule[], allColumnNames: string[]) {
 
 /**
  * Groups the conditional rules by the columns they grant on top of the
- * guaranteed ones. Each group becomes one bit of the column flag.
+ * guaranteed ones. Each group gets its own flag.
  */
 function conditionalGroups(rules: ColumnRule[], guaranteed: Set<string>) {
   const groups = new Map<string, { columns: Set<string>; wheres: unknown[] }>();
@@ -129,24 +131,17 @@ function conditionalGroups(rules: ColumnRule[], guaranteed: Set<string>) {
 
 /**
  * Creates the resolver which turns the abilities of a table into the columns
- * to select and, if columns depend on the matched ability, an extra computing
- * a per row flag plus the mask to decode it.
+ * to select and, if columns depend on the matched ability, extras flagging
+ * per row which abilities matched plus the mask to decode them.
  */
 export function createColumnAccessResolver<
   DB extends DrizzleInstance,
   Action extends string,
   TableName extends TableRelationNames<DB>,
->(
-  { db, actions }: AbilitySettings<DB, Action>,
-  tableName: TableName,
-  tableSchema: TableSchema,
-) {
+>({ db, actions }: AbilitySettings<DB, Action>, tableSchema: TableSchema) {
   const allColumnNames = Object.keys(tableSchema.columns);
   const primaryKeyNames = Object.keys(tableSchema.primaryKey);
   const primaryKeyName = primaryKeyNames[0]!;
-  const actionCount = actions.length;
-  // the flag has to fit a signed 32 bit integer in every dialect
-  const maxGroups = Math.floor(Math.log2(2 ** 31 / actionCount));
 
   const toSQL = (table: any, wheres: unknown[]) =>
     or(
@@ -162,8 +157,8 @@ export function createColumnAccessResolver<
 
   // Relational filters become correlated subqueries, which would
   // run once per row. Uncorrelated, the database runs it once.
-  const uncorrelated = (table: any, wheres: unknown[], bit: number) => {
-    const inner = aliasedTable(tableSchema.table, `rumble_columns_${bit}`);
+  const uncorrelated = (table: any, wheres: unknown[], group: number) => {
+    const inner = aliasedTable(tableSchema.table, `rumble_columns_${group}`);
     return sql`${table[primaryKeyName]} in (${(db as any)
       .select({ pk: inner[primaryKeyName] })
       .from(inner)
@@ -175,7 +170,6 @@ export function createColumnAccessResolver<
   return function resolveColumnAccess(
     action: Action,
     filters: DrizzleQueryFunctionInput<DB, TableName>[],
-    requestId: number,
   ) {
     const rules = filters.map((f) => ({
       where: realWhere(f?.where),
@@ -196,47 +190,36 @@ export function createColumnAccessResolver<
         ? undefined
         : Object.fromEntries([...selected].map((c) => [c, true]));
 
-    // A mask (and flag) is needed even without conditional groups: rows
-    // loaded without the ability's columns (pothos reloads, custom resolvers)
-    // are reduced to the guaranteed columns, and the flag records the action
-    // the row was loaded with, so that action's mask applies.
+    // A mask (and action flag) is needed even without conditional groups:
+    // rows loaded without the ability's columns (pothos reloads, custom
+    // resolvers) are reduced to the guaranteed columns, and the action flag
+    // records the action the row was loaded with, so that action's mask applies.
     if (guaranteed.size === allColumnNames.length) {
       return { columns, extras: undefined, mask: undefined };
-    }
-
-    if (groups.length > maxGroups) {
-      throw new RumbleError(
-        `Too many abilities with differing columns on ${String(tableName)}/${action}: ${groups.length}, at most ${maxGroups} are supported.`,
-      );
     }
 
     const mask: ColumnMask = {
       guaranteed,
       conditional: groups.map((g) => g.columns),
-      hiddenPerBits: new Map(),
+      flags: groups.map((_, group) => columnFlagKey(group)),
+      hiddenPerMatch: new Map(),
     };
-    const groupWheres = groups.map((g) => ({
-      wheres: g.wheres,
-      relational: g.wheres.some((w) =>
-        referencesRelation(w, tableSchema.relations),
-      ),
-    }));
-    const actionIndex = actions.indexOf(action);
+    const actionIndex = sql.raw(String(actions.indexOf(action)));
+    // callbacks, so nested relation queries pass their aliased table
     const extras: Record<string, (table: any) => any> = {
-      // a callback, so nested relation queries pass their aliased table
-      [COLUMN_FLAG_KEY]: (table: any) => {
-        const bits = groupWheres.map(({ wheres, relational }, bit) => {
-          const condition = relational
-            ? uncorrelated(table, wheres, bit)
-            : toSQL(table, wheres);
-          return sql`case when ${condition} then ${sql.raw(String(2 ** bit))} else 0 end`;
-        });
-        return bits.length
-          ? sql`(${sql.raw(String(actionIndex))} + ${sql.raw(String(actionCount))} * (${sql.join(bits, sql` + `)}))`
-          : sql`${sql.raw(String(actionIndex))}`;
-      },
-      [COLUMN_REQUEST_KEY]: () => sql`${sql.raw(String(requestId))}`,
+      [ACTION_FLAG_KEY]: () => sql`${actionIndex}`,
     };
+    groups.forEach(({ wheres }, group) => {
+      const relational = wheres.some((w) =>
+        referencesRelation(w, tableSchema.relations),
+      );
+      extras[mask.flags[group]!] = (table: any) => {
+        const condition = relational
+          ? uncorrelated(table, wheres, group)
+          : toSQL(table, wheres);
+        return sql`case when ${condition} then 1 else 0 end`;
+      };
+    });
 
     return { columns, extras, mask };
   };
@@ -253,12 +236,20 @@ function clearColumns(row: Row, columns: string[]) {
   }
 }
 
-function maskRow(row: Row, hidden: HiddenColumns) {
-  // assign instead of delete to keep the row's hidden class
-  if (row[COLUMN_FLAG_KEY] != null) {
-    row[COLUMN_FLAG_KEY] = undefined;
-    row[COLUMN_REQUEST_KEY] = undefined;
+// "1" per group the row matched, unflagged rows match none and only get the
+// guaranteed columns
+function matchedGroups(row: Row, flags: string[]) {
+  let matched = "";
+  for (let i = 0; i < flags.length; i++) {
+    matched += Number(row[flags[i]!]) === 1 ? "1" : "0";
   }
+  return matched;
+}
+
+function maskRow(row: Row, mask: ColumnMask, hidden: HiddenColumns) {
+  // assign instead of delete to keep the row's hidden class
+  if (row[ACTION_FLAG_KEY] !== undefined) row[ACTION_FLAG_KEY] = undefined;
+  clearColumns(row, mask.flags);
   clearColumns(row, hidden.cleared);
 }
 
@@ -286,8 +277,6 @@ export function createColumnMasker<
     { columns: string[]; primaryKey: string[] }
   >,
 ) {
-  const actionCount = actions.length;
-
   const stateOf = (abilities: object) =>
     requestStateOf<Action>(abilities) as RequestState<Action>;
 
@@ -320,14 +309,10 @@ export function createColumnMasker<
       const row = entities[i];
       if (!isRow(row) || state.masked.has(row)) continue;
 
-      // a flag computed for another request doesn't apply to this one
-      const code =
-        Number(row[COLUMN_REQUEST_KEY]) === state.id
-          ? row[COLUMN_FLAG_KEY]
-          : undefined;
-      const flagged = code != null;
-      const encoded = flagged ? Number(code) : 0;
-      const rowAction = flagged ? actions[encoded % actionCount]! : action;
+      const flagged = row[ACTION_FLAG_KEY] != null;
+      const rowAction = flagged
+        ? actions[Number(row[ACTION_FLAG_KEY])]!
+        : action;
       used.add(rowAction);
 
       const resolved = tableAbilities[resolvedFilterKey](rowAction);
@@ -340,9 +325,9 @@ export function createColumnMasker<
       const mask: ColumnMask | undefined = resolved[columnMaskKey];
       if (!mask) continue;
 
-      const bits = Math.floor(encoded / actionCount);
-      const hidden = hiddenColumns(mask, bits, columnNames, primaryKey);
-      maskRow(row, hidden);
+      const matched = matchedGroups(row, mask.flags);
+      const hidden = hiddenColumns(mask, matched, columnNames, primaryKey);
+      maskRow(row, mask, hidden);
       state.masked.set(row, hidden.primaryKey);
     }
   };

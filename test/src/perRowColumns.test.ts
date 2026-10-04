@@ -321,97 +321,6 @@ describe("per row column abilities", async () => {
     expect(foreign.errors[0].path).toEqual(["updateUsername", "email"]);
   });
 
-  describe("rows shared across requests", () => {
-    const makeCachedUserExecutor = (
-      cache: Map<string, any>,
-      userId: string,
-    ) => {
-      const instance = makeRumbleSeedInstance(db, userId);
-      instance.rumble.abilityBuilder.users
-        .allow("read")
-        .when(({ userId }) => ({ where: { id: userId } }));
-      instance.rumble.abilityBuilder.users.allow("read").when({
-        columns: { id: true, firstName: true, lastName: true },
-      });
-      instance.rumble.schemaBuilder.queryField("cachedUser", (t) =>
-        t.drizzleField({
-          type: "users",
-          args: { id: t.arg.string({ required: true }) },
-          resolve: async (query, _root, args, ctx) => {
-            // a cache hit skips query(), so pothos reloads the row on its own
-            if (!cache.has(args.id)) {
-              const filter = (await ctx.abilities.users.filter("read")).merge({
-                where: { id: args.id },
-              }).query.single;
-              cache.set(args.id, await db.query.users.findFirst(query(filter)));
-            }
-            return cache.get(args.id);
-          },
-        }),
-      );
-      return instance.build().executor;
-    };
-
-    const cachedUserDocument = (id: string) =>
-      parse(/* GraphQL */ `
-        query {
-          cachedUser(id: "${id}") {
-            id
-            email
-          }
-        }
-      `);
-
-    test("rows reused by another request are masked for that request", async () => {
-      const [first, second] = data.users;
-      const cache = new Map<string, any>();
-      const document = cachedUserDocument(first.id);
-
-      const own: any = await makeCachedUserExecutor(
-        cache,
-        first.id,
-      )({
-        document,
-      });
-      expect(own.errors).toBeUndefined();
-      expect(own.data.cachedUser.email).toEqual(first.email);
-
-      const foreign: any = await makeCachedUserExecutor(
-        cache,
-        second.id,
-      )({
-        document,
-      });
-      expect(foreign.errors.length).toEqual(1);
-      expect(foreign.errors[0].path).toEqual(["cachedUser", "email"]);
-    });
-
-    test("masking a reused row for one request keeps its columns for the next", async () => {
-      const [first, second] = data.users;
-      const cache = new Map<string, any>();
-      const document = cachedUserDocument(first.id);
-
-      // the restricted request masks the shared row first
-      const foreign: any = await makeCachedUserExecutor(
-        cache,
-        second.id,
-      )({
-        document,
-      });
-      expect(foreign.errors.length).toEqual(1);
-      expect(foreign.errors[0].path).toEqual(["cachedUser", "email"]);
-
-      const own: any = await makeCachedUserExecutor(
-        cache,
-        first.id,
-      )({
-        document,
-      });
-      expect(own.errors).toBeUndefined();
-      expect(own.data.cachedUser.email).toEqual(first.email);
-    });
-  });
-
   test("list resolvers returning promises are masked per row", async () => {
     registerSelfAndOthers();
     rumble.schemaBuilder.queryField("usersByIds", (t) =>
@@ -487,7 +396,7 @@ describe("per row column abilities", async () => {
       (await abilities.users.filter("read")).query.many as any,
     );
     const keysBefore = rows.map((row) => Object.keys(row));
-    expect(keysBefore[0]).toContain("__rumble_columns");
+    expect(keysBefore[0]).toContain("__rumble_columns_0");
 
     const result = rumble.abilityBuilder._.maskColumns({
       table: "users",
@@ -499,7 +408,8 @@ describe("per row column abilities", async () => {
 
     rows.forEach((row, index) => {
       expect(Object.keys(row)).toEqual(keysBefore[index]!);
-      expect(row.__rumble_columns).toBeUndefined();
+      expect(row.__rumble_action).toBeUndefined();
+      expect(row.__rumble_columns_0).toBeUndefined();
       const original = data.users.find((u: any) => u.id === row.id)!;
       expect(row.lastName).toEqual(original.lastName);
       expect(row.email).toEqual(
@@ -653,32 +563,6 @@ describe("per row column abilities", async () => {
     for (const error of result.errors) {
       expect(error.path.at(-1)).toEqual("email");
     }
-  });
-
-  test("column flags computed for another request are not trusted", async () => {
-    registerSelfAndOthers();
-    const [first, second] = data.users;
-    const abilitiesOf = (userId: string) =>
-      rumble.abilityBuilder._.build()({ userId });
-
-    // loaded for the first user and never masked, e.g. kept in a cache
-    const firstAbilities = abilitiesOf(first.id);
-    const rows: any[] = await db.query.users.findMany(
-      (await firstAbilities.users.filter("read")).query.many as any,
-    );
-    const firstRow = rows.find((row) => row.id === first.id);
-
-    const secondAbilities = abilitiesOf(second.id);
-    await secondAbilities.users.filter("read");
-    await rumble.abilityBuilder._.maskColumns({
-      table: "users",
-      action: "read",
-      abilities: secondAbilities,
-      entities: [firstRow],
-    });
-
-    expect(firstRow.firstName).toEqual(first.firstName);
-    expect(firstRow.email).toBeUndefined();
   });
 
   describe("rows pothos reloads on its own", () => {

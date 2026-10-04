@@ -65,12 +65,12 @@ exports[`ability builder merge merge() keeps the selected columns 1`] = `
 }
 `;
 
-exports[`ability builder columns conditional columns produce a mask and a flag extra 1`] = `
+exports[`ability builder columns conditional columns produce a mask and flag extras 1`] = `
 {
   "params": [
     "3e0bb3d0-2074-4a1e-9263-d13dd10cb0cf",
   ],
-  "sql": "select (0 + 3 * (case when "users_table"."id" = ? then 1 else 0 end)) from "users_table"",
+  "sql": "select case when "users_table"."id" = ? then 1 else 0 end from "users_table"",
 }
 `;
 
@@ -80,7 +80,7 @@ exports[`ability builder columns abilities with the same extra columns share a g
     "3e0bb3d0-2074-4a1e-9263-d13dd10cb0cf",
     "2f5363b9-8fc3-482a-9a6b-2d605fb782f1",
   ],
-  "sql": "select (0 + 3 * (case when (("users_table"."id" = ?) or ("users_table"."id" = ?)) then 1 else 0 end)) from "users_table"",
+  "sql": "select case when (("users_table"."id" = ?) or ("users_table"."id" = ?)) then 1 else 0 end from "users_table"",
 }
 `;
 
@@ -89,7 +89,7 @@ exports[`ability builder columns relational conditions use an uncorrelated subqu
   "params": [
     "x",
   ],
-  "sql": "select (0 + 3 * (case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))) then 1 else 0 end)) from "users_table"",
+  "sql": "select case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))) then 1 else 0 end from "users_table"",
 }
 `;
 
@@ -99,7 +99,7 @@ exports[`ability builder columns relational conditions use an uncorrelated subqu
     "a",
     "x",
   ],
-  "sql": "select (0 + 3 * (case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where (("rumble_columns_0"."id" = ?) and (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))))) then 1 else 0 end)) from "users_table"",
+  "sql": "select case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where (("rumble_columns_0"."id" = ?) and (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))))) then 1 else 0 end from "users_table"",
 }
 `;
 
@@ -109,7 +109,7 @@ exports[`ability builder columns relational conditions use an uncorrelated subqu
     "a",
     "x",
   ],
-  "sql": "select (0 + 3 * (case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where (("rumble_columns_0"."id" = ?) or (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))))) then 1 else 0 end)) from "users_table"",
+  "sql": "select case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where (("rumble_columns_0"."id" = ?) or (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))))) then 1 else 0 end from "users_table"",
 }
 `;
 
@@ -118,7 +118,7 @@ exports[`ability builder columns relational conditions use an uncorrelated subqu
   "params": [
     "x",
   ],
-  "sql": "select (0 + 3 * (case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where not (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1)))) then 1 else 0 end)) from "users_table"",
+  "sql": "select case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where not (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1)))) then 1 else 0 end from "users_table"",
 }
 `;
 

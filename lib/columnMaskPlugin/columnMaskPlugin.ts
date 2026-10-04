@@ -30,7 +30,12 @@ export class ColumnMaskPlugin<
     );
   }
 
-  // masking keeps primary keys on the row, the fields returning them hide them
+  // Masking keeps primary keys on the row, the fields returning them hide them.
+  // Pothos reloads rows by their primary key, e.g. a mutation returning
+  // `db.update(users).returning()` selected as `{ id firstName }` where only
+  // `firstName` is granted: pothos queries `where id in (row.id)` and matches
+  // the result by `row.id`. Cleared on the row, that is `id in (undefined)`
+  // and fails with "Model users(undefined) not found".
   private maskPrimaryKey(
     resolver: GraphQLFieldResolver<unknown, Types["Context"], object>,
     fieldConfig: PothosOutputFieldConfig<Types>,

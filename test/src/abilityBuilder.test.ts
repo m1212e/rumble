@@ -457,8 +457,7 @@ describe("ability builder", async () => {
 
       expect(f.query.single).toEqual({
         extras: {
-          __rumble_columns: expect.any(Function),
-          __rumble_request: expect.any(Function),
+          __rumble_action: expect.any(Function),
         },
         where: EmptyFilter,
         columns: { id: true, email: true },
@@ -470,12 +469,13 @@ describe("ability builder", async () => {
       expect((f as any)[columnMaskKey]).toEqual({
         guaranteed: new Set(["id", "email"]),
         conditional: [],
-        hiddenPerBits: new Map(),
+        flags: [],
+        hiddenPerMatch: new Map(),
       });
       const extras = (f.query.many as any).extras;
       expect(
         db
-          .select({ flag: extras.__rumble_columns(schema.users) })
+          .select({ flag: extras.__rumble_action(schema.users) })
           .from(schema.users)
           .toSQL(),
       ).toEqual({ sql: 'select 0 from "users_table"', params: [] });
@@ -507,7 +507,8 @@ describe("ability builder", async () => {
       expect((f as any)[columnMaskKey]).toEqual({
         guaranteed: new Set(["id", "email", "firstName"]),
         conditional: [],
-        hiddenPerBits: new Map(),
+        flags: [],
+        hiddenPerMatch: new Map(),
       });
     });
 
@@ -522,7 +523,7 @@ describe("ability builder", async () => {
       expect("columns" in f.query.single).toBe(false);
     });
 
-    test("conditional columns produce a mask and a flag extra", async () => {
+    test("conditional columns produce a mask and flag extras", async () => {
       r.abilityBuilder.users.allow("read").when(({ userId }) => ({
         where: { id: userId },
       }));
@@ -534,12 +535,12 @@ describe("ability builder", async () => {
       expect("columns" in f.query.single).toBe(false);
       const extras = (f.query.many as any).extras;
       expect(Object.keys(extras)).toEqual([
-        "__rumble_columns",
-        "__rumble_request",
+        "__rumble_action",
+        "__rumble_columns_0",
       ]);
       expect(
         db
-          .select({ flag: extras.__rumble_columns(schema.users) })
+          .select({ flag: extras.__rumble_columns_0(schema.users) })
           .from(schema.users)
           .toSQL(),
       ).toMatchSnapshot();
@@ -547,10 +548,11 @@ describe("ability builder", async () => {
       const mask = (f as any)[columnMaskKey];
       expect(mask.guaranteed).toEqual(new Set(["id", "firstName"]));
       expect(mask.conditional).toEqual([new Set(["email", "lastName"])]);
-      expect(mask.hiddenPerBits).toEqual(new Map());
+      expect(mask.flags).toEqual(["__rumble_columns_0"]);
+      expect(mask.hiddenPerMatch).toEqual(new Map());
     });
 
-    test("the action index is encoded into the flag", async () => {
+    test("the action index and matched groups are flagged per row", async () => {
       r.abilityBuilder.users.allow("update").when(({ userId }) => ({
         where: { id: userId },
       }));
@@ -562,12 +564,13 @@ describe("ability builder", async () => {
       const rows = await db
         .select({
           id: schema.users.id,
-          flag: extras.__rumble_columns(schema.users),
+          action: extras.__rumble_action(schema.users),
+          flag: extras.__rumble_columns_0(schema.users),
         })
         .from(schema.users);
       for (const row of rows) {
-        // action index 1 + 3 actions * group bit
-        expect(row.flag).toBe(row.id === self().id ? 4 : 1);
+        expect(row.action).toBe(1);
+        expect(row.flag).toBe(row.id === self().id ? 1 : 0);
       }
     });
 
@@ -585,7 +588,7 @@ describe("ability builder", async () => {
       const extras = (f.query.many as any).extras;
       expect(
         db
-          .select({ flag: extras.__rumble_columns(schema.users) })
+          .select({ flag: extras.__rumble_columns_0(schema.users) })
           .from(schema.users)
           .toSQL(),
       ).toMatchSnapshot();
@@ -627,7 +630,7 @@ describe("ability builder", async () => {
         const f = await abilitiesFor().users.filter("read");
         const extras = (f.query.many as any).extras;
         const rendered = db
-          .select({ flag: extras.__rumble_columns(schema.users) })
+          .select({ flag: extras.__rumble_columns_0(schema.users) })
           .from(schema.users)
           .toSQL();
         expect(rendered.sql).toContain("rumble_columns_0");
@@ -643,13 +646,13 @@ describe("ability builder", async () => {
       const f = await abilitiesFor().users.filter("read");
       const extras = (f.query.many as any).extras;
       const rendered = db
-        .select({ flag: extras.__rumble_columns(schema.users) })
+        .select({ flag: extras.__rumble_columns_0(schema.users) })
         .from(schema.users)
         .toSQL();
       expect(rendered.sql).not.toContain("rumble_columns_0");
     });
 
-    test("too many column groups throw", async () => {
+    test("more column groups than fit a 32 bit integer", async () => {
       const columns = [
         "id",
         "text",
@@ -658,32 +661,39 @@ describe("ability builder", async () => {
         "postId",
         "ownerId",
       ] as const;
-      const subsets: string[][] = [];
-      for (let i = 0; i < columns.length; i++) {
-        subsets.push([columns[i]!]);
-        for (let j = i + 1; j < columns.length; j++) {
-          subsets.push([columns[i]!, columns[j]!]);
-        }
-      }
-      for (let i = 0; i < columns.length && subsets.length < 30; i++) {
-        for (let j = i + 1; j < columns.length && subsets.length < 30; j++) {
-          for (let k = j + 1; k < columns.length && subsets.length < 30; k++) {
-            subsets.push([columns[i]!, columns[j]!, columns[k]!]);
-          }
-        }
-      }
-      expect(new Set(subsets.map((s) => [...s].sort().join())).size).toBe(30);
+      // 40 distinct column sets, picked by the bits of 1..40
+      const subsets = Array.from({ length: 40 }, (_, i) =>
+        columns.filter((_, c) => (i + 1) & (1 << c)),
+      );
 
+      // only the last group matches a row
+      const target: any = data.comments[0]!;
       subsets.forEach((subset, i) => {
         r.abilityBuilder.comments.allow("read").when({
-          where: { id: `c${i}` },
+          where: { id: i === 39 ? target.id : `c${i}` },
           columns: Object.fromEntries(subset.map((c) => [c, true])),
         });
       });
 
-      await expect(abilitiesFor().comments.filter("read")).rejects.toThrow(
-        "Too many abilities with differing columns on comments/read: 30, at most 29 are supported.",
-      );
+      const abilities = abilitiesFor();
+      const f = await abilities.comments.filter("read");
+      expect((f as any)[columnMaskKey].flags.length).toBe(40);
+      const rows: any[] = await db.query.comments.findMany(f.query.many as any);
+      expect(rows.map((row) => row.id)).toEqual([target.id]);
+
+      await r.abilityBuilder._.maskColumns({
+        table: "comments",
+        action: "read",
+        abilities,
+        entities: rows,
+      });
+      const granted = new Set(subsets[39]);
+      for (const column of columns) {
+        if (column === "id") continue;
+        expect(rows[0][column]).toEqual(
+          granted.has(column) ? target[column] : undefined,
+        );
+      }
     });
   });
 
@@ -711,7 +721,8 @@ describe("ability builder", async () => {
       });
 
       for (const row of rows as any[]) {
-        expect(row.__rumble_columns).toBeUndefined();
+        expect(row.__rumble_action).toBeUndefined();
+        expect(row.__rumble_columns_0).toBeUndefined();
         expect(row.id).toBeDefined();
         expect(row.firstName).toBeDefined();
         if (row.id === self().id) {
@@ -816,7 +827,7 @@ describe("ability builder", async () => {
       const rows: any[] = await db.query.users.findMany({
         extras: (f.query.many as any).extras,
       });
-      expect(rows[0].__rumble_columns).toBe(1);
+      expect(rows[0].__rumble_action).toBe(1);
 
       // masked in a read context: the update mask still applies
       await r.abilityBuilder._.maskColumns({
@@ -843,8 +854,8 @@ describe("ability builder", async () => {
         .select({
           id: schema.users.id,
           email: schema.users.email,
-          __rumble_columns: extras.__rumble_columns(schema.users),
-          __rumble_request: extras.__rumble_request(schema.users),
+          __rumble_action: extras.__rumble_action(schema.users),
+          __rumble_columns_0: extras.__rumble_columns_0(schema.users),
         })
         .from(schema.users);
 

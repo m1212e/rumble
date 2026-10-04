@@ -1,8 +1,7 @@
-// per row: actionIndex + actionCount * bits of the matched column groups
-export const COLUMN_FLAG_KEY = "__rumble_columns";
-
-// per row: the id of the request the column flag was computed for
-export const COLUMN_REQUEST_KEY = "__rumble_request";
+// per row: the index of the action the row was loaded with
+export const ACTION_FLAG_KEY = "__rumble_action";
+// per row and column group: 1 if the row matches one of the group's abilities
+export const columnFlagKey = (group: number) => `__rumble_columns_${group}`;
 
 export const columnMaskKey = Symbol.for("rumble:columnMask");
 export const resolvedFilterKey = Symbol.for("rumble:resolvedFilter");

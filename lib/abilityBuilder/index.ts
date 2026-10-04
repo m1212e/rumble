@@ -163,7 +163,7 @@ export const createAbilityBuilder = <
           const abilities = Object.fromEntries(
             tableRelationNames.map((tableName) => [
               tableName,
-              abilitiesPerTable[tableName].withContext(ctx, state.id),
+              abilitiesPerTable[tableName].withContext(ctx),
             ]),
           ) as {
             [key in TableNames]: ReturnType<

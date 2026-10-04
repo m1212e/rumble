@@ -163,9 +163,8 @@ export const createTableAbilities = <
     String(tableName),
     tableSchema,
   );
-  const resolveColumnAccess = createColumnAccessResolver(
+  const resolveColumnAccess = createColumnAccessResolver<DB, Action, TableName>(
     settings,
-    tableName,
     tableSchema,
   );
   const transformToResponse = createFilterResponder<DB, TableName>(
@@ -175,7 +174,6 @@ export const createTableAbilities = <
 
   const assembleAbilities = async (
     userContext: UserContext,
-    requestId: number,
     action: Action,
     attributes: Record<string, AttributeValue>,
   ) => {
@@ -237,7 +235,6 @@ export const createTableAbilities = <
     const { columns, extras, mask } = resolveColumnAccess(
       action,
       allQueryFilters,
-      requestId,
     );
     if (columns) {
       mergedFilters.columns = columns;
@@ -256,14 +253,13 @@ export const createTableAbilities = <
   };
 
   return {
-    withContext: (userContext: UserContext, requestId: number) => {
+    withContext: (userContext: UserContext) => {
       const prepare = (action: Action) =>
         traceAbilityPreparation(
           settings,
           String(tableName),
           action,
-          (attributes) =>
-            assembleAbilities(userContext, requestId, action, attributes),
+          (attributes) => assembleAbilities(userContext, action, attributes),
         );
 
       // abilities are resolved once per request and action, since
