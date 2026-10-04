@@ -15,87 +15,66 @@ export function realWhere(where: unknown) {
   return where === EmptyFilter ? undefined : where;
 }
 
+type Mode = "AND" | "OR";
+
+function mergeWhere(a: unknown, b: unknown, mode: Mode) {
+  if (a && b) {
+    return mode === "OR" ? { OR: [a, b] } : { AND: [a, b] };
+  }
+  // an OR with a missing side would widen to "everything", so no where at all
+  return mode === "OR" ? undefined : (a ?? b);
+}
+
+function mergeColumns(
+  a?: Record<string, unknown>,
+  b?: Record<string, unknown>,
+) {
+  if (!a && !b) return undefined;
+  const result: Record<string, true> = {};
+  for (const [key, value] of [
+    ...Object.entries(a ?? {}),
+    ...Object.entries(b ?? {}),
+  ]) {
+    if (value === true) result[key] = true;
+  }
+  return result;
+}
+
+function mergeRecords(a?: Record<string, any>, b?: Record<string, any>) {
+  return a || b ? toMerged(a ?? {}, b ?? {}) : undefined;
+}
+
+/**
+ * Combines two limit/offset style bounds. For OR the looser bound wins (and a
+ * missing side means unbounded), for AND the stricter bound wins.
+ */
+function mergeBound(
+  a: number | undefined,
+  b: number | undefined,
+  mode: Mode,
+  orPick: (a: number, b: number) => number,
+) {
+  if (mode === "OR") {
+    return a === undefined || b === undefined ? undefined : orPick(a, b);
+  }
+  return a || b ? Math.min(a ?? Infinity, b ?? Infinity) : undefined;
+}
+
 export function mergeFilters<
   FilterA extends Record<string, any>,
   FilterB extends Record<string, any>,
->(
-  filterA?: Partial<FilterA>,
-  filterB?: Partial<FilterB>,
-  mode: "AND" | "OR" = "AND",
-) {
-  const filterAWhere = realWhere(filterA?.where);
-  const filterBWhere = realWhere(filterB?.where);
-
-  const where =
-    filterAWhere && filterBWhere
-      ? mode === "OR"
-        ? { OR: [filterAWhere, filterBWhere] }
-        : { AND: [filterAWhere, filterBWhere] }
-      : mode === "OR"
-        ? undefined
-        : (filterAWhere ?? filterBWhere);
-
-  const columns =
-    filterA?.columns || filterB?.columns
-      ? new Set(
-          [
-            Object.entries(filterA?.columns ?? {}),
-            Object.entries(filterB?.columns ?? {}),
-          ]
-            .flat()
-            .filter(([, v]) => v === true)
-            .map(([k]) => k),
-        )
-          .entries()
-          .reduce(
-            (acc, [key]) => {
-              acc[key] = true;
-              return acc;
-            },
-            {} as Record<string, true>,
-          )
-      : undefined;
-
-  const extras =
-    filterA?.extras || filterB?.extras
-      ? toMerged(filterA?.extras ?? {}, filterB?.extras ?? {})
-      : undefined;
-
-  const orderBy =
-    filterA?.orderBy || filterB?.orderBy
-      ? toMerged(filterA?.orderBy ?? {}, filterB?.orderBy ?? {})
-      : undefined;
-
-  const limit =
-    mode === "OR"
-      ? filterA?.limit === undefined || filterB?.limit === undefined
-        ? undefined
-        : Math.max(filterA.limit, filterB.limit)
-      : filterA?.limit || filterB?.limit
-        ? Math.min(filterA?.limit ?? Infinity, filterB?.limit ?? Infinity)
-        : undefined;
-
-  const offset =
-    mode === "OR"
-      ? filterA?.offset === undefined || filterB?.offset === undefined
-        ? undefined
-        : Math.min(filterA.offset, filterB.offset)
-      : filterA?.offset || filterB?.offset
-        ? Math.min(filterA?.offset ?? Infinity, filterB?.offset ?? Infinity)
-        : undefined;
-
-  const with_ =
-    filterA?.with || filterB?.with
-      ? toMerged(filterA?.with ?? {}, filterB?.with ?? {})
-      : undefined;
-
+>(filterA?: Partial<FilterA>, filterB?: Partial<FilterB>, mode: Mode = "AND") {
   return {
-    where,
-    columns,
-    extras,
-    orderBy,
-    limit,
-    offset,
-    with: with_,
+    where: mergeWhere(
+      realWhere(filterA?.where),
+      realWhere(filterB?.where),
+      mode,
+    ),
+    columns: mergeColumns(filterA?.columns, filterB?.columns),
+    extras: mergeRecords(filterA?.extras, filterB?.extras),
+    orderBy: mergeRecords(filterA?.orderBy, filterB?.orderBy),
+    limit: mergeBound(filterA?.limit, filterB?.limit, mode, Math.max),
+    offset: mergeBound(filterA?.offset, filterB?.offset, mode, Math.min),
+    with: mergeRecords(filterA?.with, filterB?.with),
   } as unknown as FilterA & FilterB;
 }

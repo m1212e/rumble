@@ -177,3 +177,4 @@ dist
 test/test_database.sqlite
 
 example/src/generated-client
+.fallow/

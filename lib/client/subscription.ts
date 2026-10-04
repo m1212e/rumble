@@ -37,7 +37,7 @@ export function makeSubscription<Subscription extends Record<string, any>>({
 
 // TODO use the query util types
 
-export type SubscriptionObject<Q> = {
+type SubscriptionObject<Q> = {
   [Key in keyof Q]: QueryableObjectField<Q[Key]>;
 };
 

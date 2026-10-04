@@ -57,9 +57,9 @@ export const ATTR_OPERATION_TYPE: string = ATTR_GRAPHQL_OPERATION_TYPE;
 export const ATTR_DOCUMENT: string = ATTR_GRAPHQL_DOCUMENT;
 export const ATTR_FIELD_NAME: string = AttributeNames.FIELD_NAME;
 /** Prefix for per-variable span attributes, e.g. `graphql.variables.userId`. */
-export const ATTR_VARIABLES_PREFIX: string = AttributeNames.VARIABLES;
+const ATTR_VARIABLES_PREFIX: string = AttributeNames.VARIABLES;
 /** Log field holding all variables as one object (logs keep nesting, spans flatten). */
-export const FIELD_VARIABLES = "graphql.variables";
+const FIELD_VARIABLES = "graphql.variables";
 export const ATTR_PARENT_TYPE = "graphql.parent.type";
 export const ATTR_TRANSPORT = "rumble.transport";
 export const ATTR_TABLE = "rumble.table";

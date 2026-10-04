@@ -2,7 +2,6 @@ import {
   type Column,
   getTableColumns,
   getTableName,
-  is,
   isTable,
   type Many,
   type One,
@@ -150,18 +149,3 @@ export function tableHelper<
     foundRelation: entry.foundRelation,
   };
 }
-
-/**
- * Looks up a relation entry by its TS-level name — i.e. the key in
- * db._.relations, which is also what `Relation.targetTableName` carries.
- * Prefer this for cross-relation navigation over re-resolving via the raw
- * `targetTable` object.
- */
-export function tableHelperByTsName<DB extends DrizzleInstance>(
-  db: DB,
-  tsName: string,
-) {
-  return tableHelper({ db, table: tsName });
-}
-
-export { is };

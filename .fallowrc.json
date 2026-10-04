@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  "entry": [
+    "lib/index.ts",
+    "lib/client/index.ts",
+    "lib/client/client.ts",
+    "lib/client/generate/index.ts",
+    "example/src/main.ts",
+    "example/src/db/seed.ts"
+  ],
+  "ignoreDependencies": [
+    "@urql/exchange-graphcache",
+    "rolldown-plugin-dts",
+    "pg",
+    "drizzle-seed"
+  ],
+  "duplicates": {
+    "minOccurrences": 3
+  },
+  "rules": {}
+}

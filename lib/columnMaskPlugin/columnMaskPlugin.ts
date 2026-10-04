@@ -16,6 +16,7 @@ import {
 export class ColumnMaskPlugin<
   Types extends SchemaTypes,
 > extends BasePlugin<Types> {
+  // fallow-ignore-next-line unused-class-member
   override wrapResolve(
     resolver: GraphQLFieldResolver<unknown, Types["Context"], object>,
     fieldConfig: PothosOutputFieldConfig<Types>,

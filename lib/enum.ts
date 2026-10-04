@@ -38,10 +38,6 @@ export function isEnumSchema(
 // TODO make this compatible with other db drivers
 type EnumTypes = PgEnum<any> | PgEnumObject<any>;
 
-export type NonEnumFields<T> = {
-  [K in keyof T as T[K] extends EnumTypes ? never : K]: T[K];
-};
-
 /**
  * Picks the keys of a schema object that are pgEnum definitions
  */
@@ -101,7 +97,7 @@ type EnumMembers<Schema, TsName, EnumArg, EnumColumn> = [EnumColumn] extends [
  * `typeof schemaBuilder` (a value), and inlining the member resolution so the
  * cyclic drizzle `Schema[TsName]` access never surfaces as its own symbol.
  */
-export type EnumImplementationRef<
+type EnumImplementationRef<
   UserContext extends Record<string, any>,
   DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,

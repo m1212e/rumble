@@ -7,10 +7,6 @@ export type ExtractGQLTypeFromField<T> = NonNullable<UnArray<UnFunc<T>>>;
 export type DeriveArrayType<From, To> = From extends Array<any> ? To[] : To;
 export type DeriveNullability<From, To> = From extends null ? To | null : To;
 
-export type UnArrayFields<T> = {
-  [K in keyof T]: T[K] extends Array<any> ? UnArray<T[K]> : T[K];
-};
-
 export type RequireAtLeastOneFieldSet<T> = {
   [K in keyof T]: Required<Pick<T, K>> & Partial<Omit<T, K>>;
 }[keyof T];

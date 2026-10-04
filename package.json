@@ -16,11 +16,13 @@
     "dev:example:seed": "bun example/src/db/seed.ts",
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
-    "test:types": "tsc --noEmit"
+    "test:types": "tsc --noEmit",
+    "fallow": "fallow audit"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
     "@graphql-tools/executor-http": "^3.4.1",
+    "@m1212e/sofa-api": "^0.18.12",
     "@types/bun": "^1.4.2",
     "@types/node": "^26.6.3",
     "@types/pg": "^8.23.1",
@@ -29,12 +31,12 @@
     "drizzle-orm": "^1.0.0-rc.5-ab785fc",
     "drizzle-seed": "^1.0.0-rc.5-ab785fc",
     "expect-type": "^1.4.0",
+    "fallow": "^3.31.0",
     "graphql": "^17.0.2",
     "graphql-ws": "^6.3.0",
     "lefthook": "^2.1.16",
     "pg": "^8.23.1",
     "rolldown-plugin-dts": "^0.28",
-    "@m1212e/sofa-api": "^0.18.12",
     "svelte": "^5.57.1",
     "tsdown": "^0.23",
     "typescript": "^7.0"

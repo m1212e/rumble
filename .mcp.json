@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "fallow": {
+      "command": "bunx",
+      "args": ["fallow-mcp"]
+    }
+  }
+}

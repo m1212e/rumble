@@ -486,6 +486,71 @@ function serializeArguments({
   return "";
 }
 
+/** Strips a NON_NULL / LIST / NON_NULL wrapper chain down to the named type. */
+function unwrapInputType(type: IntrospectionInputValue["type"]) {
+  for (const wrapper of ["NON_NULL", "LIST", "NON_NULL"]) {
+    if (type.kind === wrapper) {
+      type = (type as any).ofType;
+    }
+  }
+  return type;
+}
+
+function serializeDate(arg: Date, gqlArg: IntrospectionInputValue) {
+  let type = gqlArg.type;
+  if (type.kind === "NON_NULL") {
+    type = type.ofType;
+  }
+  const name = (type as any).name;
+  switch (name) {
+    case "Date":
+      return DateResolver.serialize(arg);
+    case "DateTime":
+      return DateTimeISOResolver.serialize(arg);
+    default:
+      throw new Error(
+        `Unrecognized date type ${name}, expected Date or DateTime`,
+      );
+  }
+}
+
+function serializeInputObject({
+  arg,
+  gqlArg,
+  types,
+}: {
+  arg: object;
+  gqlArg: IntrospectionInputValue;
+  types: readonly IntrospectionType[];
+}) {
+  const typeName = (unwrapInputType(gqlArg.type) as any).name;
+  const referenceInputObject = types.find((t) => t.name === typeName);
+
+  if (referenceInputObject?.kind !== "INPUT_OBJECT") {
+    return arg;
+  }
+
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(arg)) {
+    const subArgType = referenceInputObject.inputFields.find(
+      (t) => t.name === key,
+    );
+
+    if (!subArgType) {
+      throw new Error(
+        `Expected an INPUT_OBJECT hit in named based lookup for name ${key} with arg ${referenceInputObject.inputFields.map((f) => f.name).join(", ")}`,
+      );
+    }
+
+    result[key] = serializeArgValue({
+      arg: value,
+      types,
+      gqlArg: subArgType,
+    });
+  }
+  return result;
+}
+
 function serializeArgValue({
   arg,
   gqlArg,
@@ -500,96 +565,29 @@ function serializeArgValue({
   }
 
   if (Array.isArray(arg)) {
-    return arg.map((v) => {
-      return serializeArgValue({
-        arg: v,
-        types,
-        gqlArg,
-      });
-    });
-  }
-
-  const argtype = typeof arg;
-
-  if (argtype === "object" && !(arg instanceof Date)) {
-    let type = gqlArg.type;
-
-    if (type.kind === "NON_NULL") {
-      type = type.ofType;
-    }
-    if (type.kind === "LIST") {
-      type = type.ofType;
-    }
-    if (type.kind === "NON_NULL") {
-      type = type.ofType;
-    }
-
-    const referenceInputObject = types.find(
-      (t) => t.name === (type as any).name,
-    );
-
-    if (referenceInputObject?.kind !== "INPUT_OBJECT") {
-      return arg;
-    }
-
-    const result: Record<string, any> = {};
-    for (const [key, value] of Object.entries(arg)) {
-      const subArgType = referenceInputObject.inputFields.find(
-        (t) => t.name === key,
-      );
-
-      if (!subArgType) {
-        throw new Error(
-          `Expected an INPUT_OBJECT hit in named based lookup for name ${key} with arg ${referenceInputObject.inputFields.map((f) => f.name).join(", ")}`,
-        );
-      }
-
-      result[key] = serializeArgValue({
-        arg: value,
-        types,
-        gqlArg: subArgType,
-      });
-    }
-    return result;
-  }
-
-  let type = gqlArg.type;
-
-  if (type.kind === "NON_NULL") {
-    type = type.ofType;
+    return arg.map((v) => serializeArgValue({ arg: v, types, gqlArg }));
   }
 
   if (arg instanceof Date) {
-    const name = (type as any).name;
-    let value: string;
-    switch (name) {
-      case "Date":
-        value = DateResolver.serialize(arg);
-        break;
-      case "DateTime":
-        value = DateTimeISOResolver.serialize(arg);
-        break;
-      default:
-        throw new Error(
-          `Unrecognized date type ${name}, expected Date or DateTime`,
-        );
-    }
-    return value;
+    return serializeDate(arg, gqlArg);
   }
 
-  switch (typeof arg) {
-    case "string":
-    case "number":
-    case "bigint":
-    case "boolean":
-      return arg;
-    case "symbol":
-      throw new Error("Cannot stringify a symbol to send as gql arg");
-    case "undefined":
-      return null;
-    case "function":
-      throw new Error("Cannot stringify a function to send as gql arg");
+  if (typeof arg === "object") {
+    return serializeInputObject({ arg, gqlArg, types });
   }
 
+  return serializePrimitive(arg);
+}
+
+function serializePrimitive(arg: unknown) {
+  if (arg === undefined) {
+    return null;
+  }
+  if (["string", "number", "bigint", "boolean"].includes(typeof arg)) {
+    return arg;
+  }
+  if (typeof arg === "symbol" || typeof arg === "function") {
+    throw new Error(`Cannot stringify a ${typeof arg} to send as gql arg`);
+  }
   throw new Error("Cannot stringify an unknown type");
 }

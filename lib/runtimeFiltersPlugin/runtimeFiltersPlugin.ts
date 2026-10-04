@@ -89,6 +89,7 @@ export class RuntimeFiltersPlugin<
     return loader;
   }
 
+  // fallow-ignore-next-line unused-class-member
   override onTypeConfig(typeConfig: PothosTypeConfig) {
     this.tracer = this.builder.options.otel?.tracer;
     this.tracerEnabled = this.builder.options.otel?.enabled;
@@ -102,6 +103,7 @@ export class RuntimeFiltersPlugin<
     return typeConfig;
   }
 
+  // fallow-ignore-next-line unused-class-member
   override wrapResolve(
     resolver: GraphQLFieldResolver<unknown, Types["Context"], object>,
     fieldConfig: PothosOutputFieldConfig<Types>,
