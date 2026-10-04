@@ -24,7 +24,7 @@
     "@graphql-tools/executor-http": "^3.4.1",
     "@m1212e/sofa-api": "^0.18.12",
     "@types/bun": "^1.4.2",
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.4",
     "@types/pg": "^8.23.1",
     "@types/pluralize": "^0.0.33",
     "drizzle-kit": "^1.0.0-rc.5-ab785fc",
@@ -36,10 +36,9 @@
     "graphql-ws": "^6.3.0",
     "lefthook": "^2.1.16",
     "pg": "^8.23.1",
-    "rolldown-plugin-dts": "^0.28",
     "svelte": "^5.57.1",
-    "tsdown": "^0.23",
-    "typescript": "^7.0"
+    "tsdown": "^0.23.0",
+    "typescript": "^7.0.2"
   },
   "peerDependencies": {
     "typescript": "^4 || ^5 || ^6 || ^7",
@@ -72,7 +71,7 @@
     "@pothos/plugin-validation": "^4.3.4",
     "@pothos/tracing-opentelemetry": "^1.2.1",
     "@urql/core": "^6.0.3",
-    "@urql/exchange-graphcache": "^9.0.1",
+    "@urql/exchange-graphcache": "^9.0.2",
     "@urql/introspection": "^1.2.1",
     "dataloader": "^2.2.3",
     "devalue": "^6.0.2",
