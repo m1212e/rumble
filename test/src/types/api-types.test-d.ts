@@ -15,6 +15,7 @@
  * markers and prints a report so they don't get silently forgotten.
  */
 
+import type { Placeholder, SQL } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { pgEnum, pgTable } from "drizzle-orm/pg-core";
 import { expectTypeOf } from "expect-type";
@@ -97,6 +98,31 @@ r.abilityBuilder.users.allow("read").when((ctx) => {
   expectTypeOf(ctx).toEqualTypeOf<{ userId: string }>();
   return { where: { id: ctx.userId } };
 });
+
+// `.when()` filters are checked against the table
+r.abilityBuilder.users.allow("read").when({
+  where: { email: "a" },
+  columns: { id: true },
+  limit: 3,
+});
+// @ts-expect-error unknown column in where
+r.abilityBuilder.users.allow("read").when({ where: { notAColumn: "a" } });
+// @ts-expect-error wrong value type in where
+r.abilityBuilder.users.allow("read").when({ where: { email: 1 } });
+// @ts-expect-error unknown column in columns
+r.abilityBuilder.users.allow("read").when({ columns: { notAColumn: true } });
+
+// dynamic filters may grant everything, nothing, or resolve asynchronously
+r.abilityBuilder.users.allow("read").when(() => "allow");
+r.abilityBuilder.users.allow("read").when(() => undefined);
+r.abilityBuilder.users
+  .allow("read")
+  .when(async (ctx) => ({ where: { id: ctx.userId } }));
+// @ts-expect-error only "allow" is a valid string result
+r.abilityBuilder.users.allow("read").when(() => "deny");
+
+// @ts-expect-error invalid action token on filter()
+r.abilityBuilder.users.filter("definitelyNotAnAction");
 
 // application level filters: prefetch() is an optional step before by()
 r.abilityBuilder.users
@@ -215,6 +241,19 @@ r.schemaBuilder.queryFields((t) => ({
       const merged = f.merge({ where: { id: "u1" } });
       expectTypeOf(merged).toHaveProperty("query");
       expectTypeOf(merged.query).toHaveProperty("many");
+      // merged filters can't be merged again
+      expectTypeOf(merged).not.toHaveProperty("merge");
+      // @ts-expect-error merge() checks the filter against the table
+      f.merge({ where: { notAColumn: "a" } });
+
+      expectTypeOf(f.sql.where).toEqualTypeOf<SQL | undefined>();
+      expectTypeOf(merged.sql.where).toEqualTypeOf<SQL | undefined>();
+      expectTypeOf(f.query.many.limit).toEqualTypeOf<
+        number | Placeholder | undefined
+      >();
+
+      // @ts-expect-error invalid action token on ctx.abilities
+      ctx.abilities.users.filter("definitelyNotAnAction");
 
       // extras is runtime only: exposing it would make drizzle infer `{}` rows
       // checked per union member, the filter has a shape with and without columns
