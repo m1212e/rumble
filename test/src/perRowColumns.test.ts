@@ -581,6 +581,104 @@ describe("per row column abilities", async () => {
       }
       expect(r.data.users.some((u: any) => u.id === self.id)).toBeTrue();
     });
+
+    // as a single ability `{ id: undefined }` matches every row, so it
+    // has to next to a restricting one as well
+    test("rows matched by a where compiling to no sql are returned", async () => {
+      rumble.abilityBuilder.users.allow("read").when(() => ({
+        where: { id: undefined },
+        columns: { id: true, firstName: true, lastName: true },
+      }));
+      rumble.abilityBuilder.users.allow("read").when(({ userId }) => ({
+        where: { id: userId },
+      }));
+
+      const { executor } = build();
+      const r: any = await queryUsers(executor);
+
+      expect(r.errors).toBeUndefined();
+      expect(r.data.users.length).toEqual(data.users.length);
+    });
+  });
+
+  test("rows returned through a union are masked per row", async () => {
+    const r = makeRumble({
+      db,
+      schema,
+      context: () => ({ userId: data.users[0].id }),
+    });
+    const User = r.object({ refName: "User", table: "users" });
+    r.object({ refName: "Post", table: "posts" });
+    r.object({ refName: "Comment", table: "comments" });
+    r.abilityBuilder.users.allow("read").when(({ userId }) => ({
+      where: { id: userId },
+    }));
+    r.abilityBuilder.users.allow("read").when({
+      columns: { id: true, firstName: true, lastName: true },
+    });
+
+    const SearchResult = r.schemaBuilder.unionType("SearchResult", {
+      types: [User],
+      resolveType: () => "User",
+    });
+    r.schemaBuilder.queryField("search", (t) =>
+      t.field({
+        type: [SearchResult],
+        resolve: async (_root, _args, ctx) =>
+          db.query.users.findMany(
+            (await ctx.abilities.users.filter("read")).query.many as any,
+          ),
+      }),
+    );
+
+    const executor = buildHTTPExecutor({
+      fetch: r.createYoga().fetch,
+      endpoint: "http://yoga/graphql",
+    });
+    const result: any = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          search {
+            ... on User {
+              id
+              email
+            }
+          }
+        }
+      `),
+    });
+
+    // email is non null, so a masked foreign row errors
+    expect(result.errors?.length).toBeGreaterThan(0);
+    for (const error of result.errors) {
+      expect(error.path.at(-1)).toEqual("email");
+    }
+  });
+
+  test("column flags computed for another request are not trusted", async () => {
+    registerSelfAndOthers();
+    const [first, second] = data.users;
+    const abilitiesOf = (userId: string) =>
+      rumble.abilityBuilder._.build()({ userId });
+
+    // loaded for the first user and never masked, e.g. kept in a cache
+    const firstAbilities = abilitiesOf(first.id);
+    const rows: any[] = await db.query.users.findMany(
+      (await firstAbilities.users.filter("read")).query.many as any,
+    );
+    const firstRow = rows.find((row) => row.id === first.id);
+
+    const secondAbilities = abilitiesOf(second.id);
+    await secondAbilities.users.filter("read");
+    await rumble.abilityBuilder._.maskColumns({
+      table: "users",
+      action: "read",
+      abilities: secondAbilities,
+      entities: [firstRow],
+    });
+
+    expect(firstRow.firstName).toEqual(first.firstName);
+    expect(firstRow.email).toBeUndefined();
   });
 
   describe("rows pothos reloads on its own", () => {

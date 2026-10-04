@@ -88,16 +88,13 @@ export function adjustQueryArgsForSearch({
     // to prevent it from beeing included in the search since this could
     // leak information. The same goes for columns only some rows may expose.
     const columnMask: ColumnMask | undefined = abilities[columnMaskKey];
+    // without a mask every column is guaranteed
     const columnsToSearch = (
       columnMask
         ? Object.entries(tableSchema.columns).filter(([key]) =>
             columnMask.guaranteed.has(key),
           )
-        : abilities.query.many.columns
-          ? Object.entries(tableSchema.columns).filter(
-              ([key]) => abilities.query.many.columns[key],
-            )
-          : Object.entries(tableSchema.columns)
+        : Object.entries(tableSchema.columns)
     ).filter(
       ([_key, col]) =>
         isStringLikeSQLTypeString(col.getSQLType()) ||

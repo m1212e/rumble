@@ -1,5 +1,7 @@
 import type { AttributeValue } from "@opentelemetry/api";
-import { mergeFilters } from "../helpers/mergeFilters";
+import { relationsFilterToSQL } from "drizzle-orm";
+import { mergeFilters, realWhere } from "../helpers/mergeFilters";
+import { sanitizeFilterValue } from "../helpers/sanitizeFilterValue";
 import { createDistinctValuesFromSQLType } from "../helpers/sqlTypes/distinctValuesFromSQLType";
 import { tableHelper } from "../helpers/tableHelpers";
 import {
@@ -95,13 +97,41 @@ export const createTableAbilities = <
 ) => {
   const { db, actions } = settings;
 
+  const tableSchema = tableHelper({
+    db,
+    table: tableName,
+  });
+
+  // A where compiling to no sql (e.g. `{ id: undefined }`) restricts nothing,
+  // so its ability applies to every row. Dropped here, the row filter and the
+  // column mask both treat it as such.
+  const withRestrictingWhere = <Filter>(filter: Filter): Filter => {
+    const where = realWhere((filter as { where?: unknown }).where);
+    const restricts =
+      !!where &&
+      Object.keys(where).length > 0 &&
+      relationsFilterToSQL(
+        tableSchema.table,
+        sanitizeFilterValue(where) as any,
+        tableSchema.relations,
+        db._.relations,
+      ) !== undefined;
+    return restricts || where === undefined
+      ? filter
+      : { ...filter, where: undefined };
+  };
+
+  // static filters are known upfront, so they are only checked once
   const simpleQueryFilters = Object.fromEntries(
     actions.map((action) => {
       const filters = queryFilters.get(action);
 
       if (!filters || filters === "unrestricted") return [action, []];
 
-      return [action, filters.filter(isStaticQueryFilter)];
+      return [
+        action,
+        filters.filter(isStaticQueryFilter).map(withRestrictingWhere),
+      ];
     }),
   ) as {
     [key in Action]: StaticQueryFilter<
@@ -128,11 +158,6 @@ export const createTableAbilities = <
     >[];
   };
 
-  const tableSchema = tableHelper({
-    db,
-    table: tableName,
-  });
-
   // we want a filter that excludes everything
   const blockEverythingFilter = createBlockEverythingFilter(
     String(tableName),
@@ -150,6 +175,7 @@ export const createTableAbilities = <
 
   const assembleAbilities = async (
     userContext: UserContext,
+    requestId: number,
     action: Action,
     attributes: Record<string, AttributeValue>,
   ) => {
@@ -180,9 +206,11 @@ export const createTableAbilities = <
     }
 
     // if nothing is returned, nothing is allowed by this filter
-    const dynamicResults = rawResults.filter(
-      (r): r is Exclude<typeof r, undefined | "allow"> => r !== undefined,
-    ) as DrizzleQueryFunctionInput<DB, TableName>[];
+    const dynamicResults = (
+      rawResults.filter(
+        (r): r is Exclude<typeof r, undefined | "allow"> => r !== undefined,
+      ) as DrizzleQueryFunctionInput<DB, TableName>[]
+    ).map(withRestrictingWhere);
 
     attributes[ATTR_ABILITIES_DYNAMIC] = dynamicResults.length;
     attributes[ATTR_ABILITIES_STATIC] = simpleQueryFilters[action].length;
@@ -209,6 +237,7 @@ export const createTableAbilities = <
     const { columns, extras, mask } = resolveColumnAccess(
       action,
       allQueryFilters,
+      requestId,
     );
     if (columns) {
       mergedFilters.columns = columns;
@@ -227,13 +256,14 @@ export const createTableAbilities = <
   };
 
   return {
-    withContext: (userContext: UserContext) => {
+    withContext: (userContext: UserContext, requestId: number) => {
       const prepare = (action: Action) =>
         traceAbilityPreparation(
           settings,
           String(tableName),
           action,
-          (attributes) => assembleAbilities(userContext, action, attributes),
+          (attributes) =>
+            assembleAbilities(userContext, requestId, action, attributes),
         );
 
       // abilities are resolved once per request and action, since

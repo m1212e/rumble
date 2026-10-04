@@ -8,6 +8,7 @@ import type { ColumnMaskPlugin } from "./columnMaskPlugin";
 import type {
   columnMaskPluginName,
   MaskColumns,
+  MaskPrimaryKeys,
   maskColumnsActionKey,
   maskColumnsKey,
   maskPrimaryKeysKey,
@@ -21,7 +22,7 @@ declare global {
 
     export interface ObjectTypeOptions<Types extends SchemaTypes, Shape> {
       [maskColumnsKey]?: MaskColumns<Types["Context"]>;
-      [maskPrimaryKeysKey]?: string[];
+      [maskPrimaryKeysKey]?: MaskPrimaryKeys<Types["Context"]>;
     }
 
     export interface FieldOptions<

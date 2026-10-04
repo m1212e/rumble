@@ -8,7 +8,12 @@ export const maskColumnsKey = "maskColumns";
 
 export const maskColumnsActionKey = "maskColumnsAction";
 
-// the fields of an object which return null when its row hides the primary key
+// masking keeps primary keys on the row, their fields return null instead
+export type MaskPrimaryKeys<Context> = {
+  fields: string[];
+  isHidden: (context: Context, row: object) => boolean;
+};
+
 export const maskPrimaryKeysKey = "maskPrimaryKeys";
 
 export const columnMaskPluginName = "ColumnMaskPlugin" as const;

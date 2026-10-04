@@ -7,6 +7,7 @@ import {
 } from "@pothos/core";
 import DataLoader from "dataloader";
 import type { GraphQLFieldResolver } from "graphql";
+import { requestStateOf } from "../abilityBuilder/requestState";
 import { errorLogField } from "../helpers/errorLogging";
 import { objectTypeOptionsOfField } from "../helpers/objectTypeOptions";
 import { registerPluginOnce } from "../helpers/registerPlugin";
@@ -41,24 +42,18 @@ export class RuntimeFiltersPlugin<
 
   // graphql-js resolves a relation field once per sibling in a list, concurrently,
   // so without this a filter like "can read user" would fire once per row instead
-  // of once for the whole list. Keying loaders by context means they get garbage
-  // collected once the request is done, no manual cleanup needed.
-  private filterLoaders = new WeakMap<
-    object,
-    Map<AnyFilterCombo, DataLoader<any, any>>
-  >();
-
+  // of once for the whole list. The loaders are kept in the state of the request,
+  // so they are gone once the request is done, no manual cleanup needed.
   private getLoader(
     context: Types["Context"],
     filter: AnyFilterCombo,
   ): DataLoader<any, any> {
-    let perContext = this.filterLoaders.get(context as object);
-    if (!perContext) {
-      perContext = new Map();
-      this.filterLoaders.set(context as object, perContext);
-    }
+    // a context not created by rumble has no request state, it doesn't batch
+    const loaders =
+      requestStateOf((context as { abilities?: object }).abilities)
+        ?.filterLoaders ?? new Map<object, DataLoader<any, any>>();
 
-    let loader = perContext.get(filter);
+    let loader = loaders.get(filter);
     if (!loader) {
       // not awaited here on purpose, so it runs alongside the resolver instead of after it
       const prefetchPromise = filter.prefetch
@@ -84,7 +79,7 @@ export class RuntimeFiltersPlugin<
         // run fresh every time like before
         { cache: false },
       );
-      perContext.set(filter, loader);
+      loaders.set(filter, loader);
     }
 
     return loader;

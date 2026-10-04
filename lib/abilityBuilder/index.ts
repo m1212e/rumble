@@ -12,6 +12,7 @@ import type {
   RumbleInput,
 } from "../types/rumbleInput";
 import { createColumnMasker, type MaskColumnsInput } from "./columnMask";
+import { attachRequestState, createRequestState } from "./requestState";
 import { createTableAbilities } from "./tableAbilities";
 import { createTableBuilder } from "./tableBuilder";
 import { makeNothingRegisteredWarner } from "./telemetry";
@@ -90,7 +91,7 @@ export const createAbilityBuilder = <
     >;
   };
 
-  const { maskColumns, maskedActions } = createColumnMasker(
+  const { maskColumns, maskedActions, primaryKeyHidden } = createColumnMasker(
     settings,
     new Map(
       tableRelationNames.map((tableName) => {
@@ -119,6 +120,9 @@ export const createAbilityBuilder = <
       /** The actions rows of the table were masked with in this request. */
       maskedActions: (abilities: object, table: TableNames) =>
         maskedActions(abilities, table),
+      /** Whether masking in this request hid the primary key of the row. */
+      primaryKeyHidden: (abilities: object, row: object) =>
+        primaryKeyHidden(abilities, row),
       registerReadAction(table: TableNames, action: Action) {
         readActionPerTable.set(table, action);
       },
@@ -155,10 +159,11 @@ export const createAbilityBuilder = <
         hasBeenBuilt = true;
 
         return (ctx: UserContext) => {
-          return Object.fromEntries(
+          const state = createRequestState<Action>();
+          const abilities = Object.fromEntries(
             tableRelationNames.map((tableName) => [
               tableName,
-              abilitiesPerTable[tableName].withContext(ctx),
+              abilitiesPerTable[tableName].withContext(ctx, state.id),
             ]),
           ) as {
             [key in TableNames]: ReturnType<
@@ -167,6 +172,8 @@ export const createAbilityBuilder = <
               >["withContext"]
             >;
           };
+          attachRequestState(abilities, state);
+          return abilities;
         };
       },
     },

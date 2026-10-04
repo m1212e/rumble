@@ -227,7 +227,11 @@ export const createObjectImplementer = <
           abilities: (context as any).abilities,
           entities,
         }),
-      maskPrimaryKeys: Object.keys(tableSchema.primaryKey),
+      maskPrimaryKeys: {
+        fields: Object.keys(tableSchema.primaryKey),
+        isHidden: (context, row) =>
+          abilityBuilder._.primaryKeyHidden((context as any).abilities, row),
+      },
       fields: (t) => {
         const columns = tableSchema.columns;
 

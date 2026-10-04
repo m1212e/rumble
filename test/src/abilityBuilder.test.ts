@@ -456,7 +456,10 @@ describe("ability builder", async () => {
       const f = await abilitiesFor().users.filter("read");
 
       expect(f.query.single).toEqual({
-        extras: { __rumble_columns: expect.any(Function) },
+        extras: {
+          __rumble_columns: expect.any(Function),
+          __rumble_request: expect.any(Function),
+        },
         where: EmptyFilter,
         columns: { id: true, email: true },
       } as any);
@@ -530,7 +533,10 @@ describe("ability builder", async () => {
 
       expect("columns" in f.query.single).toBe(false);
       const extras = (f.query.many as any).extras;
-      expect(Object.keys(extras)).toEqual(["__rumble_columns"]);
+      expect(Object.keys(extras)).toEqual([
+        "__rumble_columns",
+        "__rumble_request",
+      ]);
       expect(
         db
           .select({ flag: extras.__rumble_columns(schema.users) })
@@ -838,6 +844,7 @@ describe("ability builder", async () => {
           id: schema.users.id,
           email: schema.users.email,
           __rumble_columns: extras.__rumble_columns(schema.users),
+          __rumble_request: extras.__rumble_request(schema.users),
         })
         .from(schema.users);
 

@@ -5,12 +5,12 @@ import {
   type SchemaTypes,
 } from "@pothos/core";
 import type { GraphQLFieldResolver } from "graphql";
-import { hiddenPrimaryKeyKey } from "../abilityBuilder/keys";
 import { objectTypeOptionsOfField } from "../helpers/objectTypeOptions";
 import { registerPluginOnce } from "../helpers/registerPlugin";
 import {
   columnMaskPluginName,
   type MaskColumns,
+  type MaskPrimaryKeys,
   maskColumnsActionKey,
   maskColumnsKey,
   maskPrimaryKeysKey,
@@ -37,13 +37,13 @@ export class ColumnMaskPlugin<
   ): GraphQLFieldResolver<unknown, Types["Context"], object> {
     const primaryKeys = (
       this.buildCache.getTypeConfig(fieldConfig.parentType).pothosOptions as {
-        [maskPrimaryKeysKey]?: string[];
+        [maskPrimaryKeysKey]?: MaskPrimaryKeys<Types["Context"]>;
       }
     )[maskPrimaryKeysKey];
-    if (!primaryKeys?.includes(fieldConfig.name)) return resolver;
+    if (!primaryKeys?.fields.includes(fieldConfig.name)) return resolver;
 
     return (parent, args, context, info) =>
-      (parent as any)?.[hiddenPrimaryKeyKey]
+      primaryKeys.isHidden(context, parent as object)
         ? null
         : resolver(parent, args, context, info);
   }
