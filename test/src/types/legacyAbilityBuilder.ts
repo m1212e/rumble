@@ -1,12 +1,17 @@
+// Frozen copy of lib/abilityBuilder.ts from before the refactor into
+// lib/abilities/. It only exists so abilityBuilderIdentity.test-d.ts can
+// assert that the refactored public types are identical. Do not edit.
+// The one deliberate deviation: the internal resolvedFilterKey is kept out of
+// the filter type, since declaration emit cannot name it (broke the build).
 import type { AttributeValue, Span } from "@opentelemetry/api";
 import { aliasedTable, or, relationsFilterToSQL, sql } from "drizzle-orm";
 import { debounce } from "es-toolkit";
-import { errorLogField } from "./helpers/errorLogging";
-import { lazy } from "./helpers/lazy";
-import { mergeFilters, realWhere } from "./helpers/mergeFilters";
-import { sanitizeFilterValue } from "./helpers/sanitizeFilterValue";
-import { createDistinctValuesFromSQLType } from "./helpers/sqlTypes/distinctValuesFromSQLType";
-import { tableHelper } from "./helpers/tableHelpers";
+import { errorLogField } from "../../../lib/helpers/errorLogging";
+import { lazy } from "../../../lib/helpers/lazy";
+import { mergeFilters, realWhere } from "../../../lib/helpers/mergeFilters";
+import { sanitizeFilterValue } from "../../../lib/helpers/sanitizeFilterValue";
+import { createDistinctValuesFromSQLType } from "../../../lib/helpers/sqlTypes/distinctValuesFromSQLType";
+import { tableHelper } from "../../../lib/helpers/tableHelpers";
 import {
   ATTR_ABILITIES_DYNAMIC,
   ATTR_ABILITIES_STATIC,
@@ -18,29 +23,29 @@ import {
   SPAN_ABILITIES_PREPARE,
   type TelemetryConfig,
   traceCorrelationFields,
-} from "./helpers/telemetry";
+} from "../../../lib/helpers/telemetry";
 import type {
   Filter,
   FilterPrefetchCombo,
   Prefetch,
-} from "./runtimeFiltersPlugin/filterTypes";
+} from "../../../lib/runtimeFiltersPlugin/filterTypes";
 import type {
   DrizzleInstance,
   DrizzleQueryFunction,
   DrizzleQueryFunctionInput,
   DrizzleTableValueType,
   TableRelationNames,
-} from "./types/drizzleInstanceType";
-import { RumbleError } from "./types/rumbleError";
+} from "../../../lib/types/drizzleInstanceType";
+import { RumbleError } from "../../../lib/types/rumbleError";
 import type {
   CustomRumblePothosConfig,
   RumbleInput,
   RumbleLogger,
-} from "./types/rumbleInput";
+} from "../../../lib/types/rumbleInput";
 
 //TODO: optimize this for v8 & refactor
 
-export type AbilityBuilderType<
+export type LegacyAbilityBuilderType<
   UserContext extends Record<string, any>,
   DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
@@ -136,14 +141,16 @@ function guardAgainstMissingAwait<T>(promise: Promise<T>): Promise<T> {
 // per row: actionIndex + actionCount * bits of the matched column groups
 const COLUMN_FLAG_KEY = "__rumble_columns";
 
-export type ColumnMask = {
+type ColumnMask = {
   guaranteed: Set<string>;
   conditional: Set<string>[];
   hiddenPerBits: Map<number, string[]>;
 };
 
-export const columnMaskKey = Symbol.for("rumble:columnMask");
-const resolvedFilterKey = Symbol.for("rumble:resolvedFilter");
+import {
+  columnMaskKey,
+  resolvedFilterKey,
+} from "../../../lib/abilityBuilder/keys";
 
 // A second pass in the same request would see the cleared flag and hide the
 // conditionally granted columns. Rows reused by another request are masked again.
@@ -216,7 +223,7 @@ const makeNothingRegisteredWarner = (
     }
   }, 1000);
 
-export const createAbilityBuilder = <
+const createAbilityBuilder = <
   UserContext extends Record<string, any>,
   DB extends DrizzleInstance,
   RequestEvent extends Record<string, any>,
@@ -1057,7 +1064,7 @@ export const createAbilityBuilder = <
                 Awaited<ReturnType<typeof prepare>>
               >();
 
-              return {
+              const abilities = {
                 filter: (action: Action) => {
                   let prepared = cache.get(action);
                   if (!prepared) {
@@ -1070,8 +1077,10 @@ export const createAbilityBuilder = <
                   }
                   return prepared;
                 },
-                [resolvedFilterKey]: (action: Action) => resolved.get(action),
               };
+              (abilities as any)[resolvedFilterKey] = (action: Action) =>
+                resolved.get(action);
+              return abilities;
             },
           };
         };

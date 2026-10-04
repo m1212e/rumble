@@ -8,6 +8,7 @@
     "example/src/main.ts",
     "example/src/db/seed.ts"
   ],
+  "ignorePatterns": ["test/src/types/legacyAbilityBuilder.ts"],
   "ignoreDependencies": [
     "@urql/exchange-graphcache",
     "rolldown-plugin-dts",

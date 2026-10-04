@@ -98,6 +98,30 @@ r.abilityBuilder.users.allow("read").when((ctx) => {
   return { where: { id: ctx.userId } };
 });
 
+// application level filters: prefetch() is an optional step before by()
+r.abilityBuilder.users
+  .filter("read")
+  .by(({ context, entities, prefetched }) => {
+    expectTypeOf(context).toEqualTypeOf<{ userId: string }>();
+    expectTypeOf(entities[0]!.email).toEqualTypeOf<string>();
+    expectTypeOf(prefetched).toBeNever();
+    return entities;
+  });
+r.abilityBuilder.users
+  .filter(["read", "update"])
+  .prefetch(async ({ context }) => {
+    expectTypeOf(context).toEqualTypeOf<{ userId: string }>();
+    return new Set(["u1"]);
+  })
+  .by(({ entities, prefetched }) => {
+    expectTypeOf(prefetched).toEqualTypeOf<Set<string>>();
+    return entities.filter((e) => prefetched.has(e.id));
+  });
+r.abilityBuilder.users
+  .filter("read")
+  // @ts-expect-error filters must return entities of the table
+  .by(() => [{ notAUser: true }]);
+
 // ---------------------------------------------------------------------------
 // pubsub: returns the three action callbacks
 // ---------------------------------------------------------------------------
@@ -191,6 +215,34 @@ r.schemaBuilder.queryFields((t) => ({
       const merged = f.merge({ where: { id: "u1" } });
       expectTypeOf(merged).toHaveProperty("query");
       expectTypeOf(merged.query).toHaveProperty("many");
+
+      // extras is runtime only: exposing it would make drizzle infer `{}` rows
+      // checked per union member, the filter has a shape with and without columns
+      type KeysOfMembers<T> = T extends unknown ? keyof T : never;
+      expectTypeOf<
+        Extract<KeysOfMembers<typeof f.query.single>, "extras">
+      >().toBeNever();
+      expectTypeOf<
+        Extract<KeysOfMembers<typeof f.query.many>, "extras">
+      >().toBeNever();
+      expectTypeOf<
+        Extract<KeysOfMembers<typeof merged.query.single>, "extras">
+      >().toBeNever();
+      type UserRow = {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        email: string;
+      };
+      expectTypeOf(
+        db.query.users.findFirst(f.query.single),
+      ).resolves.toEqualTypeOf<UserRow | undefined>();
+      expectTypeOf(
+        db.query.users.findMany(f.query.many),
+      ).resolves.toEqualTypeOf<UserRow[]>();
+      expectTypeOf(
+        db.query.users.findFirst(merged.query.single),
+      ).resolves.toEqualTypeOf<UserRow | undefined>();
 
       // unreachable at runtime
       throw new Error("type-only");

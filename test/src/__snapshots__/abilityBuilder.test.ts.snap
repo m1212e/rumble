@@ -1,0 +1,132 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`ability builder filter resolution nothing registered blocks everything 1`] = `
+{
+  "AND": [
+    {
+      "id": "a",
+    },
+    {
+      "id": "b",
+    },
+  ],
+}
+`;
+
+exports[`ability builder filter resolution nothing registered blocks everything 2`] = `
+{
+  "params": [
+    "a",
+    "b",
+  ],
+  "sql": "select "id" from "users_table" where (("users_table"."id" = ?) and ("users_table"."id" = ?))",
+}
+`;
+
+exports[`ability builder filter resolution a dynamic filter returning undefined grants nothing 1`] = `
+{
+  "AND": [
+    {
+      "id": "a",
+    },
+    {
+      "id": "b",
+    },
+  ],
+}
+`;
+
+exports[`ability builder filter resolution multiple filters are combined with OR 1`] = `
+{
+  "params": [
+    "3e0bb3d0-2074-4a1e-9263-d13dd10cb0cf",
+    "2f5363b9-8fc3-482a-9a6b-2d605fb782f1",
+  ],
+  "sql": "select "id" from "users_table" where (("users_table"."id" = ?) or ("users_table"."id" = ?))",
+}
+`;
+
+exports[`ability builder merge merge() ANDs the wheres and keeps the original untouched 1`] = `
+{
+  "params": [
+    "3e0bb3d0-2074-4a1e-9263-d13dd10cb0cf",
+    "x",
+  ],
+  "sql": "select "id" from "users_table" where (("users_table"."id" = ?) and ("users_table"."firstName" = ?))",
+}
+`;
+
+exports[`ability builder merge merge() keeps the selected columns 1`] = `
+{
+  "params": [
+    "3e0bb3d0-2074-4a1e-9263-d13dd10cb0cf",
+  ],
+  "sql": "select "id" from "users_table" where "users_table"."id" = ?",
+}
+`;
+
+exports[`ability builder columns conditional columns produce a mask and a flag extra 1`] = `
+{
+  "params": [
+    "3e0bb3d0-2074-4a1e-9263-d13dd10cb0cf",
+  ],
+  "sql": "select (0 + 3 * (case when "users_table"."id" = ? then 1 else 0 end)) from "users_table"",
+}
+`;
+
+exports[`ability builder columns abilities with the same extra columns share a group 1`] = `
+{
+  "params": [
+    "3e0bb3d0-2074-4a1e-9263-d13dd10cb0cf",
+    "2f5363b9-8fc3-482a-9a6b-2d605fb782f1",
+  ],
+  "sql": "select (0 + 3 * (case when (("users_table"."id" = ?) or ("users_table"."id" = ?)) then 1 else 0 end)) from "users_table"",
+}
+`;
+
+exports[`ability builder columns relational conditions use an uncorrelated subquery (direct) 1`] = `
+{
+  "params": [
+    "x",
+  ],
+  "sql": "select (0 + 3 * (case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))) then 1 else 0 end)) from "users_table"",
+}
+`;
+
+exports[`ability builder columns relational conditions use an uncorrelated subquery (AND) 1`] = `
+{
+  "params": [
+    "a",
+    "x",
+  ],
+  "sql": "select (0 + 3 * (case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where (("rumble_columns_0"."id" = ?) and (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))))) then 1 else 0 end)) from "users_table"",
+}
+`;
+
+exports[`ability builder columns relational conditions use an uncorrelated subquery (OR) 1`] = `
+{
+  "params": [
+    "a",
+    "x",
+  ],
+  "sql": "select (0 + 3 * (case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where (("rumble_columns_0"."id" = ?) or (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))))) then 1 else 0 end)) from "users_table"",
+}
+`;
+
+exports[`ability builder columns relational conditions use an uncorrelated subquery (NOT) 1`] = `
+{
+  "params": [
+    "x",
+  ],
+  "sql": "select (0 + 3 * (case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where not (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1)))) then 1 else 0 end)) from "users_table"",
+}
+`;
+
+exports[`ability builder sql where of a flagged query is still usable 1`] = `
+{
+  "params": [
+    "3e0bb3d0-2074-4a1e-9263-d13dd10cb0cf",
+  ],
+  "sql": "select "id" from "users_table" where ((("users_table"."firstName" is not null)) or ("users_table"."id" = ?))",
+}
+`;
