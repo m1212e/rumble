@@ -5,6 +5,10 @@ const MAX_LENGTH = 200;
 
 const NAME_REGEX = /^[\p{L}\p{M}]+(?:(?:[ '-]|\.\x20?)[\p{L}\p{M}]+)*\.?$/u;
 
+// smart punctuation on phones and word processors swaps these in for ' and -
+const APOSTROPHE_VARIANTS = /[\u2018\u2019\u02BC\u00B4\u0060]/gu;
+const HYPHEN_VARIANTS = /[\u2010-\u2015\u2212]/gu;
+
 /**
  * Normalizes and validates a person's name.
  */
@@ -16,8 +20,11 @@ const normalize = (value: unknown): string => {
   const normalized = value
     .normalize("NFC")
     .replace(/[\p{Cc}\p{Cf}]/gu, "")
+    .replace(APOSTROPHE_VARIANTS, "'")
+    .replace(HYPHEN_VARIANTS, "-")
     .replace(/\p{Zs}+/gu, " ")
     .trim()
+    .replace(/ ?- ?/gu, "-")
     .replace(/([-'])\1+/gu, "$1")
     .replace(/^[-']+|[-']+$/gu, "")
     .trim();
@@ -44,7 +51,7 @@ const normalize = (value: unknown): string => {
 export const PersonNameResolver = new GraphQLScalarType<string, string>({
   name: "PersonName",
   description:
-    "A person's name. Unicode letters from any script are allowed, along with space, apostrophe, hyphen and period as separators between name parts. The value is Unicode NFC normalized, has invisible/control characters stripped, has its whitespace collapsed, and has unambiguous typos (a doubled or stray leading/trailing hyphen/apostrophe) silently corrected rather than rejected.",
+    "A person's name. Unicode letters from any script are allowed, along with space, apostrophe, hyphen and period as separators between name parts. The value is Unicode NFC normalized, has invisible/control characters stripped, has its whitespace collapsed, and has unambiguous typos (typographic apostrophe or dash variants, spaces around a hyphen, a doubled or stray leading/trailing hyphen/apostrophe) silently corrected rather than rejected.",
   serialize: normalize,
   parseValue: normalize,
   parseLiteral(ast) {

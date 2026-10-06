@@ -65,6 +65,37 @@ describe("PersonNameResolver", () => {
       expect(PersonNameResolver.parseValue("'Jane")).toBe("Jane");
       expect(PersonNameResolver.parseValue("- Jane -")).toBe("Jane");
     });
+
+    test("maps typographic apostrophes to a plain one", () => {
+      expect(PersonNameResolver.parseValue("D\u2019Ettorre")).toBe("D'Ettorre");
+      expect(PersonNameResolver.parseValue("O\u2018Brien")).toBe("O'Brien");
+      expect(PersonNameResolver.parseValue("O\u02BCBrien")).toBe("O'Brien");
+      expect(PersonNameResolver.parseValue("O\u00B4Brien")).toBe("O'Brien");
+      expect(PersonNameResolver.parseValue("O`Brien")).toBe("O'Brien");
+    });
+
+    test("maps dash variants to a plain hyphen", () => {
+      expect(PersonNameResolver.parseValue("Marie\u2013Claire")).toBe(
+        "Marie-Claire",
+      );
+      expect(PersonNameResolver.parseValue("Marie\u2014Claire")).toBe(
+        "Marie-Claire",
+      );
+      expect(PersonNameResolver.parseValue("Marie\u2212Claire")).toBe(
+        "Marie-Claire",
+      );
+    });
+
+    test("removes spaces around a hyphen", () => {
+      expect(PersonNameResolver.parseValue("Ana - Maria")).toBe("Ana-Maria");
+      expect(PersonNameResolver.parseValue("Mara- Sofie")).toBe("Mara-Sofie");
+      expect(PersonNameResolver.parseValue("Fellner -Oepp")).toBe(
+        "Fellner-Oepp",
+      );
+      expect(PersonNameResolver.parseValue("Schulte  \u2013  von Drach")).toBe(
+        "Schulte-von Drach",
+      );
+    });
   });
 
   describe("rejects", () => {
