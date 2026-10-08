@@ -10,9 +10,12 @@ const APOSTROPHE_VARIANTS = /[\u2018\u2019\u02BC\u00B4\u0060]/gu;
 const HYPHEN_VARIANTS = /[\u2010-\u2015\u2212]/gu;
 
 /**
- * Normalizes and validates a person's name.
+ * Normalizes and validates a person's name, exactly as the `PersonName` scalar does. Exported
+ * for values that do not arrive as GraphQL input, such as OIDC claims.
+ *
+ * @throws RumbleErrorSafe if the value is not a valid name
  */
-const normalize = (value: unknown): string => {
+export const normalizePersonName = (value: unknown): string => {
   if (typeof value !== "string") {
     throw new RumbleErrorSafe(`Name value is not a string: ${value}`);
   }
@@ -52,14 +55,14 @@ export const PersonNameResolver = new GraphQLScalarType<string, string>({
   name: "PersonName",
   description:
     "A person's name. Unicode letters from any script are allowed, along with space, apostrophe, hyphen and period as separators between name parts. The value is Unicode NFC normalized, has invisible/control characters stripped, has its whitespace collapsed, and has unambiguous typos (typographic apostrophe or dash variants, spaces around a hyphen, a doubled or stray leading/trailing hyphen/apostrophe) silently corrected rather than rejected.",
-  serialize: normalize,
-  parseValue: normalize,
+  serialize: normalizePersonName,
+  parseValue: normalizePersonName,
   parseLiteral(ast) {
     if (ast.kind !== Kind.STRING) {
       throw new RumbleErrorSafe(
         `Can only validate strings as names but got a: ${ast.kind}`,
       );
     }
-    return normalize(ast.value);
+    return normalizePersonName(ast.value);
   },
 });

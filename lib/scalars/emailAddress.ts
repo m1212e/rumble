@@ -3,9 +3,13 @@ import { EmailAddressResolver as BaseEmailAddressResolver } from "graphql-scalar
 import { RumbleErrorSafe } from "../types/rumbleError";
 
 /**
- * Validates an email address using graphql-scalars' own format check, then lowercases it.
+ * Validates an email address using graphql-scalars' own format check, then lowercases it, exactly
+ * as the `EmailAddress` scalar does. Exported for values that do not arrive as GraphQL input,
+ * such as OIDC claims.
+ *
+ * @throws RumbleErrorSafe if the value is not a valid email address
  */
-const normalize = (value: unknown): string => {
+export const normalizeEmailAddress = (value: unknown): string => {
   try {
     return (BaseEmailAddressResolver.parseValue(value) as string).toLowerCase();
   } catch (error) {
@@ -21,14 +25,14 @@ export const EmailAddressResolver = new GraphQLScalarType<string, string>({
   name: "EmailAddress",
   description: `${BaseEmailAddressResolver.description} Lowercased.`,
   specifiedByURL: BaseEmailAddressResolver.specifiedByURL,
-  serialize: normalize,
-  parseValue: normalize,
+  serialize: normalizeEmailAddress,
+  parseValue: normalizeEmailAddress,
   parseLiteral(ast) {
     if (ast.kind !== Kind.STRING) {
       throw new RumbleErrorSafe(
         `Can only validate strings as email addresses but got a: ${ast.kind}`,
       );
     }
-    return normalize(ast.value);
+    return normalizeEmailAddress(ast.value);
   },
 });
