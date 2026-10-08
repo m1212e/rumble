@@ -192,27 +192,24 @@ function stringifyTSObjectArg(arg: any) {
   return ret;
 }
 
+const SCALAR_TS_TYPES: Record<string, string> = {
+  ID: "string",
+  String: "string",
+  Boolean: "boolean",
+  Int: "number",
+  Float: "number",
+  Date: "Date",
+  DateTime: "Date",
+  JSON: "any",
+  // rumble's own string scalars: normalized and validated on the server, plain strings on the wire
+  EmailAddress: "string",
+  PersonName: "string",
+  PhoneNumber: "string",
+  Locale: "string",
+};
+
 function mapGraphqlScalarToTSTypeString(arg: any) {
-  switch (arg.name) {
-    case "ID":
-      return "string";
-    case "String":
-      return "string";
-    case "Boolean":
-      return "boolean";
-    case "Int":
-      return "number";
-    case "Float":
-      return "number";
-    case "Date":
-      return "Date";
-    case "DateTime":
-      return "Date";
-    case "JSON":
-      return "any";
-    default:
-      return "unknown";
-  }
+  return SCALAR_TS_TYPES[arg.name] ?? "unknown";
 }
 
 function makeStringLiteralUnionFromEnum(enumType: GraphQLEnumType) {
