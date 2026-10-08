@@ -29,7 +29,7 @@
     "@types/pluralize": "^0.0.33",
     "drizzle-kit": "^1.0.0-rc.5-ab785fc",
     "drizzle-orm": "^1.0.0-rc.5-ab785fc",
-    "drizzle-seed": "^1.0.0-rc.5-ab785fc",
+    "drizzle-seed": "^1.0.0-rc.5-5935859",
     "expect-type": "^1.4.0",
     "fallow": "^3.31.0",
     "graphql": "^17.0.2",
