@@ -87,6 +87,12 @@ const hasWhere = (where: unknown) =>
 
 type ColumnRule = { where: unknown; columns: Set<string> };
 
+/**
+ * Which rows expose a column to the caller: all of them (`true`), none of
+ * them (`false`) or those matching the returned where.
+ */
+export type ColumnVisibility = (column: string) => true | false | object;
+
 /** Columns every returned row is allowed to expose. */
 function guaranteedColumns(rules: ColumnRule[], allColumnNames: string[]) {
   // every returned row matches at least one ability
@@ -155,14 +161,20 @@ export function createColumnAccessResolver<
       ),
     );
 
-  // Relational filters become correlated subqueries, which would
-  // run once per row. Uncorrelated, the database runs it once.
+  // Relational filters become subqueries. They are correlated to the row
+  // (`exists (... where pk = row.pk and rule)`): an uncorrelated
+  // `pk in (select pk ... where rule)` makes postgres evaluate every rule
+  // against the whole table, once per flag and per nesting site, which turns
+  // queries nesting a masked relation twice into multi-second ones.
   const uncorrelated = (table: any, wheres: unknown[], group: number) => {
     const inner = aliasedTable(tableSchema.table, `rumble_columns_${group}`);
-    return sql`${table[primaryKeyName]} in (${(db as any)
+    // a subquery renders with its own parentheses
+    return sql`exists ${(db as any)
       .select({ pk: inner[primaryKeyName] })
       .from(inner)
-      .where(toSQL(inner, wheres))})`;
+      .where(
+        sql`${inner[primaryKeyName]} = ${table[primaryKeyName]} and (${toSQL(inner, wheres)})`,
+      )}`;
   };
 
   // An ability's columns only apply to the rows matched by its where. The
@@ -195,8 +207,24 @@ export function createColumnAccessResolver<
     // resolvers) are reduced to the guaranteed columns, and the action flag
     // records the action the row was loaded with, so that action's mask applies.
     if (guaranteed.size === allColumnNames.length) {
-      return { columns, extras: undefined, mask: undefined };
+      return {
+        columns,
+        extras: undefined,
+        mask: undefined,
+        visibility: undefined,
+      };
     }
+
+    // A column is exposed by the rows matching any rule that grants it. Rules
+    // without a where grant their columns to every row, those are guaranteed.
+    const visibility: ColumnVisibility = (column) => {
+      if (guaranteed.has(column)) return true;
+      const wheres = rules
+        .filter((rule) => rule.columns.has(column))
+        .map((rule) => rule.where as object);
+      if (wheres.length === 0) return false;
+      return wheres.length === 1 ? wheres[0]! : { OR: wheres };
+    };
 
     const mask: ColumnMask = {
       guaranteed,
@@ -221,7 +249,7 @@ export function createColumnAccessResolver<
       };
     });
 
-    return { columns, extras, mask };
+    return { columns, extras, mask, visibility };
   };
 }
 
@@ -329,8 +357,30 @@ export function createColumnMasker<
       const hidden = hiddenColumns(mask, matched, columnNames, primaryKey);
       maskRow(row, mask, hidden);
       state.masked.set(row, hidden.primaryKey);
+      state.hidden.set(row, hidden);
     }
   };
 
-  return { maskColumns, maskedActions, primaryKeyHidden };
+  /**
+   * Whether masking hid any of the columns on the row. A hidden primary key
+   * counts for the columns it consists of.
+   */
+  const columnsHidden = (
+    abilities: object,
+    row: object,
+    columns: string[],
+    primaryKey: string[],
+  ) => {
+    const hidden = stateOf(abilities).hidden.get(row);
+    return (
+      !!hidden &&
+      columns.some(
+        (column) =>
+          hidden.cleared.includes(column) ||
+          (hidden.primaryKey && primaryKey.includes(column)),
+      )
+    );
+  };
+
+  return { maskColumns, maskedActions, primaryKeyHidden, columnsHidden };
 }

@@ -11,9 +11,11 @@ import {
   columnMaskPluginName,
   type MaskColumns,
   type MaskPrimaryKeys,
+  type MaskRelations,
   maskColumnsActionKey,
   maskColumnsKey,
   maskPrimaryKeysKey,
+  maskRelationsKey,
 } from "./maskTypes";
 
 export class ColumnMaskPlugin<
@@ -25,9 +27,35 @@ export class ColumnMaskPlugin<
     fieldConfig: PothosOutputFieldConfig<Types>,
   ): GraphQLFieldResolver<unknown, Types["Context"], object> {
     return this.maskResult(
-      this.maskPrimaryKey(resolver, fieldConfig),
+      this.maskRelation(
+        this.maskPrimaryKey(resolver, fieldConfig),
+        fieldConfig,
+      ),
       fieldConfig,
     );
+  }
+
+  // The rows of a relation are loaded by the database joining on the row's
+  // columns, whether or not the caller may read them. If masking hid those
+  // columns, the relation reveals what they would, so it resolves to nothing.
+  private maskRelation(
+    resolver: GraphQLFieldResolver<unknown, Types["Context"], object>,
+    fieldConfig: PothosOutputFieldConfig<Types>,
+  ): GraphQLFieldResolver<unknown, Types["Context"], object> {
+    const relations = (
+      this.buildCache.getTypeConfig(fieldConfig.parentType).pothosOptions as {
+        [maskRelationsKey]?: MaskRelations<Types["Context"]>;
+      }
+    )[maskRelationsKey];
+    const relation = relations?.fields[fieldConfig.name];
+    if (!relations || !relation) return resolver;
+
+    return (parent, args, context, info) =>
+      relations.isHidden(context, parent as object, relation.sourceColumns)
+        ? relation.many
+          ? []
+          : null
+        : resolver(parent, args, context, info);
   }
 
   // Masking keeps primary keys on the row, the fields returning them hide them.

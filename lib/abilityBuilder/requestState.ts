@@ -8,6 +8,8 @@ import { requestStateKey } from "./keys";
 export type RequestState<Action extends string> = {
   /** the rows masked in this request and whether their primary key is hidden */
   masked: WeakMap<object, boolean>;
+  /** the columns hidden on the rows masked in this request */
+  hidden: WeakMap<object, { cleared: string[]; primaryKey: boolean }>;
   /** per table the actions rows were masked with, reloads apply them */
   actions: Map<string, Set<Action>>;
   /** per runtime filter the loader batching its calls */
@@ -20,6 +22,7 @@ export function createRequestState<
   return {
     // weak, a subscription's request lives as long as the subscription
     masked: new WeakMap(),
+    hidden: new WeakMap(),
     actions: new Map(),
     filterLoaders: new Map(),
   };

@@ -1,4 +1,4 @@
-import { access, mkdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   getIntrospectedSchema,
@@ -8,6 +8,15 @@ import { uneval } from "devalue";
 import type { GraphQLSchema } from "graphql";
 import { autoGenerationPreamble, generateClient } from "./client";
 import { makeTSRepresentation } from "./tsRepresentation";
+
+// Writes only when the content differs. Rewriting an identical file still
+// counts as a change to a file watcher, and Vite reloads every open page for it.
+async function writeFileIfChanged(path: string, content: string) {
+  try {
+    if ((await readFile(path, "utf8")) === content) return;
+  } catch {}
+  await writeFile(path, content);
+}
 
 export async function generateFromSchema({
   outputPath,
@@ -80,11 +89,11 @@ export type ${key} = ${rep};
   code += c.code;
 
   await Promise.all([
-    writeFile(
+    writeFileIfChanged(
       join(outputPath, "client.ts"),
       `${autoGenerationPreamble}\n${imports.join("\n")}\n${code}`,
     ),
-    writeFile(
+    writeFileIfChanged(
       join(outputPath, `${schemaFileName}.ts`),
       `${autoGenerationPreamble}
 import type { IntrospectionQuery } from "graphql";

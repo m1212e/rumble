@@ -51,7 +51,7 @@ function guardAgainstMissingAwait<T>(promise: Promise<T>): Promise<T> {
  * A filter no row can match, since it requires the primary key to equal two
  * distinct values at once.
  */
-function createBlockEverythingFilter(
+export function createBlockEverythingFilter(
   tableName: string,
   tableSchema: TableSchema,
 ) {
@@ -232,7 +232,7 @@ export const createTableAbilities = <
           })
     ) as Record<string, any>;
 
-    const { columns, extras, mask } = resolveColumnAccess(
+    const { columns, extras, mask, visibility } = resolveColumnAccess(
       action,
       allQueryFilters,
     );
@@ -249,7 +249,7 @@ export const createTableAbilities = <
     }
 
     attributes[ATTR_ABILITIES_STATUS] = "applied";
-    return transformToResponse(mergedFilters as any, mask);
+    return transformToResponse(mergedFilters as any, mask, visibility);
   };
 
   return {

@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { asc, desc, sql } from "drizzle-orm";
 import { cloneDeep } from "es-toolkit";
 import { type ColumnMask, columnMaskKey } from "./abilityBuilder";
 import { isPostgresDB } from "./helpers/determineDialectFromSchema";
@@ -113,19 +113,25 @@ export function adjustQueryArgsForSearch({
         )}`,
     };
 
-    const originalOrderBy = cloneDeep(args.orderBy);
+    const originalOrderBy =
+      typeof args.orderBy === "function"
+        ? args.orderBy
+        : cloneDeep(args.orderBy);
     (args as any).orderBy = (table: any) => {
+      // a function when the order was restricted to what the caller may read
       const argsOrderBySQL = sql.join(
-        Object.entries(originalOrderBy ?? {}).map(([key, value]) => {
-          // value is "asc" or "desc"
-          if (value === "asc") {
-            return sql`${table[key]} ASC`;
-          } else if (value === "desc") {
-            return sql`${table[key]} DESC`;
-          } else {
-            throw new Error(`Invalid value ${value} for orderBy`);
-          }
-        }),
+        typeof originalOrderBy === "function"
+          ? originalOrderBy(table, { asc, desc })
+          : Object.entries(originalOrderBy ?? {}).map(([key, value]) => {
+              // value is "asc" or "desc"
+              if (value === "asc") {
+                return sql`${table[key]} ASC`;
+              } else if (value === "desc") {
+                return sql`${table[key]} DESC`;
+              } else {
+                throw new Error(`Invalid value ${value} for orderBy`);
+              }
+            }),
         sql.raw(", "),
       );
 

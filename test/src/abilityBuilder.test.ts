@@ -624,7 +624,7 @@ describe("ability builder", async () => {
       ["OR", { OR: [{ id: "a" }, { posts: { title: "x" } }] }],
       ["NOT", { NOT: { posts: { title: "x" } } }],
     ] as const) {
-      test(`relational conditions use an uncorrelated subquery (${name})`, async () => {
+      test(`relational conditions use a correlated exists subquery (${name})`, async () => {
         r.abilityBuilder.users.allow("read").when({ where: where as any });
         r.abilityBuilder.users.allow("read").when({ columns: { id: true } });
         const f = await abilitiesFor().users.filter("read");

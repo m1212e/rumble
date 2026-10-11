@@ -1,5 +1,6 @@
 import { count } from "drizzle-orm";
 import pluralize from "pluralize";
+import { guardFilterInput } from "./abilityBuilder";
 import type { WhereArgImplementerType } from "./args/whereArg";
 import { assertFirstEntryExists } from "./helpers/asserts";
 import { mapNullFieldsToUndefined } from "./helpers/mapNullFieldsToUndefined";
@@ -107,6 +108,15 @@ export const createCountQueryImplementer = <
             }
 
             deepSetProto(args);
+
+            // the client may only filter by what it may read
+            const guarded = await guardFilterInput(
+              ctx.abilities,
+              String(table),
+              listAction,
+              { where: args.where },
+            );
+            if (args.where) args.where = guarded.where;
 
             return (db as any)
               .select({ count: count() })

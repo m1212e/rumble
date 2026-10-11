@@ -240,8 +240,15 @@ export function makeGraphQLQueryRequest({
 
   const subscriberReady = svelteReactivityReady.then(() => {
     svelteSubscriber = createSubscriber((update) => {
+      // Announce every emission on the next task. urql emits synchronously -
+      // a replayed value on subscribe, or a cache hit fanned out to every
+      // operation with the same key when some other query is issued - and that
+      // code often runs inside a `$derived`, where calling `update()` throws
+      // `state_unsafe_mutation`. A microtask is not enough: Svelte flushes its
+      // batches in microtasks too, and an update landing between them trips its
+      // "Batch has scheduled roots" invariant.
       const unsub = observable.subscribe((_d) => {
-        update();
+        setTimeout(update, 0);
       });
       return () => unsub.unsubscribe();
     });
@@ -389,16 +396,23 @@ function stringifySelection({
   autoIncludeIdField?: string;
   varCtx: VarContext;
 }) {
-  if (
-    autoIncludeIdField &&
-    typeof selection[autoIncludeIdField] === "undefined"
-  ) {
-    selection[autoIncludeIdField] = true;
-  }
-
   const parentType = types.find((t) => t.name === parentTypeName);
 
-  const ret = Object.entries(selection)
+  // Only where the type has the field (result objects without an identity
+  // have none), all the way down, and without writing it into the caller's
+  // selection object, which is often shared.
+  const entries = Object.entries(selection);
+  if (
+    autoIncludeIdField &&
+    typeof selection[autoIncludeIdField] === "undefined" &&
+    parentType &&
+    "fields" in parentType &&
+    parentType.fields.some((f) => f.name === autoIncludeIdField)
+  ) {
+    entries.unshift([autoIncludeIdField, true]);
+  }
+
+  const ret = entries
     .filter(([key]) => key !== argsKey)
     .reduce((acc, [key, value]) => {
       if (typeof value === "object") {
@@ -426,6 +440,7 @@ function stringifySelection({
             parentTypeName: subNamedType!.name,
             selection: value,
             types,
+            autoIncludeIdField,
             varCtx,
           })}
 `;

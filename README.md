@@ -84,6 +84,20 @@ abilityBuilder.users.filter("read").by(({ context, entities }) => {
 The default implementation helpers automatically respect and call the filters, if you set any. Filters work in addition to abilities. They run on the completed query, which in most cases has had an ability applied, hence abilities have higher priority than filters. If you need to apply a filter to a manually implemented object, please use the `applyFilters` config field as shown in the example project.
 
 
+### Column masks and filter arguments
+An ability may grant columns only on the rows its `where` matches. The other rows are returned without them:
+```ts
+abilityBuilder.users.allow("read").when(({ userId }) => ({ where: { id: userId } })); // everything on the own row
+abilityBuilder.users.allow("read").when({ columns: { id: true, name: true } }); // the rest on any other
+```
+Masking happens after the query ran, but a `where` or `orderBy` argument is applied by the database to the real values: `users(where: { email: { eq: "a@b.c" } })` would reveal whose email that is. The default helpers (`query`, `countQuery` and the generated relations) therefore restrict these arguments to what the caller may read:
+- a condition on a column only matches rows which expose that column, on all other rows it is false (also inside `NOT`/`OR`)
+- sorting by a column treats it as empty on rows which do not expose it
+- a relation filter is restricted to the related rows the caller may read and requires the columns the relation joins on to be exposed on them
+- a generated relation field lists only the related rows exposing the column it joins on, and resolves to nothing (`null` or an empty list) on a row whose own join column was masked
+
+In your own resolvers, pass client arguments through `guardFilterInput(ctx.abilities, table, action, { where, orderBy })` before merging them. Filters you build yourself are not restricted.
+
 ### Applying abilities
 As you might have noticed, abilities resolve around drizzle query filters. This means, that we can use them to query the database with filters applied that directly restrict what the user is allowed to see, update and retrieve.
 ```ts

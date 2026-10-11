@@ -16,4 +16,13 @@ export type MaskPrimaryKeys<Context> = {
 
 export const maskPrimaryKeysKey = "maskPrimaryKeys";
 
+// A relation joins on columns of the row. If masking hid them, the related
+// rows are not the row's to see: the field returns null (or an empty list).
+export type MaskRelations<Context> = {
+  fields: Record<string, { many: boolean; sourceColumns: string[] }>;
+  isHidden: (context: Context, row: object, columns: string[]) => boolean;
+};
+
+export const maskRelationsKey = "maskRelations";
+
 export const columnMaskPluginName = "ColumnMaskPlugin" as const;

@@ -84,41 +84,41 @@ exports[`ability builder columns abilities with the same extra columns share a g
 }
 `;
 
-exports[`ability builder columns relational conditions use an uncorrelated subquery (direct) 1`] = `
+exports[`ability builder columns relational conditions use a correlated exists subquery (direct) 1`] = `
 {
   "params": [
     "x",
   ],
-  "sql": "select case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))) then 1 else 0 end from "users_table"",
+  "sql": "select case when exists (select "id" from "users_table" "rumble_columns_0" where "rumble_columns_0"."id" = "users_table"."id" and (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))) then 1 else 0 end from "users_table"",
 }
 `;
 
-exports[`ability builder columns relational conditions use an uncorrelated subquery (AND) 1`] = `
+exports[`ability builder columns relational conditions use a correlated exists subquery (AND) 1`] = `
 {
   "params": [
     "a",
     "x",
   ],
-  "sql": "select case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where (("rumble_columns_0"."id" = ?) and (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))))) then 1 else 0 end from "users_table"",
+  "sql": "select case when exists (select "id" from "users_table" "rumble_columns_0" where "rumble_columns_0"."id" = "users_table"."id" and ((("rumble_columns_0"."id" = ?) and (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))))) then 1 else 0 end from "users_table"",
 }
 `;
 
-exports[`ability builder columns relational conditions use an uncorrelated subquery (OR) 1`] = `
+exports[`ability builder columns relational conditions use a correlated exists subquery (OR) 1`] = `
 {
   "params": [
     "a",
     "x",
   ],
-  "sql": "select case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where (("rumble_columns_0"."id" = ?) or (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))))) then 1 else 0 end from "users_table"",
+  "sql": "select case when exists (select "id" from "users_table" "rumble_columns_0" where "rumble_columns_0"."id" = "users_table"."id" and ((("rumble_columns_0"."id" = ?) or (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))))) then 1 else 0 end from "users_table"",
 }
 `;
 
-exports[`ability builder columns relational conditions use an uncorrelated subquery (NOT) 1`] = `
+exports[`ability builder columns relational conditions use a correlated exists subquery (NOT) 1`] = `
 {
   "params": [
     "x",
   ],
-  "sql": "select case when "users_table"."id" in ((select "id" from "users_table" "rumble_columns_0" where not (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1)))) then 1 else 0 end from "users_table"",
+  "sql": "select case when exists (select "id" from "users_table" "rumble_columns_0" where "rumble_columns_0"."id" = "users_table"."id" and (not (exists (select * from "posts_table" as "f0" where (("rumble_columns_0"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1)))) then 1 else 0 end from "users_table"",
 }
 `;
 

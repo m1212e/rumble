@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import pluralize from "pluralize";
+import { guardFilterInput } from "./abilityBuilder";
 import type { OrderArgImplementerType } from "./args/orderArg";
 import type { WhereArgImplementerType } from "./args/whereArg";
 import { assertFindFirstExists } from "./helpers/asserts";
@@ -172,6 +173,16 @@ export const createQueryImplementer = <
             // args does not have Object.prototype as prototype, so we need to set it
             // otherwise some libraries (like drizzle-orm) might have issues with it
             deepSetProto(args);
+
+            // the client may only filter and sort by what it may read
+            const guarded = await guardFilterInput(
+              ctx.abilities,
+              String(table),
+              listAction,
+              { where: args.where, orderBy: args.orderBy },
+            );
+            if (args.where) (args as any).where = guarded.where;
+            if (args.orderBy) (args as any).orderBy = guarded.orderBy;
 
             adjustQueryArgsForSearch({
               search,

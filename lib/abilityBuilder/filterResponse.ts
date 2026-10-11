@@ -7,8 +7,8 @@ import type {
   DrizzleQueryFunctionInput,
   TableRelationNames,
 } from "../types/drizzleInstanceType";
-import type { ColumnMask } from "./columnMask";
-import { columnMaskKey } from "./keys";
+import type { ColumnMask, ColumnVisibility } from "./columnMask";
+import { columnMaskKey, columnVisibilityKey } from "./keys";
 import type { AbilitySettings, TableSchema } from "./types";
 
 type FindFirstConfig<
@@ -197,6 +197,7 @@ export function createFilterResponder<
   return function transformToResponse(
     queryFilters?: DrizzleQueryFunctionInput<DB, TableName>,
     columnMask?: ColumnMask,
+    columnVisibility?: ColumnVisibility,
   ) {
     const ret = internalTransformer(queryFilters) as AbilityFilterResponse<
       DB,
@@ -212,6 +213,7 @@ export function createFilterResponder<
         filters.limit as number | undefined,
       );
     (ret as any)[columnMaskKey] = columnMask;
+    (ret as any)[columnVisibilityKey] = columnVisibility;
 
     return ret;
   };

@@ -4,7 +4,12 @@ import { is, One } from "drizzle-orm";
 import { PgColumn } from "drizzle-orm/pg-core";
 import { capitalize } from "es-toolkit";
 import pluralize from "pluralize";
-import type { AbilityBuilderType } from "./abilityBuilder";
+import {
+  type AbilityBuilderType,
+  guardFilterInput,
+  relationColumnKeys,
+  relationExposure,
+} from "./abilityBuilder";
 import type { OrderArgImplementerType } from "./args/orderArg";
 import type { WhereArgImplementerType } from "./args/whereArg";
 import { type EnumImplementerType, isEnumSchema } from "./enum";
@@ -232,6 +237,28 @@ export const createObjectImplementer = <
         isHidden: (context, row) =>
           abilityBuilder._.primaryKeyHidden((context as any).abilities, row),
       },
+      maskRelations: {
+        fields: Object.fromEntries(
+          Object.entries(tableSchema.relations ?? {}).map(([key, relation]) => [
+            key,
+            {
+              many: !is(relation, One),
+              sourceColumns: relationColumnKeys(
+                db,
+                tableSchema.tsName,
+                (relation as any).sourceColumns,
+              ),
+            },
+          ]),
+        ),
+        isHidden: (context, row, columns) =>
+          abilityBuilder._.columnsHidden(
+            (context as any).abilities,
+            row,
+            columns,
+            Object.keys(tableSchema.primaryKey),
+          ),
+      },
       fields: (t) => {
         const columns = tableSchema.columns;
 
@@ -396,7 +423,11 @@ export const createObjectImplementer = <
               isMany = false;
               nullable =
                 value.optional ||
-                !value.sourceColumns.every((column) => column.notNull);
+                !value.sourceColumns.every(
+                  // drizzle 1.0 rc.5+ wraps relation columns in a
+                  // RelationsBuilderColumn whose column sits at `_.column`
+                  (column) => ((column as any)._?.column ?? column).notNull,
+                );
               filterSpecifier = "single";
             }
 
@@ -458,6 +489,16 @@ export const createObjectImplementer = <
                   // transform null prototyped object
                   args = JSON.parse(JSON.stringify(args));
 
+                  // the client may only filter and sort by what it may read
+                  const guarded = await guardFilterInput(
+                    ctx.abilities,
+                    relationSchema.tsName,
+                    readAction,
+                    { where: args.where, orderBy: args.orderBy },
+                  );
+                  if (args.where) args.where = guarded.where;
+                  if (args.orderBy) args.orderBy = guarded.orderBy;
+
                   if (isMany) {
                     adjustQueryArgsForSearch({
                       search,
@@ -470,12 +511,29 @@ export const createObjectImplementer = <
                     });
                   }
 
+                  // only the related rows exposing the columns the relation
+                  // joins on belong to the row
+                  const joined = await relationExposure(
+                    ctx.abilities,
+                    relationSchema.tsName,
+                    readAction,
+                    relationColumnKeys(
+                      db,
+                      relationSchema.tsName,
+                      (value as any).targetColumns,
+                    ),
+                  );
+
                   const filter = (
                     await ctx.abilities[relationSchema.tsName].filter(
                       readAction,
                     )
                   ).merge({
-                    where: args.where,
+                    where: joined.length
+                      ? {
+                          AND: [...(args.where ? [args.where] : []), ...joined],
+                        }
+                      : args.where,
                     limit: args.limit,
                     extras: args.extras,
                   }).query[filterSpecifier];

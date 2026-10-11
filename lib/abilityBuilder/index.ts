@@ -12,6 +12,8 @@ import type {
   RumbleInput,
 } from "../types/rumbleInput";
 import { createColumnMasker, type MaskColumnsInput } from "./columnMask";
+import { createInputGuard } from "./inputGuard";
+import { guardInputKey } from "./keys";
 import { attachRequestState, createRequestState } from "./requestState";
 import { createTableAbilities } from "./tableAbilities";
 import { createTableBuilder } from "./tableBuilder";
@@ -19,6 +21,11 @@ import { makeNothingRegisteredWarner } from "./telemetry";
 import type { AbilitySettings } from "./types";
 
 export type { ColumnMask } from "./columnMask";
+export {
+  guardFilterInput,
+  relationColumnKeys,
+  relationExposure,
+} from "./inputGuard";
 export { columnMaskKey } from "./keys";
 
 //TODO: optimize this for v8
@@ -91,21 +98,22 @@ export const createAbilityBuilder = <
     >;
   };
 
-  const { maskColumns, maskedActions, primaryKeyHidden } = createColumnMasker(
-    settings,
-    new Map(
-      tableRelationNames.map((tableName) => {
-        const tableSchema = tableHelper({ db, table: tableName });
-        return [
-          tableName,
-          {
-            columns: Object.keys(tableSchema.columns),
-            primaryKey: Object.keys(tableSchema.primaryKey),
-          },
-        ];
-      }),
-    ),
-  );
+  const { maskColumns, maskedActions, primaryKeyHidden, columnsHidden } =
+    createColumnMasker(
+      settings,
+      new Map(
+        tableRelationNames.map((tableName) => {
+          const tableSchema = tableHelper({ db, table: tableName });
+          return [
+            tableName,
+            {
+              columns: Object.keys(tableSchema.columns),
+              primaryKey: Object.keys(tableSchema.primaryKey),
+            },
+          ];
+        }),
+      ),
+    );
 
   const readActionPerTable = new Map<TableNames, Action>();
 
@@ -123,6 +131,13 @@ export const createAbilityBuilder = <
       /** Whether masking in this request hid the primary key of the row. */
       primaryKeyHidden: (abilities: object, row: object) =>
         primaryKeyHidden(abilities, row),
+      /** Whether masking in this request hid one of the columns on the row. */
+      columnsHidden: (
+        abilities: object,
+        row: object,
+        columns: string[],
+        primaryKey: string[],
+      ) => columnsHidden(abilities, row, columns, primaryKey),
       registerReadAction(table: TableNames, action: Action) {
         readActionPerTable.set(table, action);
       },
@@ -173,6 +188,17 @@ export const createAbilityBuilder = <
             >;
           };
           attachRequestState(abilities, state);
+          // kept out of the type, like the other internal keys
+          Object.defineProperty(abilities, guardInputKey, {
+            value: createInputGuard({
+              db,
+              abilities,
+              readActionOf: (table) =>
+                (readActionPerTable as unknown as Map<string, Action>).get(
+                  table,
+                ) ?? ("read" as Action),
+            }),
+          });
           return abilities;
         };
       },
