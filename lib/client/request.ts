@@ -240,13 +240,7 @@ export function makeGraphQLQueryRequest({
 
   const subscriberReady = svelteReactivityReady.then(() => {
     svelteSubscriber = createSubscriber((update) => {
-      // Announce every emission on the next task. urql emits synchronously -
-      // a replayed value on subscribe, or a cache hit fanned out to every
-      // operation with the same key when some other query is issued - and that
-      // code often runs inside a `$derived`, where calling `update()` throws
-      // `state_unsafe_mutation`. A microtask is not enough: Svelte flushes its
-      // batches in microtasks too, and an update landing between them trips its
-      // "Batch has scheduled roots" invariant.
+      // Announce every emission on the next task. Helpful for svelte state management.
       const unsub = observable.subscribe((_d) => {
         setTimeout(update, 0);
       });

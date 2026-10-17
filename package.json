@@ -17,7 +17,9 @@
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
     "test:types": "tsc --noEmit",
-    "fallow": "fallow audit"
+    "fallow": "fallow audit",
+    "bench": "bun bench/run.ts",
+    "bench:compare": "bun bench/compare.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
@@ -35,6 +37,7 @@
     "graphql": "^17.0.2",
     "graphql-ws": "^6.3.0",
     "lefthook": "^2.1.16",
+    "mitata": "^1.0.34",
     "pg": "^8.23.1",
     "svelte": "^5.57.1",
     "tsdown": "^0.23.0",

@@ -6,13 +6,17 @@
     "lib/client/client.ts",
     "lib/client/generate/index.ts",
     "example/src/main.ts",
-    "example/src/db/seed.ts"
+    "example/src/db/seed.ts",
+    "bench/run.ts",
+    "bench/compare.ts",
+    "bench/suites/*.bench.ts"
   ],
   "ignoreDependencies": [
     "@urql/exchange-graphcache",
     "rolldown-plugin-dts",
     "pg",
-    "drizzle-seed"
+    "drizzle-seed",
+    "mitata"
   ],
   "duplicates": {
     "minOccurrences": 3
