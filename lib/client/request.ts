@@ -240,8 +240,10 @@ export function makeGraphQLQueryRequest({
 
   const subscriberReady = svelteReactivityReady.then(() => {
     svelteSubscriber = createSubscriber((update) => {
-      // Announce every emission on the next task. Helpful for svelte state management.
-      const unsub = observable.subscribe((_d) => {
+      let seen = currentData;
+      const unsub = observable.subscribe(() => {
+        if (seen === currentData || isEqual(seen, currentData)) return;
+        seen = currentData;
         setTimeout(update, 0);
       });
       return () => unsub.unsubscribe();
