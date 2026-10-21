@@ -1,6 +1,5 @@
 import { toCamelCase } from "drizzle-orm/casing";
-import { capitalize } from "es-toolkit";
-import { lazy } from "../helpers/lazy";
+import { capitalize, once } from "es-toolkit";
 import { tableHelper } from "../helpers/tableHelpers";
 import type {
   DrizzleInstance,
@@ -51,7 +50,7 @@ export const createOrderArgImplementer = <
 }) => {
   const referenceStorage = new Map<string, any>();
 
-  const sortingParameterEnumRef = lazy(() =>
+  const sortingParameterEnumRef = once(() =>
     schemaBuilder.enumType("SortingParameter", {
       values: ["asc", "desc"] as const,
     }),

@@ -1,5 +1,5 @@
 import { relationsFilterToSQL, type SQL } from "drizzle-orm";
-import { lazy } from "../helpers/lazy";
+import { once } from "es-toolkit";
 import { mergeFilters } from "../helpers/mergeFilters";
 import { sanitizeFilterValue } from "../helpers/sanitizeFilterValue";
 import type {
@@ -136,7 +136,7 @@ export function createFilterResponder<
     const extras = filters?.extras;
     const columns = filters?.columns;
 
-    const limit = lazy(() =>
+    const limit = once(() =>
       resolveLimit(
         filters?.limit as number | undefined | null,
         mergedLimit,
@@ -144,7 +144,7 @@ export function createFilterResponder<
       ),
     );
 
-    const sqlTransformedWhere = lazy(() => {
+    const sqlTransformedWhere = once(() => {
       const casing = (db._ as any).session?.dialect?.casing;
 
       return where

@@ -1,5 +1,5 @@
 import type { Client } from "@urql/core";
-import { capitalize, isEqual } from "es-toolkit";
+import { capitalize, isEqual, once } from "es-toolkit";
 import type {
   IntrospectionInputValue,
   IntrospectionQuery,
@@ -30,7 +30,6 @@ import {
   take,
   toObservable,
 } from "wonka";
-import { lazy } from "../helpers/lazy";
 
 /**
  * Drops results whose data is deeply equal to the previously emitted one, so
@@ -180,7 +179,7 @@ export function makeGraphQLQueryRequest({
   autoIncludeIdField?: string;
 }) {
   let currentData: any;
-  const dataProxy = lazy(
+  const dataProxy = once(
     () =>
       new Proxy(currentData, {
         get(_target, prop, receiver) {

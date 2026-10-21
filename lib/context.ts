@@ -1,5 +1,5 @@
+import { once } from "es-toolkit";
 import type { AbilityBuilderType } from "./abilityBuilder";
-import { lazy } from "./helpers/lazy";
 import type { DrizzleInstance } from "./types/drizzleInstanceType";
 import type {
   CustomRumblePothosConfig,
@@ -52,7 +52,7 @@ export const createContextFunction = <
     PothosConfig
   >;
 }) => {
-  const builtAbilityBuilder = lazy(() => abilityBuilder._.build());
+  const builtAbilityBuilder = once(() => abilityBuilder._.build());
 
   return async (req: RequestEvent) => {
     const userContext = makeUserContext

@@ -2,7 +2,7 @@ import { EnvelopArmorPlugin } from "@escape.tech/graphql-armor";
 import { useDisableIntrospection } from "@graphql-yoga/plugin-disable-introspection";
 import type { useSofa } from "@m1212e/sofa-api";
 import { trace } from "@opentelemetry/api";
-import { merge } from "es-toolkit";
+import { merge, once } from "es-toolkit";
 import { GraphQLSchema } from "graphql";
 import type { ServerOptions } from "graphql-ws";
 import {
@@ -19,7 +19,6 @@ import { createContextFunction } from "./context";
 import { createCountQueryImplementer } from "./countQuery";
 import { createEnumImplementer, type EnumFieldKeys } from "./enum";
 import { errorsLogField } from "./helpers/errorLogging";
-import { lazy } from "./helpers/lazy";
 import { sofaOpenAPIWebhookDocs } from "./helpers/sofaOpenAPIWebhookDocs";
 import {
   ATTR_TRANSPORT,
@@ -267,7 +266,7 @@ export const r = rumble({
     makePubSubInstance,
   });
 
-  const builtSchema = lazy(() => {
+  const builtSchema = once(() => {
     let raw: ReturnType<typeof schemaBuilder.toSchema>;
     try {
       raw = schemaBuilder.toSchema();
