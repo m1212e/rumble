@@ -307,6 +307,8 @@ server.listen(3000, () => {
 });
 
 ```
+> `createYoga` sends no CORS headers unless you pass `cors` (Yoga's own default would reflect any origin with credentials, which lets other websites use a visitor's cookie session). An API that browsers on other origins call needs `cors: { origin: ["https://app.example.org"], credentials: true }`.
+>
 > If you hit `Query depth limit of N exceeded` (or alias/directive/token limit) errors in production, pass `armorConfig` through to relax the [graphql-armor](https://github.com/Escape-Technologies/graphql-armor) defaults — e.g. `createYoga({ armorConfig: { maxDepth: { n: 20 } } })`. `armorConfig` is forwarded verbatim to `EnvelopArmorPlugin(...)` and is only applied when `enableApiDocs` is `false` (i.e. in production).
 
 ## Usage & client generation

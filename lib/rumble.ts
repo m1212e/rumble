@@ -350,6 +350,13 @@ export const r = rumble({
     args?:
       | (Omit<YogaServerOptions<RequestEvent, any>, "schema" | "context"> & {
           /**
+           * Yoga's `cors` option, except that it defaults to `false` (no CORS headers at all)
+           * rather than to Yoga's reflect-any-origin-with-credentials default. Pass the origins
+           * that may call the API with their credentials when there are any, e.g.
+           * `cors: { origin: ["https://app.example.org"], credentials: true }`.
+           */
+          cors?: YogaServerOptions<RequestEvent, any>["cors"];
+          /**
            * Determines if the API should disclose various things about its structure.
            * Defaults to `process.env.NODE_ENV === "development"`.
            * If enabled, the api will allow introspection requests, provide the graphiql
@@ -374,6 +381,10 @@ export const r = rumble({
       args?.enableApiDocs ?? process?.env?.NODE_ENV === "development";
 
     return nativeCreateYoga<RequestEvent>({
+      // Yoga's own default reflects any `Origin` with `Access-Control-Allow-Credentials: true`,
+      // which lets every website run credentialed queries and mutations against a cookie
+      // session. An API that is meant to be reached from other origins has to say which.
+      cors: false,
       ...args,
       graphiql: enableApiDocs,
       schema: builtSchema(),
