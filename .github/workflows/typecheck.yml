@@ -12,5 +12,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install dependencies
         run: bun i
+      - name: Download address data
+        run: bun run generate:address-data
       - name: Run typecheck
         run: bun typecheck

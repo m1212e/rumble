@@ -105,7 +105,7 @@ describe("Address / AddressInput", () => {
     expect(res.data.submitAddress).toEqual({
       streetAddress: "1 Infinite Loop",
       locality: "Cupertino",
-      region: "ca",
+      region: "CA",
       postalCode: "95014",
       countryCode: "US",
     });
@@ -229,12 +229,8 @@ describe("Address / AddressInput", () => {
       },
     });
 
-    // A missing postalCode produces two issues on the same path (lib-address raises both a
-    // "required" and a "format" error for an absent zip), hence the duplicated path.
     expect(res.data?.submitAddress).toBeUndefined();
-    expect(res.errors?.[0]?.message).toBe(
-      "custom-format:address.postalCode,address.postalCode",
-    );
+    expect(res.errors?.[0]?.message).toBe("custom-format:address.postalCode");
   });
 
   test("rejects a postal code that doesn't match the country's format", async () => {
@@ -254,7 +250,9 @@ describe("Address / AddressInput", () => {
     });
 
     expect(res.data?.submitAddress).toBeUndefined();
-    expect(res.errors?.[0]?.message).toMatch(/postal code/i);
+    expect(res.errors?.[0]?.message).toMatch(
+      /Invalid postal code for country DE\. Example: \d{5}/,
+    );
   });
 
   test("rejects a postal code that doesn't match the given US state", async () => {
@@ -275,7 +273,9 @@ describe("Address / AddressInput", () => {
     });
 
     expect(res.data?.submitAddress).toBeUndefined();
-    expect(res.errors?.[0]?.message).toMatch(/postal code/i);
+    expect(res.errors?.[0]?.message).toMatch(
+      /Invalid postal code for region CA in country US\. Example: \d{5}/,
+    );
   });
 
   test("rejects an invalid region for the given country", async () => {
@@ -291,6 +291,108 @@ describe("Address / AddressInput", () => {
           region: "ZZ",
           postalCode: "95014",
           countryCode: "US",
+        },
+      },
+    });
+
+    expect(res.data?.submitAddress).toBeUndefined();
+    expect(res.errors?.[0]?.message).toMatch(/region/i);
+  });
+
+  test("accepts a missing postal code where the country doesn't require one", async () => {
+    const { db, data } = await makeSeededDBInstanceForTest();
+    const { executor } = makeAddressTestInstance(db, data.users[0].id);
+
+    const res: any = await executor({
+      document: parse(SUBMIT_ADDRESS),
+      variables: {
+        address: {
+          // IE has a postal code format, but doesn't require one
+          streetAddress: "1 Main Street",
+          locality: "Dublin",
+          countryCode: "IE",
+        },
+      },
+    });
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.submitAddress.countryCode).toBe("IE");
+  });
+
+  test("accepts any region where the country requires one but has no region list", async () => {
+    const { db, data } = await makeSeededDBInstanceForTest();
+    const { executor } = makeAddressTestInstance(db, data.users[0].id);
+
+    const res: any = await executor({
+      document: parse(SUBMIT_ADDRESS),
+      variables: {
+        address: {
+          streetAddress: "1 Main Street",
+          locality: "Charlotte Amalie",
+          region: "St. Thomas",
+          postalCode: "00802",
+          countryCode: "VI",
+        },
+      },
+    });
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.submitAddress.region).toBe("St. Thomas");
+  });
+
+  test("resolves a region name to its code", async () => {
+    const { db, data } = await makeSeededDBInstanceForTest();
+    const { executor } = makeAddressTestInstance(db, data.users[0].id);
+
+    const res: any = await executor({
+      document: parse(SUBMIT_ADDRESS),
+      variables: {
+        address: {
+          streetAddress: "1 Infinite Loop",
+          locality: "Cupertino",
+          region: "california",
+          postalCode: "95014",
+          countryCode: "US",
+        },
+      },
+    });
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.submitAddress.region).toBe("CA");
+  });
+
+  test("resolves a Latin region name in a country with non-Latin region names", async () => {
+    const { db, data } = await makeSeededDBInstanceForTest();
+    const { executor } = makeAddressTestInstance(db, data.users[0].id);
+
+    const res: any = await executor({
+      document: parse(SUBMIT_ADDRESS),
+      variables: {
+        address: {
+          streetAddress: "1-1 Chiyoda",
+          region: "Tokyo",
+          postalCode: "100-0001",
+          countryCode: "JP",
+        },
+      },
+    });
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.submitAddress.region).toBe("13");
+  });
+
+  test("rejects an unknown region where the region is optional but listed", async () => {
+    const { db, data } = await makeSeededDBInstanceForTest();
+    const { executor } = makeAddressTestInstance(db, data.users[0].id);
+
+    const res: any = await executor({
+      document: parse(SUBMIT_ADDRESS),
+      variables: {
+        address: {
+          streetAddress: "1 Main Street",
+          locality: "Dublin",
+          region: "Atlantis",
+          countryCode: "IE",
         },
       },
     });
