@@ -1,4 +1,5 @@
 # rumble
+
 rumble is a combined ability and graphql builder built around [drizzle](https://orm.drizzle.team/docs/overview) and [pothos](https://pothos-graphql.dev/docs/plugins/drizzle), inspired by [CASL](https://casl.js.org/v6/en/). It takes much of the required configuration off your shoulders and makes creating a GraphQL (or event REST via [SOFA](https://the-guild.dev/graphql/sofa-api)) api very easy! Additionally it offers strong support for real time data via GraphQL subscriptions!
 
 > Please note that drizzle hasn't reached a full stable release yet and, as shown in the warning [here](https://pothos-graphql.dev/docs/plugins/drizzle), this is not stable yet.
@@ -10,6 +11,7 @@ rumble is a combined ability and graphql builder built around [drizzle](https://
 > Comes with a fully TS based client to consume any GraphQL API. See the client docs at the end to learn about usage with rumble and independent usage with any GraphQL API.
 
 ## Getting started
+
 The following example is an excerpt from the example setup you can find [here](./example). If you are interested in a real world app thats using rumble (and is still work in progress) please see [CHASE](https://github.com/DeutscheModelUnitedNations/munify-chase).
 
 First, install rumble into your project:
@@ -24,8 +26,8 @@ import * as relations from "./db/relations";
 import { rumble } from "@m1212e/rumble";
 
 export const db = drizzle(
- "postgres://postgres:postgres@localhost:5432/postgres",
- { schema, relations }
+  "postgres://postgres:postgres@localhost:5432/postgres",
+  { schema, relations },
 );
 
 const { abilityBuilder } = rumble({ db });
@@ -35,9 +37,11 @@ const { abilityBuilder } = rumble({ db });
 The rumble creator returns some functions which you can use to implement your api. The concepts rumble uses are described in the following sections:
 
 ## Abilities
+
 Abilities are the way you define who can do things in your app. You can imagine an ability as `a thing that is allowed`. Abilities can be very wide and applied in general or precisely and narrowly scoped to very specific conditions. You can create abilities with the `abilityBuilder` function returned from the rumble initiator. There are three kinds of abilities:
 
 ### Wildcard
+
 Wildcard abilities allow everyone to do a thing. The `allow` call takes a single `action` or an array of `action` strings. You can customize the available actions when calling the rumble initializer.
 ```ts
 // everyone can read posts
@@ -48,46 +52,51 @@ abilityBuilder.posts.allow(["read", "write"]);
 ```
 
 ### Condition Object
-Condition object abilities allow a thing under a certain, fixed condition which does not change. __Note, that the object has the same type as a drizzle query call.__
+
+Condition object abilities allow a thing under a certain, fixed condition which does not change. **Note, that the object has the same type as a drizzle query call.**
 ```ts
 // everyone can read published posts
 abilityBuilder.posts.allow("read").when({
- where: { published: true },
+  where: { published: true },
 });
 ```
 
 ### Condition Function
+
 Condition functions are functions that return condition objects. They are called each time an evaluation takes place and can dynamically decide if something should be allowed or not. They receive the request context as a parameter to decide e.g. based on cookies or headers if something is allowed or not.
 ```ts
 // only the author can update posts
 abilityBuilder.posts
- .allow(["update", "delete"])
- .when(({ userId }) => ({ where: { authorId: userId } }));
+  .allow(["update", "delete"])
+  .when(({ userId }) => ({ where: { authorId: userId } }));
 
 abilityBuilder.posts.allow("read").when(async ({ userId }) => ({
- where: { teamId: { in: await permissions.teamsOf(userId) } },
+  where: { teamId: { in: await permissions.teamsOf(userId) } },
 }));
-
 ```
 
 ### Application level filters
+
 In some cases you can't implement all your checks via a database query filter. Say, for example, you want to query an external api which handles your authorization, before you return the data to the user. This can be done with application layer filters. They can be set very similar to abilities:
 ```ts
 abilityBuilder.users.filter("read").by(({ context, entities }) => {
-	// const allowed = await queryExternalAuthorizationService(context.user, entities);
+  // const allowed = await queryExternalAuthorizationService(context.user, entities);
 
-	// we could filter the list to only return the entities the user is allowed to see
-	// even mapping to prevent leakage of certain fields is possible
-	return entities;
+  // we could filter the list to only return the entities the user is allowed to see
+  // even mapping to prevent leakage of certain fields is possible
+  return entities;
 });
 ```
 The default implementation helpers automatically respect and call the filters, if you set any. Filters work in addition to abilities. They run on the completed query, which in most cases has had an ability applied, hence abilities have higher priority than filters. If you need to apply a filter to a manually implemented object, please use the `applyFilters` config field as shown in the example project.
 
 
 ### Column masks and filter arguments
+
 An ability may grant columns only on the rows its `where` matches. The other rows are returned without them:
 ```ts
-abilityBuilder.users.allow("read").when(({ userId }) => ({ where: { id: userId } })); // everything on the own row
+abilityBuilder.users
+  .allow("read")
+  .when(({ userId }) => ({ where: { id: userId } })); // everything on the own row
 abilityBuilder.users.allow("read").when({ columns: { id: true, name: true } }); // the rest on any other
 ```
 Masking happens after the query ran, but a `where` or `orderBy` argument is applied by the database to the real values: `users(where: { email: { eq: "a@b.c" } })` would reveal whose email that is. The default helpers (`query`, `countQuery` and the generated relations) therefore restrict these arguments to what the caller may read:
@@ -99,26 +108,28 @@ Masking happens after the query ran, but a `where` or `orderBy` argument is appl
 In your own resolvers, pass client arguments through `guardFilterInput(ctx.abilities, table, action, { where, orderBy })` before merging them. Filters you build yourself are not restricted.
 
 ### Applying abilities
+
 As you might have noticed, abilities resolve around drizzle query filters. This means, that we can use them to query the database with filters applied that directly restrict what the user is allowed to see, update and retrieve.
 ```ts
 schemaBuilder.queryFields((t) => {
- return {
-  posts: t.drizzleField({
-   type: [PostRef],
-   resolve: async (query, root, args, ctx, info) => {
-    return db.query.posts.findMany(
-     // here we apply our filter (filter() is async, so remember to await it)
-     query((await ctx.abilities.posts.filter("read")).query.many),
-    );
-   },
-  }),
- };
+  return {
+    posts: t.drizzleField({
+      type: [PostRef],
+      resolve: async (query, root, args, ctx, info) => {
+        return db.query.posts.findMany(
+          // here we apply our filter (filter() is async, so remember to await it)
+          query((await ctx.abilities.posts.filter("read")).query.many),
+        );
+      },
+    }),
+  };
 });
 ```
 
 > The `filter()` call returns an object with `query` and `sql` fields. Depending on if you are using the drizzle query or and SQL based API (like update or delete), you need to apply different filters. Same goes for the `query.many` and `query.single` fields.
 
 #### Applying filters
+
 Applying filters on objects is done automatically if you use the helpers. If you manually implement an object ref, you can use the `applyFilters` config field to ensure the filters run as expected:
 ```ts
 const PostRef = schemaBuilder.drizzleObject("posts", {
@@ -133,75 +144,80 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 ```
 
 ## Context & Configuration
+
 The `rumble` initiator offers various configuration options which you can pass. Most importantly, the `context` provider function which creates the request context that is passed to your abilities and resolvers.
 ```ts
 rumble({
- db,
- context(request) {
-  return {
-   // here you could instead read some cookies or HTTP headers to retrieve an actual userId
-   userId: 2,
-  };
- },
+  db,
+  context(request) {
+    return {
+      // here you could instead read some cookies or HTTP headers to retrieve an actual userId
+      userId: 2,
+    };
+  },
 });
 ```
 > `rumble` offers more config options, use intellisense or take a look at [the rumble input type](lib/types/rumbleInput.ts) if you want to know more.
 
 ## Helpers
+
 Rumble offers various helpers to make it easy and fast to implement your api. Ofcourse you can write your api by hand using the provided `schemaBuilder` from the rumble initiator, but since this might get repetitive, the provided helpers automate a lot of this work for you while also automatically applying the concepts of rumble directly into your api.
 
 ### whereArg
+
 `whereArg` is a helper to implement query arguments for filtering the results of a query for certain results. In many cases you would implement arguments for a query with something as `matchUsername: t.arg.string()` which is supposed to restrict the query to users which have that username. The whereArg helper implements such a filter tailored to the specific entity which you then can directly pass on to the database query.
 ```ts
 const WhereArgs = whereArg({
- table: "posts",
+  table: "posts",
 });
 
 schemaBuilder.queryFields((t) => {
- return {
-  postsFiltered: t.drizzleField({
-   type: [PostRef],
-   args: {
-    // here we set our generated type as type for the where argument
-    where: t.arg({ type: WhereArgs }),
-   },
-   resolve: async (query, root, args, ctx, info) => {
-    return db.query.posts.findMany(
-     query(
-      // here we apply the ability filter
-      (await ctx.abilities.users.filter("read"))
-      // we can merge one time filters into the permission filter for this specific request
-        .merge({ where: args.where }).query.many,
-     ),
-    );
-   },
-  }),
- };
+  return {
+    postsFiltered: t.drizzleField({
+      type: [PostRef],
+      args: {
+        // here we set our generated type as type for the where argument
+        where: t.arg({ type: WhereArgs }),
+      },
+      resolve: async (query, root, args, ctx, info) => {
+        return db.query.posts.findMany(
+          query(
+            // here we apply the ability filter
+            (await ctx.abilities.users.filter("read"))
+              // we can merge one time filters into the permission filter for this specific request
+              .merge({ where: args.where }).query.many,
+          ),
+        );
+      },
+    }),
+  };
 });
 ```
 
 ### object
+
 `object` is a helper to implement an object with relations. Don't worry about abilities, they are automatically applied. The helper returns the object reference which you can use in the rest of your api, for an example on how to use a type, see the above code snippet (`type: [PostRef],`).
 ```ts
 const UserRef = object({
- table: "users",
+  table: "users",
 });
 ```
 
 ### query
+
 The `query` helper is even simpler. It implements a `findFirst` and `findMany` query for the specified entity named as singular and plural of the entities name.
 ```ts
 query({
- table: "users",
+  table: "users",
 });
-
 ```
 
 ### pubsub
+
 In case you want to use subscriptions, `rumble` has got you covered! The rumble helpers all use the `smart subscriptions plugin` from `pothos`. The `pubsub` helper lets you easily hook into the subscription notification logic.
 ```ts
 const { updated, created, removed } = pubsub({
- table: "users",
+  table: "users",
 });
 ```
 Now just call the functions whenever your application does the respective action and your subscriptions will get notified:
@@ -223,15 +239,17 @@ All `query` and `object` helper implementations will automatically update and wo
 > The rumble initiator lets you configure the subscription notifiers in case you want to use an external service like redis for your pubsub notifications instead of the internal default one
 
 ### enum_
+
 The `enum_` helper is a little different to the others, as it will get called internally automatically if another helpers like `object` or `arg` detects an enum field. In most cases you should be good without calling it manually but in case you would like to have a reference to an enum object, you can get it from this helper.
 ```ts
 const enumRef = enum_({
- tsName: "moodEnum",
+  tsName: "moodEnum",
 });
 ```
 > The enum parameter allows other fields to be used to reference an enum. This is largely due to how this is used internally. Because of the way how drizzle handles enums, we are not able to provide type safety with enums. In case you actually need to use it, the above way is the recommended approach.
 
 ### Enable search
+
 > Search is currently only supported in postgres!
 
 rumble and its helpers offer out of the box search capabilities. You can activate this functionality by passing the `search` parameter to the `createRumble` function.
@@ -258,9 +276,12 @@ This will add a search field to all list queries and many relations created by t
 Additionally, a search distance will be returned for each result if the search argument is used (null otherwise). The results are returned sorted by their distance with the best matching fields in the first place. The search will respect all text fields (IDs included) on the table, you always search for all text columns at once. Matches in multiple columns stack and therefore result in a better matching score. So if you search for "alice" and there is a user with the name "Alice" and an email "alice@example.com", the two matching columns will result in a better score than e.g. "al007@example.com"/"Alice".
 > If you have abilities in place which prevent a caller from accessing certain columns, the search will not respect those columns to prevent leaking information.
 #### Pro tip: Indexing
+
 In case your table grows large, it can be a good idea to create an index to increase performance. Under the hood, searching uses the [pg_trgm](https://www.postgresql.org/docs/current/pgtrgm.html#PGTRGM-INDEX) extension. To create indexes for our searchable columns, we can adjust our drizzle schema accordingly:
 ```ts
-export const user = pgTable('user', {
+export const user = pgTable(
+  "user",
+  {
     id: text()
       .$defaultFn(() => nanoid())
       .primaryKey(),
@@ -268,14 +289,14 @@ export const user = pgTable('user', {
     name: text().notNull(),
   },
   (table) => [
-    index('user_id_trgm')
-      .using('gin', sql`${table.id} gin_trgm_ops`)
+    index("user_id_trgm")
+      .using("gin", sql`${table.id} gin_trgm_ops`)
       .concurrently(),
-    index('user_email_trgm')
-      .using('gin', sql`${table.email} gin_trgm_ops`)
+    index("user_email_trgm")
+      .using("gin", sql`${table.email} gin_trgm_ops`)
       .concurrently(),
-    index('user_name_trgm')
-      .using('gin', sql`${table.name} gin_trgm_ops`)
+    index("user_name_trgm")
+      .using("gin", sql`${table.name} gin_trgm_ops`)
       .concurrently(),
   ],
 );
@@ -295,23 +316,25 @@ Another important aspect to consider when using indexes is that the PostgreSQL i
 Please also note that `GIST` indexes are also supported by `pg_trgm` but will oftentimes not be useable for the sorting since a lot of columns are accumulated in the query which causes the query planner to not use them. Feel free to experiment with different index types and configurations to find the best fit for your specific use case.
 
 ### and more...
+
 See [the example file](./example/src/main.ts) or clone it and let intellisense guide you. Rumble offers various other helpers which might become handy!
 
 ## Running the server
+
 In case you directly want to run a server from your rumble instance, you can do so by using the `createYoga` function. It returns a graphql `yoga` instance which can be used to provide a graphql api in [a multitude of ways](https://the-guild.dev/graphql/yoga-server/docs/integrations/z-other-environments).
 ```ts
 import { createServer } from "node:http";
 const server = createServer(createYoga());
 server.listen(3000, () => {
- console.info("Visit http://localhost:3000/graphql");
+  console.info("Visit http://localhost:3000/graphql");
 });
-
 ```
 > `createYoga` sends no CORS headers unless you pass `cors` (Yoga's own default would reflect any origin with credentials, which lets other websites use a visitor's cookie session). An API that browsers on other origins call needs `cors: { origin: ["https://app.example.org"], credentials: true }`.
 >
 > If you hit `Query depth limit of N exceeded` (or alias/directive/token limit) errors in production, pass `armorConfig` through to relax the [graphql-armor](https://github.com/Escape-Technologies/graphql-armor) defaults — e.g. `createYoga({ armorConfig: { maxDepth: { n: 20 } } })`. `armorConfig` is forwarded verbatim to `EnvelopArmorPlugin(...)` and is only applied when `enableApiDocs` is `false` (i.e. in production).
 
 ## Usage & client generation
+
 You can use the GraphQL api with any client you like. However, rumble provides a generation api which can output a TypeScript client from a rumble instance. To perform a generation, use the exported function from your rumble instance like this:
 ```ts
 
@@ -344,8 +367,8 @@ An example usage might look like this:
 import { client } from "./generated-client/client";
 
 const users = client.liveQuery.users({
-	id: true,
-	name: true,
+  id: true,
+  name: true,
 });
 
 users.subscribe((s) => s?.at(0));
@@ -357,19 +380,20 @@ If you would like to ensure that there is data present before subscribing to upd
 ```ts
 // this waits for the first value to arrive
 const users = await client.liveQuery.users({
-	id: true,
-	name: true,
+  id: true,
+  name: true,
 });
 
 // this will guaranteed to have a value set
 users.subscribe((s) => s?.at(0));
 
 // you can directly access the values of an awaited result
-console.log(users.firstName)
+console.log(users.firstName);
 ```
 
 > As of `v0.16.12` the client has special support for the svelte reactive state system (runes). If you run a live query which deploys a subscription inside a svelte effect context, you will get reactivity without subscribing to anything right out of the box. Please see [here](https://github.com/DeutscheModelUnitedNations/munify-chase/blob/f70c4484a92551b564c70603ebfd48d5b8cac637/src/lib/api/customClient.ts#L12) and [here](https://github.com/DeutscheModelUnitedNations/munify-chase/blob/f70c4484a92551b564c70603ebfd48d5b8cac637/src/routes/app/(launcher)/%2Bpage.svelte#L9C9-L9C23) for real world examples.
 ### Alternative decoupled client generation
+
 As an alternative to use the client generator with a fully instanciated rumble instance, you can also import the `generateFromSchema` function from rumble and pass it a standard `GraphQLSchema` object to generate the client:
 ```ts
 import { generateFromSchema } from "@m1212e/rumble/client/generate";
