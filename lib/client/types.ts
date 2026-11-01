@@ -1,5 +1,6 @@
 import type { argsKey } from "./request";
 import type {
+  ArgsSelection,
   DeriveArrayType,
   DeriveNullability,
   ExtractGQLTypeFromField,
@@ -17,14 +18,11 @@ export type QueryableObjectFromGeneratedTypes<
   [Key in keyof Q]: Q[Key] extends (p: infer QueryArgs) => infer QueryResponse
     ? NonNullable<QueryResponse> extends object
       ? <
-          // if the field function has arguments, this means that gql accepts arguments
-          Selected extends QueryArgs extends Record<string, any>
-            ? // in that case we want to extend the object with an args key property
-              ObjectFieldSelection<UnArray<NonNullable<QueryResponse>>> & {
-                [argsKey]: QueryArgs;
-              }
-            : // for no-argument functions, we just want the selection
-              ObjectFieldSelection<UnArray<NonNullable<QueryResponse>>>,
+          // the selection, with the field's arguments under the args key if it takes any
+          Selected extends ObjectFieldSelection<
+            UnArray<NonNullable<QueryResponse>>
+          > &
+            ArgsSelection<QueryArgs>,
         >(
           s: Selected,
         ) => DeriveNullability<
@@ -54,17 +52,20 @@ export type QueryableObjectFromGeneratedTypes<
  */
 export type ObjectFieldSelection<O> = RequireAtLeastOneFieldSet<{
   [Key in keyof O]: NonNullable<UnArray<O[Key]>> extends (p: infer P) => infer A
-    ? P extends Record<string, any>
+    ? unknown extends P
       ? NonNullable<UnArray<A>> extends object
-        ? // object return with required args — need both field selection and args
-          ObjectFieldSelection<UnArray<NonNullable<A>>> & { [argsKey]: P }
-        : // scalar return with required args — only need args, no field selection
-          { [argsKey]: P }
-      : NonNullable<UnArray<A>> extends object
-        ? // object return without required args — just field selection
+        ? // object return without args — just field selection
           ObjectFieldSelection<UnArray<NonNullable<A>>>
-        : // scalar return without required args — include or not
+        : // scalar return without args — include or not
           boolean
+      : NonNullable<UnArray<A>> extends object
+        ? // object return with args — field selection and the args, optional if they all are
+          ObjectFieldSelection<UnArray<NonNullable<A>>> & ArgsSelection<P>
+        : undefined extends P
+          ? // scalar return with optional args — include or not, or give the args
+            boolean | ArgsSelection<P>
+          : // scalar return with required args — only need args, no field selection
+            { [argsKey]: P }
     : // non-function field — include or not
       boolean;
 }>;

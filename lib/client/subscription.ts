@@ -1,12 +1,12 @@
 import type { Client } from "@urql/core";
 import type { IntrospectionQuery } from "graphql";
-import { argsKey, makeGraphQLSubscriptionRequest } from "./request";
+import { makeGraphQLSubscriptionRequest } from "./request";
 import type {
   ApplySelection,
   ObjectFieldSelection,
   Subscribeable,
 } from "./types";
-import type { UnArray } from "./utilTypes";
+import type { ArgsSelection, UnArray } from "./utilTypes";
 
 export function makeSubscription<Subscription extends Record<string, any>>({
   urqlClient,
@@ -45,11 +45,10 @@ type QueryableObjectField<T> = T extends (
   p: infer QueryArgs,
 ) => infer QueryResponse
   ? <
-      Selected extends QueryArgs extends Record<string, any>
-        ? ObjectFieldSelection<UnArray<NonNullable<QueryResponse>>> & {
-            [argsKey]: QueryArgs;
-          }
-        : ObjectFieldSelection<UnArray<NonNullable<QueryResponse>>>,
+      Selected extends ObjectFieldSelection<
+        UnArray<NonNullable<QueryResponse>>
+      > &
+        ArgsSelection<QueryArgs>,
     >(
       s: Selected,
     ) => QueryResponse extends null
