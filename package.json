@@ -65,7 +65,7 @@
   },
   "dependencies": {
     "@escape.tech/graphql-armor": "^3.2.0",
-    "@graphql-yoga/plugin-disable-introspection": "^2.25.6",
+    "@graphql-yoga/plugin-disable-introspection": "^3.0.1",
     "@opentelemetry/api": "^1.10.0",
     "@opentelemetry/semantic-conventions": "^1.44.0",
     "@pothos/core": "^4.16.0",

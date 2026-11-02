@@ -6,7 +6,7 @@
       "name": "@m1212e/rumble",
       "dependencies": {
         "@escape.tech/graphql-armor": "^3.2.0",
-        "@graphql-yoga/plugin-disable-introspection": "^2.25.6",
+        "@graphql-yoga/plugin-disable-introspection": "^3.0.1",
         "@opentelemetry/api": "^1.10.0",
         "@opentelemetry/semantic-conventions": "^1.44.0",
         "@pothos/core": "^4.16.0",
@@ -207,7 +207,7 @@
 
     "@graphql-yoga/logger": ["@graphql-yoga/logger@2.0.2", "", { "dependencies": { "tslib": "^2.8.1" } }, "sha512-k2QGHCcH10O+GGe1sgXn0paaP9GCK91wxkuNQaA4IvXBF/RcdBLaX15UeZLW9kMG8kfz7bL0r4Yu+BXYe0JOaw=="],
 
-    "@graphql-yoga/plugin-disable-introspection": ["@graphql-yoga/plugin-disable-introspection@2.25.6", "", { "dependencies": { "@whatwg-node/promise-helpers": "^1.3.2" }, "peerDependencies": { "graphql": "^15.2.0 || ^16.0.0 || ^17.0.0", "graphql-yoga": "^5.24.6" } }, "sha512-ctpRlyarbR2Cbdcl5Z7vHr7UWlRLfqk1Xx/qdleN1a9hOIgdUNbMDfhqkglsDEMgv7ZcE4sPyImB8gwJT4kO4w=="],
+    "@graphql-yoga/plugin-disable-introspection": ["@graphql-yoga/plugin-disable-introspection@3.0.1", "", { "dependencies": { "@whatwg-node/promise-helpers": "^2.0.0" }, "peerDependencies": { "graphql": "^16.0.0 || ^17.0.0", "graphql-yoga": "^6.0.1" } }, "sha512-nuoGosfJKTU9Bt/uuAgVT4ILH5BzKq9zJ6w2Pk3H3A4zOqFA9he7G7DB8G5C8PYpelU7+MdultqAXHJ4Yv2NSQ=="],
 
     "@graphql-yoga/subscription": ["@graphql-yoga/subscription@5.1.1", "", { "dependencies": { "@graphql-yoga/typed-event-target": "^3.0.3", "@repeaterjs/repeater": "^3.0.4", "@whatwg-node/events": "^0.1.0", "tslib": "^2.8.1" } }, "sha512-I48DpyPTxYzmO5TwvKOXxiLI/tsbyeYNhb4/6/oJEBn6nlb8snHL0G0Fw1LC2ApNW1QKYuCPRDTp9yUwVBqhNQ=="],
 
@@ -650,6 +650,8 @@
     "@graphql-tools/executor/@whatwg-node/promise-helpers": ["@whatwg-node/promise-helpers@2.0.1", "", { "dependencies": { "tslib": "^2.6.3" } }, "sha512-ziVgm01A9irPLVBaUFei64qp771BrDXldbv5pY6kgFgNtA+7zq8ux6nj/6w8bELGH/+Ttnc76ox04HIjU8nqvg=="],
 
     "@graphql-tools/utils/@whatwg-node/promise-helpers": ["@whatwg-node/promise-helpers@2.0.1", "", { "dependencies": { "tslib": "^2.6.3" } }, "sha512-ziVgm01A9irPLVBaUFei64qp771BrDXldbv5pY6kgFgNtA+7zq8ux6nj/6w8bELGH/+Ttnc76ox04HIjU8nqvg=="],
+
+    "@graphql-yoga/plugin-disable-introspection/@whatwg-node/promise-helpers": ["@whatwg-node/promise-helpers@2.0.1", "", { "dependencies": { "tslib": "^2.6.3" } }, "sha512-ziVgm01A9irPLVBaUFei64qp771BrDXldbv5pY6kgFgNtA+7zq8ux6nj/6w8bELGH/+Ttnc76ox04HIjU8nqvg=="],
 
     "@whatwg-node/cookie-store/@whatwg-node/promise-helpers": ["@whatwg-node/promise-helpers@2.0.1", "", { "dependencies": { "tslib": "^2.6.3" } }, "sha512-ziVgm01A9irPLVBaUFei64qp771BrDXldbv5pY6kgFgNtA+7zq8ux6nj/6w8bELGH/+Ttnc76ox04HIjU8nqvg=="],
 
