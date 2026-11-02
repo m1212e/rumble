@@ -104,8 +104,15 @@ function buildOperationTelemetry(
 /**
  * Wraps a subscription's event stream so delivered events are observable no
  * matter which transport consumes them.
+ *
+ * This is a plain iterator rather than an `async function*` on purpose: a
+ * generator waiting inside `for await` for the next event only handles
+ * `return()` once that event arrives, so a client that disconnects from a
+ * quiet subscription would never release the source (and its pubsub listener).
+ * Here `return()` reaches the source right away, even while a `next()` is
+ * still pending.
  */
-export async function* wrapSubscriptionIterator(
+export function wrapSubscriptionIterator(
   iterator: AsyncIterable<ExecutionResult>,
   telemetry: {
     log?: RumbleLogger;
@@ -114,7 +121,8 @@ export async function* wrapSubscriptionIterator(
     logFields: Record<string, unknown>;
     attributes: Attributes;
   },
-): AsyncGenerator<ExecutionResult> {
+): AsyncIterableIterator<ExecutionResult> &
+  Required<Pick<AsyncIterator<ExecutionResult>, "return" | "throw">> {
   const { log, tracer, setupSpanContext, logFields, attributes } = telemetry;
 
   const recordEventErrors = (
@@ -134,10 +142,43 @@ export async function* wrapSubscriptionIterator(
     span.end();
   };
 
+  const source = iterator[Symbol.asyncIterator]();
   let eventCount = 0;
-  try {
-    for await (const event of iterator) {
+
+  return {
+    [Symbol.asyncIterator]() {
+      return this;
+    },
+    async next() {
+      let result: IteratorResult<ExecutionResult>;
+      try {
+        result = await source.next();
+      } catch (error) {
+        log?.error(
+          {
+            ...logFields,
+            [FIELD_EVENT_COUNT]: eventCount,
+            ...errorLogField(error),
+          },
+          "graphql subscription threw",
+        );
+        recordEventErrors(eventCount, [error]);
+        throw error;
+      }
+
+      if (result.done) {
+        log?.info(
+          {
+            ...logFields,
+            [FIELD_EVENT_COUNT]: eventCount,
+          },
+          "graphql subscription completed",
+        );
+        return result;
+      }
+
       eventCount++;
+      const event = result.value;
       if (event.errors?.length) {
         log?.error(
           {
@@ -149,27 +190,17 @@ export async function* wrapSubscriptionIterator(
         );
         recordEventErrors(eventCount, event.errors);
       }
-      yield event;
-    }
-    log?.info(
-      {
-        ...logFields,
-        [FIELD_EVENT_COUNT]: eventCount,
-      },
-      "graphql subscription completed",
-    );
-  } catch (error) {
-    log?.error(
-      {
-        ...logFields,
-        [FIELD_EVENT_COUNT]: eventCount,
-        ...errorLogField(error),
-      },
-      "graphql subscription threw",
-    );
-    recordEventErrors(eventCount, [error]);
-    throw error;
-  }
+      return result;
+    },
+    async return(value?: unknown) {
+      return (await source.return?.(value)) ?? { done: true, value: undefined };
+    },
+    async throw(error?: unknown) {
+      if (source.throw) return source.throw(error);
+      await source.return?.();
+      throw error;
+    },
+  };
 }
 
 export function buildTracedExecute<

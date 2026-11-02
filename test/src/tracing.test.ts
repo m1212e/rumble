@@ -320,6 +320,40 @@ describe("wrapSubscriptionIterator", () => {
 
     expect(log.error).toHaveBeenCalledTimes(1);
   });
+
+  test("return() releases the source while a next() is still waiting", async () => {
+    // a quiet subscription: next() only settles once the source is returned
+    let release: () => void = () => {};
+    const sourceReturn = mock(async () => {
+      release();
+      return { done: true as const, value: undefined };
+    });
+    const source: any = {
+      [Symbol.asyncIterator]: () => ({
+        next: () =>
+          new Promise((resolve) => {
+            release = () => resolve({ done: true, value: undefined });
+          }),
+        return: sourceReturn,
+      }),
+    };
+
+    const wrapped = wrapSubscriptionIterator(source, {
+      logFields: subscriptionLogFields,
+      attributes: {},
+    });
+    const pending = wrapped.next();
+
+    // a generator would wait for the next event here, which never comes
+    const returned = await Promise.race([
+      wrapped.return(undefined).then(() => "returned"),
+      new Promise((resolve) => setTimeout(() => resolve("hung"), 100)),
+    ]);
+
+    expect(returned).toBe("returned");
+    expect(sourceReturn).toHaveBeenCalledTimes(1);
+    expect(await pending).toEqual({ done: true, value: undefined });
+  });
 });
 
 // ─── buildTracedExecute ───────────────────────────────────────────────────────
