@@ -52,6 +52,10 @@ import {
   FIELD_DURATION_MS,
   traceCorrelationFields,
 } from "./helpers/telemetry";
+import {
+  refreshAbilitiesPluginName,
+  registerRefreshAbilitiesPlugin,
+} from "./refreshAbilitiesPlugin/refreshAbilitiesPlugin";
 import { pluginName } from "./runtimeFiltersPlugin/filterTypes";
 import { registerRuntimeFiltersPlugin } from "./runtimeFiltersPlugin/runtimeFiltersPlugin";
 import {
@@ -99,6 +103,7 @@ export const createSchemaBuilder = <
 
   registerRuntimeFiltersPlugin();
   registerColumnMaskPlugin();
+  registerRefreshAbilitiesPlugin();
   const schemaBuilder = new SchemaBuilder<{
     Context: ContextType<UserContext, DB, RequestEvent, Action, PothosConfig>;
     DrizzleRelations: DB["_"]["relations"];
@@ -162,6 +167,7 @@ export const createSchemaBuilder = <
     plugins: [
       // must wrap the runtime filters, so filters see unmasked rows
       columnMaskPluginName,
+      refreshAbilitiesPluginName,
       pluginName,
       DrizzlePlugin,
       SmartSubscriptionsPlugin,

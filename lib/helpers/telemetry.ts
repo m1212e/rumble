@@ -68,6 +68,8 @@ export const ATTR_ABILITIES_STATUS = "rumble.abilities.status";
 export const ATTR_ABILITIES_STATIC = "rumble.abilities.static";
 export const ATTR_ABILITIES_DYNAMIC = "rumble.abilities.dynamic";
 export const ATTR_ABILITIES_TOTAL = "rumble.abilities.total";
+// the relational rules resolved to primary key lists, see `resolveRelationalRules`
+export const ATTR_ABILITIES_RESOLVED = "rumble.abilities.resolved";
 export const ATTR_FILTERS_TOTAL = "rumble.filters.total";
 export const ATTR_FILTERS_ALLOWED = "rumble.filters.allowed";
 export const ATTR_SUBSCRIPTION_EVENT_INDEX = "rumble.subscription.event_index";

@@ -6,6 +6,7 @@ import { createDistinctValuesFromSQLType } from "../helpers/sqlTypes/distinctVal
 import { tableHelper } from "../helpers/tableHelpers";
 import {
   ATTR_ABILITIES_DYNAMIC,
+  ATTR_ABILITIES_RESOLVED,
   ATTR_ABILITIES_STATIC,
   ATTR_ABILITIES_STATUS,
   ATTR_ABILITIES_TOTAL,
@@ -18,7 +19,7 @@ import type {
 import { RumbleError } from "../types/rumbleError";
 import { createColumnAccessResolver } from "./columnMask";
 import { createFilterResponder } from "./filterResponse";
-import { resolvedFilterKey } from "./keys";
+import { refreshAbilitiesKey, resolvedFilterKey } from "./keys";
 import {
   type DynamicQueryFilter,
   isDynamicQueryFilter,
@@ -26,6 +27,7 @@ import {
   type QueryFilterRegistry,
   type StaticQueryFilter,
 } from "./queryFilter";
+import { createRuleResolver } from "./resolveRules";
 import { traceAbilityPreparation } from "./telemetry";
 import type { AbilitySettings, TableSchema } from "./types";
 
@@ -158,6 +160,12 @@ export const createTableAbilities = <
     >[];
   };
 
+  type DynamicResults = (
+    | StaticQueryFilter<DB, TableName, DrizzleQueryFunctionInput<DB, TableName>>
+    | undefined
+    | "allow"
+  )[];
+
   // we want a filter that excludes everything
   const blockEverythingFilter = createBlockEverythingFilter(
     String(tableName),
@@ -171,59 +179,20 @@ export const createTableAbilities = <
     settings,
     tableSchema,
   );
+  const resolveRules = createRuleResolver(settings, tableSchema);
 
-  const assembleAbilities = async (
+  // the dynamic filters may be async, so they all start at once
+  const evaluateDynamicFilters = (
     userContext: UserContext,
     action: Action,
-    attributes: Record<string, AttributeValue>,
+  ): Promise<DynamicResults> =>
+    Promise.all(dynamicQueryFilters[action].map((func) => func(userContext)));
+
+  /** The response for the rules applying to the caller: their OR, columns and flags. */
+  const respondWithFilters = (
+    action: Action,
+    allQueryFilters: DrizzleQueryFunctionInput<DB, TableName>[],
   ) => {
-    const filters = queryFilters.get(action);
-
-    // in case we have a wildcard ability, skip the rest and return no filters at all
-    if (filters === "unrestricted") {
-      attributes[ATTR_ABILITIES_STATUS] = "unrestricted";
-      return transformToResponse();
-    }
-
-    // if nothing has been allowed, block everything
-    if (!filters) {
-      attributes[ATTR_ABILITIES_STATUS] = "blocked_everything";
-      settings.warnNothingRegistered(String(tableName), action);
-      return transformToResponse(blockEverythingFilter);
-    }
-
-    // run all dynamic filters, they may be async so we start all of them first
-    const rawResults = await Promise.all(
-      dynamicQueryFilters[action].map((func) => func(userContext)),
-    );
-
-    // if one of the dynamic filters returns "allow", we want to allow everything
-    if (rawResults.includes("allow")) {
-      attributes[ATTR_ABILITIES_STATUS] = "unrestricted";
-      return transformToResponse();
-    }
-
-    // if nothing is returned, nothing is allowed by this filter
-    const dynamicResults = (
-      rawResults.filter(
-        (r): r is Exclude<typeof r, undefined | "allow"> => r !== undefined,
-      ) as DrizzleQueryFunctionInput<DB, TableName>[]
-    ).map(withRestrictingWhere);
-
-    attributes[ATTR_ABILITIES_DYNAMIC] = dynamicResults.length;
-    attributes[ATTR_ABILITIES_STATIC] = simpleQueryFilters[action].length;
-
-    const allQueryFilters = [...simpleQueryFilters[action], ...dynamicResults];
-
-    attributes[ATTR_ABILITIES_TOTAL] = allQueryFilters.length;
-
-    // if we don't have any permitted filters then block everything
-    if (allQueryFilters.length === 0) {
-      attributes[ATTR_ABILITIES_STATUS] = "blocked_everything";
-
-      return transformToResponse(blockEverythingFilter);
-    }
-
     const mergedFilters = (
       allQueryFilters.length === 1
         ? { ...allQueryFilters[0] }
@@ -248,24 +217,94 @@ export const createTableAbilities = <
       };
     }
 
-    attributes[ATTR_ABILITIES_STATUS] = "applied";
     return transformToResponse(mergedFilters as any, mask, visibility);
+  };
+
+  const assembleAbilities = async (
+    action: Action,
+    attributes: Record<string, AttributeValue>,
+    evaluate: () => Promise<DynamicResults>,
+  ) => {
+    const filters = queryFilters.get(action);
+
+    // in case we have a wildcard ability, skip the rest and return no filters at all
+    if (filters === "unrestricted") {
+      attributes[ATTR_ABILITIES_STATUS] = "unrestricted";
+      return transformToResponse();
+    }
+
+    // if nothing has been allowed, block everything
+    if (!filters) {
+      attributes[ATTR_ABILITIES_STATUS] = "blocked_everything";
+      settings.warnNothingRegistered(String(tableName), action);
+      return transformToResponse(blockEverythingFilter);
+    }
+
+    const rawResults = await evaluate();
+
+    // if one of the dynamic filters returns "allow", we want to allow everything
+    if (rawResults.includes("allow")) {
+      attributes[ATTR_ABILITIES_STATUS] = "unrestricted";
+      return transformToResponse();
+    }
+
+    // if nothing is returned, nothing is allowed by this filter
+    const dynamicResults = (
+      rawResults.filter(
+        (r): r is Exclude<typeof r, undefined | "allow"> => r !== undefined,
+      ) as DrizzleQueryFunctionInput<DB, TableName>[]
+    ).map(withRestrictingWhere);
+
+    attributes[ATTR_ABILITIES_DYNAMIC] = dynamicResults.length;
+    attributes[ATTR_ABILITIES_STATIC] = simpleQueryFilters[action].length;
+
+    let allQueryFilters = [...simpleQueryFilters[action], ...dynamicResults];
+
+    attributes[ATTR_ABILITIES_TOTAL] = allQueryFilters.length;
+
+    if (resolveRules && allQueryFilters.length > 0) {
+      const resolution = await resolveRules(allQueryFilters);
+      allQueryFilters = resolution.filters;
+      attributes[ATTR_ABILITIES_RESOLVED] = resolution.resolved;
+    }
+
+    // if we don't have any permitted filters then block everything
+    if (allQueryFilters.length === 0) {
+      attributes[ATTR_ABILITIES_STATUS] = "blocked_everything";
+
+      return transformToResponse(blockEverythingFilter);
+    }
+
+    attributes[ATTR_ABILITIES_STATUS] = "applied";
+    return respondWithFilters(action, allQueryFilters);
   };
 
   return {
     withContext: (userContext: UserContext) => {
+      // the (possibly async) callbacks may be expensive, e.g. calling an
+      // external service, so they run once per request and action
+      const evaluated = new Map<Action, Promise<DynamicResults>>();
+      const evaluate = (action: Action) => {
+        let results = evaluated.get(action);
+        if (!results) {
+          results = evaluateDynamicFilters(userContext, action);
+          evaluated.set(action, results);
+        }
+        return results;
+      };
+
       const prepare = (action: Action) =>
         traceAbilityPreparation(
           settings,
           String(tableName),
           action,
-          (attributes) => assembleAbilities(userContext, action, attributes),
+          (attributes) =>
+            assembleAbilities(action, attributes, () => evaluate(action)),
         );
 
       // abilities are resolved once per request and action, since
-      // filter() is called by every field and the (possibly async)
-      // callbacks may be expensive, e.g. calling an external service
-      const cache = new Map<Action, ReturnType<typeof prepare>>();
+      // filter() is called by every field
+      let cache = new Map<Action, ReturnType<typeof prepare>>();
       const resolved = new Map<Action, Awaited<ReturnType<typeof prepare>>>();
 
       const abilities = {
@@ -285,6 +324,13 @@ export const createTableAbilities = <
       // kept out of the type: declaration emit can't name the internal key
       (abilities as any)[resolvedFilterKey] = (action: Action) =>
         resolved.get(action);
+      // Resolved primary keys are a snapshot. Every root field starting to
+      // resolve (a mutation after another, a live query refetching) takes a
+      // new one, so rows related to the caller since then show up. The
+      // evaluated callbacks are kept.
+      (abilities as any)[refreshAbilitiesKey] = () => {
+        if (resolveRules) cache = new Map();
+      };
       return abilities;
     },
   };

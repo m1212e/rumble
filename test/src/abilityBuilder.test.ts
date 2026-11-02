@@ -624,7 +624,7 @@ describe("ability builder", async () => {
       ["OR", { OR: [{ id: "a" }, { posts: { title: "x" } }] }],
       ["NOT", { NOT: { posts: { title: "x" } } }],
     ] as const) {
-      test(`relational conditions use a correlated exists subquery (${name})`, async () => {
+      test(`relational conditions render as exists subqueries correlated to the row (${name})`, async () => {
         r.abilityBuilder.users.allow("read").when({ where: where as any });
         r.abilityBuilder.users.allow("read").when({ columns: { id: true } });
         const f = await abilitiesFor().users.filter("read");
@@ -633,7 +633,9 @@ describe("ability builder", async () => {
           .select({ flag: extras.__rumble_columns_0(schema.users) })
           .from(schema.users)
           .toSQL();
-        expect(rendered.sql).toContain("rumble_columns_0");
+        expect(rendered.sql).toContain("exists (select");
+        // the rules of a flag are rendered once, on the row itself
+        expect(rendered.sql).not.toContain("rumble_columns_0");
         expect(rendered).toMatchSnapshot();
       });
     }

@@ -1,4 +1,4 @@
-export { guardFilterInput } from "./abilityBuilder";
+export { guardFilterInput, refreshAbilities } from "./abilityBuilder";
 export {
   assertFindFirstExists,
   assertFirstEntryExists,

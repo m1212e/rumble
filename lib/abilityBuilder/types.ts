@@ -2,6 +2,7 @@ import type { tableHelper } from "../helpers/tableHelpers";
 import type { TelemetryConfig } from "../helpers/telemetry";
 import type { DrizzleInstance } from "../types/drizzleInstanceType";
 import type { RumbleLogger } from "../types/rumbleInput";
+import type { RuleResolutionConfig } from "./resolveRules";
 
 /**
  * Settings shared by all parts of the ability builder, resolved once from the
@@ -14,6 +15,7 @@ export type AbilitySettings<
   db: DB;
   actions: Action[];
   defaultLimit: number | undefined | null;
+  resolveRelationalRules: RuleResolutionConfig | undefined;
   otel: TelemetryConfig["otel"];
   telemetryConfig: TelemetryConfig;
   log: RumbleLogger | undefined;

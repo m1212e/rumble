@@ -7,8 +7,8 @@ import {
 
 /**
  * A schema shaped like MUNify DELEGATOR's, reduced to the tables its read
- * rules walk: the fixture for the statement size tests (see TODO.md,
- * "Generated SQL is so large that planning it can take a database down").
+ * rules walk: the fixture for the statement size tests (generated SQL so
+ * large that planning it took a database down).
  *
  * The tables are built through a `DialectKit`, so the same schema runs on the
  * in-memory SQLite of the test suite and, for `explain (memory)`, on Postgres.

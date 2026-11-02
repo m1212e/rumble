@@ -9,6 +9,8 @@ export const columnVisibilityKey = Symbol.for("rumble:columnVisibility");
 // per request: the function checking client supplied where / orderBy against it
 export const guardInputKey = Symbol.for("rumble:guardInput");
 export const resolvedFilterKey = Symbol.for("rumble:resolvedFilter");
+// per table abilities: starts a new snapshot of the resolved rules, see `resolveRelationalRules`
+export const refreshAbilitiesKey = Symbol.for("rumble:refreshAbilities");
 
 // the masking state of a request, on its abilities
 export const requestStateKey = Symbol.for("rumble:requestState");

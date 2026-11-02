@@ -27,6 +27,7 @@ export {
   relationExposure,
 } from "./inputGuard";
 export { columnMaskKey } from "./keys";
+export { refreshAbilities } from "./refresh";
 
 //TODO: optimize this for v8
 
@@ -56,6 +57,7 @@ export const createAbilityBuilder = <
   db,
   actions,
   defaultLimit,
+  resolveRelationalRules,
   otel,
   logger: loggerConfig,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig>) => {
@@ -68,6 +70,7 @@ export const createAbilityBuilder = <
     // populated by rumble() when the user does not pass any
     actions: actions!,
     defaultLimit,
+    resolveRelationalRules,
     otel,
     telemetryConfig,
     log,

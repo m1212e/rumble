@@ -2,6 +2,7 @@ import type { Tracer } from "@opentelemetry/api";
 import type SchemaBuilder from "@pothos/core";
 import type { TracingWrapperOptions } from "@pothos/tracing-opentelemetry";
 import type { createPubSub } from "graphql-yoga";
+import type { RuleResolutionConfig } from "../abilityBuilder/resolveRules";
 import type { DrizzleInstance } from "./drizzleInstanceType";
 
 export interface RumbleLogger {
@@ -57,6 +58,27 @@ export type RumbleInput<
    * @default 100
    */
   defaultLimit?: number | undefined | null;
+  /**
+   * Resolves the relational conditions of abilities (`where: { posts: { author: { id } } }`)
+   * to lists of primary keys once per request, before the query runs.
+   *
+   * A relational condition renders as nested `exists` subqueries, once in the row
+   * filter and once more per column flag, at every place the table is nested in a
+   * query. Statements with many such rules grow to tens of kilobytes and cost the
+   * database tens of megabytes to plan. For a given caller such a condition matches a
+   * fixed set of rows, so with this enabled rumble looks them up once per request
+   * (`select id from table where <condition>`) and the condition becomes `id in (...)`.
+   * Conditions matching more than `maxIds` rows stay relational.
+   *
+   * Costs one small query per table with relational conditions per request. The ids
+   * are a snapshot: a live query takes a new one each time it refetches.
+   *
+   * @example
+   * ```ts
+   * resolveRelationalRules: { enabled: true, maxIds: 500 }
+   * ```
+   */
+  resolveRelationalRules?: RuleResolutionConfig;
   /**
    * rumble supports fuzzy search for the query helpers. This enables the users of your API to search for entities via fuzzy search inputs.
    * This currently only is supported by postgres databases and will fail if enabled on other dialects.

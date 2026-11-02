@@ -19,18 +19,18 @@ import {
 
 /**
  * Replicates "Generated SQL is so large that planning it can take a database
- * down" (TODO.md): the supervisor's dashboard card of MUNify DELEGATOR reads
- * one delegation with a handful of relations, and rumble turns that into a
- * ~46 KB statement with hundreds of `exists` subqueries, because every nesting
- * site of a table with relational, column-masking rules renders the full set of
- * rules twice (row filter plus one `case when` flag per column group), each
- * walking three to five tables.
+ * down": the supervisor's dashboard card of
+ * MUNify DELEGATOR reads one delegation with a handful of relations, and rumble
+ * turns that into a ~46 KB statement with hundreds of `exists` subqueries,
+ * because every nesting site of a table with relational, column-masking rules
+ * renders the full set of rules twice (row filter plus one `case when` flag
+ * per column group), each walking three to five tables.
  *
- * The thresholds are the "done when" of the report: the card's SQL stays in
- * the low kilobytes, and the statement grows with the number of selected
- * relations, not with rules × flags × nesting depth. They fail until the
- * builder is changed; `statementSize.postgres.test.ts` adds the planning
- * memory figure on a real Postgres.
+ * `resolveRelationalRules` is the fix: the rules are looked up once per
+ * request and the statement gets `id in (...)` instead. These tests pin the
+ * "done when" of the report with it enabled, and that the data stays the same.
+ * `statementSize.postgres.test.ts` adds the planning memory on a real
+ * Postgres.
  */
 
 const COUNTED_TABLES = [
@@ -54,34 +54,59 @@ describe("statement size of nested selections with relational rules", () => {
   const capture = makeStatementCapture();
   const db = drizzle(":memory:", { relations, logger: capture.logger });
 
+  type Instance = ReturnType<typeof makeDelegatorLikeInstance>;
   let ids: Awaited<ReturnType<typeof seedSupervisedDelegation>>;
   let caller: Caller;
-  let instance: ReturnType<typeof makeDelegatorLikeInstance>;
+  /** rules as registered: relational at every nesting site */
+  let relational: Instance;
+  /** the same rules, resolved to primary key lists per request */
+  let resolved: Instance;
 
   beforeAll(async () => {
     await createTables(db, schema);
     ids = await seedSupervisedDelegation(db, schema);
     caller = { userId: ids.supervisor, roles: [] };
-    instance = makeDelegatorLikeInstance(db, schema, caller);
+    relational = makeDelegatorLikeInstance(db, schema, caller);
+    resolved = makeDelegatorLikeInstance(db, schema, caller, {
+      resolveRelationalRules: { enabled: true },
+    });
   });
 
-  /** Runs the query and returns its result with the statements it ran. */
-  const run = async (query: string, variables: Record<string, unknown>) => {
+  /**
+   * Runs the query and returns its data with the metrics of the statement
+   * answering it (the last one) and of the lookups before it.
+   */
+  const run = async (
+    instance: Instance,
+    query: string,
+    variables: Record<string, unknown>,
+  ) => {
     capture.reset();
     const result: any = await instance.executor({
       document: parse(query),
       variables,
     });
     expect(result.errors).toBeUndefined();
-    expect(capture.statements).toHaveLength(1);
+    const statements = capture.statements.map((s) =>
+      statementMetrics(s, COUNTED_TABLES),
+    );
     return {
       data: result.data,
-      metrics: statementMetrics(capture.statements[0]!, COUNTED_TABLES),
+      main: statements.at(-1)!,
+      lookups: statements.slice(0, -1),
     };
   };
 
+  const card = (instance: Instance) =>
+    run(instance, SUPERVISOR_CARD_QUERY, { id: ids.delegation });
+  const members = (instance: Instance) =>
+    run(instance, SUPERVISED_MEMBERS_QUERY, {
+      delegationId: ids.delegation,
+      supervisorId: ids.conferenceSupervisor,
+    });
+
   test("the supervisor's delegation card reads what the rules grant", async () => {
-    const { data } = await run(SUPERVISOR_CARD_QUERY, { id: ids.delegation });
+    const { data } = await card(relational);
     const delegation = data.delegation;
     expect(delegation.id).toEqual(ids.delegation);
     // supervisors hand out the join code
@@ -95,44 +120,65 @@ describe("statement size of nested selections with relational rules", () => {
     ]);
   });
 
-  test("the supervisor's delegation card is one statement in the low kilobytes", async () => {
-    const { metrics } = await run(SUPERVISOR_CARD_QUERY, {
-      id: ids.delegation,
-    });
-    // measured before any change: ~47,000 characters, ~310 `exists`, 176 params
-    expect(metrics).toSatisfy((m) => m.length <= MAX_STATEMENT_LENGTH);
-  });
-
-  test("the supervised members list is one statement in the low kilobytes", async () => {
-    const { data, metrics } = await run(SUPERVISED_MEMBERS_QUERY, {
-      delegationId: ids.delegation,
-      supervisorId: ids.conferenceSupervisor,
-    });
-    const members = data.delegationMembers;
-    expect(members).toHaveLength(2);
-    for (const member of members) {
+  test("the supervised members list reads what the rules grant", async () => {
+    const { data } = await members(relational);
+    expect(data.delegationMembers).toHaveLength(2);
+    for (const member of data.delegationMembers) {
       expect(member.user.givenName).toBeString();
       expect(member.user.email).toBeString();
       // the care team's notes are not the supervisor's to read
       expect(member.user.globalNotes).toBeNull();
     }
-    // measured before any change: ~36,500 characters, ~250 `exists`
-    expect(metrics).toSatisfy((m) => m.length <= MAX_STATEMENT_LENGTH);
   });
 
-  test("a nested user costs about one evaluation of the user rules", async () => {
-    // one copy of the caller's user rules: the OR of every rule's where, which
-    // is what a nesting site needs at least to filter its rows
-    const abilities: any = instance.rumble.abilityBuilder._.build()(caller);
-    const where = (await abilities.user.filter("read")).sql.where;
-    const rendered = db
-      .select({ id: schema.user.id })
-      .from(schema.user)
-      .where(where)
-      .toSQL();
-    const reference = statementMetrics(rendered, COUNTED_TABLES);
-    expect(reference.exists).toBeGreaterThan(0);
+  /** Lists come back in no particular order, so they are compared sorted by id. */
+  const sorted = (value: any): any => {
+    if (Array.isArray(value)) {
+      return value
+        .map(sorted)
+        .sort((a, b) => String(a?.id).localeCompare(String(b?.id)));
+    }
+    if (value && typeof value === "object") {
+      return Object.fromEntries(
+        Object.entries(value).map(([k, v]) => [k, sorted(v)]),
+      );
+    }
+    return value;
+  };
 
+  test("resolved rules return the same data", async () => {
+    expect(sorted((await card(resolved)).data)).toEqual(
+      sorted((await card(relational)).data),
+    );
+    expect(sorted((await members(resolved)).data)).toEqual(
+      sorted((await members(relational)).data),
+    );
+  });
+
+  test("relational rules render at every nesting site, resolved ones once per table", async () => {
+    const before = await card(relational);
+    const after = await card(resolved);
+    // measured: ~46,000 characters and ~300 `exists` before, ~5,000 and none after
+    expect(before.main.exists).toBeGreaterThan(100);
+    expect(after.main.length).toBeLessThan(before.main.length / 5);
+    // one lookup per table with relational rules, each holding its rules once
+    expect(after.lookups.length).toBeLessThanOrEqual(6);
+    for (const lookup of after.lookups) {
+      expect(lookup.exists).toBeLessThanOrEqual(before.main.exists / 2);
+    }
+  });
+
+  test("the supervisor's delegation card is one statement in the low kilobytes", async () => {
+    const { main } = await card(resolved);
+    expect(main).toSatisfy((m) => m.length <= MAX_STATEMENT_LENGTH);
+  });
+
+  test("the supervised members list is one statement in the low kilobytes", async () => {
+    const { main } = await members(resolved);
+    expect(main).toSatisfy((m) => m.length <= MAX_STATEMENT_LENGTH);
+  });
+
+  test("a nested user adds a bounded amount, whatever the rules", async () => {
     // the same delegation with zero, one and two nesting sites of `user`
     const selections = [
       "members { id } papers { id }",
@@ -141,11 +187,12 @@ describe("statement size of nested selections with relational rules", () => {
     ];
     const sizes = [];
     for (const selection of selections) {
-      const { metrics } = await run(
+      const { main } = await run(
+        resolved,
         `query($id: ID!) { delegation(id: $id) { id ${selection} } }`,
         { id: ids.delegation },
       );
-      sizes.push(metrics);
+      sizes.push(main);
     }
 
     for (let site = 1; site < sizes.length; site++) {
@@ -153,13 +200,13 @@ describe("statement size of nested selections with relational rules", () => {
         site,
         length: sizes[site]!.length - sizes[site - 1]!.length,
         exists: sizes[site]!.exists - sizes[site - 1]!.exists,
-        reference: { length: reference.length, exists: reference.exists },
       };
-      // measured before any change: each site adds ~30,000 characters and
-      // ~205 `exists`, about twice the reference, since the column flags
-      // render every rule a second time
-      expect(added).toSatisfy((a) => a.length <= a.reference.length * 1.25);
-      expect(added).toSatisfy((a) => a.exists <= a.reference.exists * 1.1);
+      // with relational rules each site added ~30,000 characters and ~200
+      // `exists`: every rule in the filter and once more in the flags.
+      // Resolved, a site is the nested select, the id lists and the flags
+      // checking them: ~1,400 characters.
+      expect(added).toSatisfy((a) => a.length <= 4_000);
+      expect(added).toSatisfy((a) => a.exists === 0);
     }
   });
 });

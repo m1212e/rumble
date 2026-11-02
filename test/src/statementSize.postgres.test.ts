@@ -21,9 +21,10 @@ import {
 
 /**
  * The Postgres half of the statement size replication (see
- * `statementSize.test.ts` and TODO.md): what planning the supervisor card's
- * statement costs. Postgres has no limit on planning memory, and ten
- * connections planning ~100 MB each is what took DELEGATOR's database down.
+ * `statementSize.test.ts`): what planning the
+ * supervisor card's statement costs. Postgres has no limit on planning memory,
+ * and ten connections planning ~100 MB each is what took DELEGATOR's database
+ * down.
  *
  * Needs Postgres 17 or newer for `explain (memory)`. Runs only with
  * `RUMBLE_TEST_DATABASE_URL` set, e.g. against the dev compose database:
@@ -51,8 +52,10 @@ describe.skipIf(!DATABASE_URL)("statement planning memory on Postgres", () => {
   const capture = makeStatementCapture();
   const db = drizzle({ client: pool, relations, logger: capture.logger });
 
+  type Instance = ReturnType<typeof makeDelegatorLikeInstance>;
   let ids: Awaited<ReturnType<typeof seedSupervisedDelegation>>;
-  let instance: ReturnType<typeof makeDelegatorLikeInstance>;
+  let relational: Instance;
+  let resolved: Instance;
 
   beforeAll(async () => {
     const version = await pool.query("show server_version_num");
@@ -68,9 +71,10 @@ describe.skipIf(!DATABASE_URL)("statement planning memory on Postgres", () => {
     // without statistics the planner's first attempt at the card statement
     // ran for 15 seconds on these handful of rows
     await db.execute(sql.raw(`analyze`));
-    instance = makeDelegatorLikeInstance(db, schema, {
-      userId: ids.supervisor,
-      roles: [],
+    const caller = { userId: ids.supervisor, roles: [] };
+    relational = makeDelegatorLikeInstance(db, schema, caller);
+    resolved = makeDelegatorLikeInstance(db, schema, caller, {
+      resolveRelationalRules: { enabled: true },
     });
   });
 
@@ -78,18 +82,6 @@ describe.skipIf(!DATABASE_URL)("statement planning memory on Postgres", () => {
     await db.execute(sql.raw(`drop schema if exists "${SCHEMA_NAME}" cascade`));
     await pool.end();
   });
-
-  /** Runs the query and returns the statement it ran. */
-  const run = async (query: string, variables: Record<string, unknown>) => {
-    capture.reset();
-    const result: any = await instance.executor({
-      document: parse(query),
-      variables,
-    });
-    expect(result.errors).toBeUndefined();
-    expect(capture.statements).toHaveLength(1);
-    return capture.statements[0]!;
-  };
 
   /** The planner's figures for the statement, in kB and ms. */
   const plan = async ({ sql, params }: CapturedStatement) => {
@@ -100,28 +92,77 @@ describe.skipIf(!DATABASE_URL)("statement planning memory on Postgres", () => {
     const plan = explained.rows[0]["QUERY PLAN"][0];
     return {
       memoryUsedKB: plan.Planning["Memory Used"] as number,
-      memoryAllocatedKB: plan.Planning["Memory Allocated"] as number,
       planningTimeMs: plan["Planning Time"] as number,
     };
   };
 
-  test("planning the supervisor's delegation card takes a few MB", async () => {
-    const statement = await run(SUPERVISOR_CARD_QUERY, { id: ids.delegation });
-    const planning = await plan(statement);
-    const metrics = { ...statementMetrics(statement, ["user"]), ...planning };
-    // measured before any change: ~58,000 characters, 53 MB used, 57 MB allocated
-    expect(metrics).toSatisfy((m) => m.length <= MAX_STATEMENT_LENGTH);
-    expect(metrics).toSatisfy((m) => m.memoryUsedKB <= MAX_PLANNING_MEMORY_KB);
-  });
+  /**
+   * Runs the query and returns the size and planning figures of the statement
+   * answering it (the last one) and the planning memory of all statements.
+   */
+  const run = async (
+    instance: Instance,
+    query: string,
+    variables: Record<string, unknown>,
+  ) => {
+    capture.reset();
+    const result: any = await instance.executor({
+      document: parse(query),
+      variables,
+    });
+    expect(result.errors).toBeUndefined();
+    const statements = capture.statements;
+    const planned = await Promise.all(statements.map(plan));
+    const main = statements.at(-1)!;
+    return {
+      data: result.data,
+      main: {
+        ...statementMetrics(main, ["user"]),
+        ...planned.at(-1)!,
+        arrayLists: (main.sql.match(/= any\(\$\d+\)/g) ?? []).length,
+      },
+      totalMemoryUsedKB: planned.reduce((sum, p) => sum + p.memoryUsedKB, 0),
+      statements: statements.length,
+    };
+  };
 
-  test("planning the supervised members list takes a few MB", async () => {
-    const statement = await run(SUPERVISED_MEMBERS_QUERY, {
+  const card = (instance: Instance) =>
+    run(instance, SUPERVISOR_CARD_QUERY, { id: ids.delegation });
+  const members = (instance: Instance) =>
+    run(instance, SUPERVISED_MEMBERS_QUERY, {
       delegationId: ids.delegation,
       supervisorId: ids.conferenceSupervisor,
     });
-    const planning = await plan(statement);
-    const metrics = { ...statementMetrics(statement, ["user"]), ...planning };
-    expect(metrics).toSatisfy((m) => m.length <= MAX_STATEMENT_LENGTH);
-    expect(metrics).toSatisfy((m) => m.memoryUsedKB <= MAX_PLANNING_MEMORY_KB);
+
+  test("planning the supervisor's delegation card takes a few MB", async () => {
+    const before = await card(relational);
+    const after = await card(resolved);
+    // measured: ~58,000 characters and 51 MB before
+    expect(before.main.memoryUsedKB).toBeGreaterThan(MAX_PLANNING_MEMORY_KB);
+    expect(after.main).toSatisfy((m) => m.length <= MAX_STATEMENT_LENGTH);
+    expect(after.main).toSatisfy(
+      (m) => m.memoryUsedKB <= MAX_PLANNING_MEMORY_KB,
+    );
+    // the lookups before it are each one copy of a table's rules
+    expect(after).toSatisfy(
+      (a) => a.totalMemoryUsedKB < before.totalMemoryUsedKB / 2,
+    );
+    // the id lists are array parameters, so they do not grow the statement
+    expect(after.main.arrayLists).toBeGreaterThan(0);
+    expect(after.main.params).toBeLessThan(before.main.params);
+    expect(after.data.delegation.members).toHaveLength(2);
+    expect(after.data.delegation.papers).toHaveLength(1);
+  });
+
+  test("planning the supervised members list takes a few MB", async () => {
+    const before = await members(relational);
+    const after = await members(resolved);
+    expect(after.main).toSatisfy((m) => m.length <= MAX_STATEMENT_LENGTH);
+    expect(after.main).toSatisfy(
+      (m) => m.memoryUsedKB <= MAX_PLANNING_MEMORY_KB,
+    );
+    expect(after).toSatisfy(
+      (a) => a.totalMemoryUsedKB < before.totalMemoryUsedKB / 2,
+    );
   });
 });

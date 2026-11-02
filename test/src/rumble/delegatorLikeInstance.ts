@@ -1,6 +1,7 @@
 import { buildHTTPExecutor } from "@graphql-tools/executor-http";
 import type { Logger } from "drizzle-orm";
 import { rumble } from "../../../lib";
+import type { RuleResolutionConfig } from "../../../lib/abilityBuilder/resolveRules";
 import type { DelegatorLikeSchema } from "../db/delegatorLike";
 
 /**
@@ -104,12 +105,23 @@ const onceReleased = (filter: object | undefined) =>
 const supervisedByCaller = (ctx: Caller) =>
   ctx.userId ? { supervisors: { user: { id: ctx.userId } } } : undefined;
 
+/** The user rules of one ability builder, for `RuleOverrides.user`. */
+export type RegisterRules = (ab: any) => void;
+
 /**
- * Registers the read rules of DELEGATOR's `*Permissions.ts` files for the
- * tables of the fixture, the `user` ones in full: about ten relational rules
- * with differing columns, which is what makes every nested `user` expensive.
+ * Rules to register in place of the fixture's own, to compare how the
+ * generated statements change with differently shaped rules.
  */
-function registerAbilities(ab: any) {
+export type RuleOverrides = {
+  user?: RegisterRules;
+  /** grants every other table without conditions, to isolate the user rules */
+  unrestrictedOthers?: boolean;
+  /** the rumble option resolving relational rules to primary key lists */
+  resolveRelationalRules?: RuleResolutionConfig;
+};
+
+/** The column sets of DELEGATOR's user rules. */
+const USER_COLUMNS = (() => {
   const NAME = {
     id: true,
     createdAt: true,
@@ -126,6 +138,25 @@ function registerAbilities(ab: any) {
     birthday: true,
   };
   const WITHOUT_CARE_NOTES = { globalNotes: false };
+  return { NAME, NAME_AND_EMAIL, IDENTITY, WITHOUT_CARE_NOTES };
+})();
+
+const OTHER_TABLES = [
+  "conference",
+  "teamMember",
+  "conferenceParticipant",
+  "conferenceSupervisor",
+  "delegation",
+  "delegationMember",
+  "roleApplication",
+  "conferenceRole",
+  "nation",
+  "paper",
+];
+
+/** DELEGATOR's thirteen read rules on `user`, as in `userPermissions.ts`. */
+function registerUserAbilities(ab: any) {
+  const { NAME, NAME_AND_EMAIL, IDENTITY, WITHOUT_CARE_NOTES } = USER_COLUMNS;
 
   const duplicateOfCaredForUser = (ctx: Caller, status: string[]) => {
     const caredFor = isCaredForUser(ctx);
@@ -264,6 +295,19 @@ function registerAbilities(ab: any) {
         }
       : undefined,
   );
+}
+
+/**
+ * Registers the read rules of DELEGATOR's `*Permissions.ts` files for the
+ * tables of the fixture, the `user` ones in full: about ten relational rules
+ * with differing columns, which is what makes every nested `user` expensive.
+ */
+function registerAbilities(ab: any, overrides: RuleOverrides = {}) {
+  (overrides.user ?? registerUserAbilities)(ab);
+  if (overrides.unrestrictedOthers) {
+    for (const table of OTHER_TABLES) ab[table].allow("read");
+    return;
+  }
 
   // conference
   ab.conference.allow("read").when(() => ({
@@ -488,10 +532,10 @@ function registerAbilities(ab: any) {
   });
 }
 
-/** The warning threshold TODO.md suggests for a single generated statement. */
+/** The size a single generated statement should stay under. */
 export const MAX_STATEMENT_LENGTH = 16_000;
 
-/** What DELEGATOR's supervisor card reads of a delegation (TODO.md). */
+/** What DELEGATOR's supervisor card reads of a delegation. */
 export const SUPERVISOR_CARD_QUERY = /* GraphQL */ `
   query($id: ID!) {
     delegation(id: $id) {
@@ -549,15 +593,17 @@ export function makeDelegatorLikeInstance(
   db: any,
   schema: DelegatorLikeSchema,
   caller: Caller,
+  overrides: RuleOverrides = {},
 ) {
   const r = rumble({
     db,
     schema,
     context: () => caller,
     defaultLimit: null,
+    resolveRelationalRules: overrides.resolveRelationalRules,
   });
 
-  registerAbilities(r.abilityBuilder);
+  registerAbilities(r.abilityBuilder, overrides);
 
   // the schema is built at runtime, so the table names are plain strings here
   const untyped = r as any;
@@ -580,8 +626,8 @@ export function makeDelegatorLikeInstance(
 }
 
 /**
- * The size figures of a statement, the ones TODO.md reports for the
- * production statement.
+ * The size figures of a statement, as measured on the production statement
+ * that took the database down.
  */
 export function statementMetrics(
   { sql, params }: CapturedStatement,

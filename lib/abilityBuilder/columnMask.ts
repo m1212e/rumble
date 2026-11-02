@@ -1,4 +1,4 @@
-import { aliasedTable, or, relationsFilterToSQL, sql } from "drizzle-orm";
+import { or, relationsFilterToSQL, sql } from "drizzle-orm";
 import { realWhere } from "../helpers/mergeFilters";
 import { sanitizeFilterValue } from "../helpers/sanitizeFilterValue";
 import type {
@@ -30,20 +30,6 @@ export type ColumnMask = {
   /** keyed by the matched groups, e.g. "01" */
   hiddenPerMatch: Map<string, HiddenColumns>;
 };
-
-function referencesRelation(
-  filter: unknown,
-  relations: Record<string, unknown>,
-): boolean {
-  if (!filter || typeof filter !== "object") return false;
-  return Object.entries(filter).some(([key, value]) => {
-    if (key === "AND" || key === "OR") {
-      return (value as unknown[]).some((v) => referencesRelation(v, relations));
-    }
-    if (key === "NOT") return referencesRelation(value, relations);
-    return key in relations;
-  });
-}
 
 function selectedColumns(
   columns: Record<string, boolean | undefined> | undefined,
@@ -147,7 +133,6 @@ export function createColumnAccessResolver<
 >({ db, actions }: AbilitySettings<DB, Action>, tableSchema: TableSchema) {
   const allColumnNames = Object.keys(tableSchema.columns);
   const primaryKeyNames = Object.keys(tableSchema.primaryKey);
-  const primaryKeyName = primaryKeyNames[0]!;
 
   const toSQL = (table: any, wheres: unknown[]) =>
     or(
@@ -160,22 +145,6 @@ export function createColumnAccessResolver<
         ),
       ),
     );
-
-  // Relational filters become subqueries. They are correlated to the row
-  // (`exists (... where pk = row.pk and rule)`): an uncorrelated
-  // `pk in (select pk ... where rule)` makes postgres evaluate every rule
-  // against the whole table, once per flag and per nesting site, which turns
-  // queries nesting a masked relation twice into multi-second ones.
-  const uncorrelated = (table: any, wheres: unknown[], group: number) => {
-    const inner = aliasedTable(tableSchema.table, `rumble_columns_${group}`);
-    // a subquery renders with its own parentheses
-    return sql`exists ${(db as any)
-      .select({ pk: inner[primaryKeyName] })
-      .from(inner)
-      .where(
-        sql`${inner[primaryKeyName]} = ${table[primaryKeyName]} and (${toSQL(inner, wheres)})`,
-      )}`;
-  };
 
   // An ability's columns only apply to the rows matched by its where. The
   // wheres are expected to restrict rows, see `restrictingWhere`.
@@ -237,16 +206,15 @@ export function createColumnAccessResolver<
     const extras: Record<string, (table: any) => any> = {
       [ACTION_FLAG_KEY]: () => sql`${actionIndex}`,
     };
+    // Relational conditions render as `exists` subqueries correlated to the
+    // row through its (aliased) table, so each flag costs the rules of its
+    // group once. An uncorrelated `pk in (select pk ... where rule)` made
+    // postgres evaluate every rule against the whole table, once per flag and
+    // per nesting site, which turned queries nesting a masked relation twice
+    // into multi-second ones.
     groups.forEach(({ wheres }, group) => {
-      const relational = wheres.some((w) =>
-        referencesRelation(w, tableSchema.relations),
-      );
-      extras[mask.flags[group]!] = (table: any) => {
-        const condition = relational
-          ? uncorrelated(table, wheres, group)
-          : toSQL(table, wheres);
-        return sql`case when ${condition} then 1 else 0 end`;
-      };
+      extras[mask.flags[group]!] = (table: any) =>
+        sql`case when ${toSQL(table, wheres)} then 1 else 0 end`;
     });
 
     return { columns, extras, mask, visibility };
