@@ -204,8 +204,11 @@ export function makeGraphQLQueryRequest({
   });
 
   const observableSources: Source<any>[] = [
-    client.query(operationString, variables),
-    // client.read
+    client.query(
+      operationString,
+      variables,
+      enableSubscription ? { requestPolicy: "cache-first" } : undefined,
+    ),
   ];
   if (enableSubscription) {
     const { operationString: subOpString, variables: subVars } = makeOperation({
@@ -221,12 +224,12 @@ export function makeGraphQLQueryRequest({
     pipe(
       merge(observableSources),
       dedupeResults(queryName),
+      // A failed update keeps the last data. Thrown from here it would escape into whichever source
+      // pushed it (a subscription transport, a network exchange) as an uncaught error, and readers
+      // would not see it either way. The first result's error rejects the promise below.
+      filter((v: any) => !v.error),
       share,
       map((v: any) => {
-        if (v.error) {
-          throw v.error;
-        }
-
         const data = v.data?.[queryName];
         if (typeof data === "object" && data !== null) {
           currentData = data;

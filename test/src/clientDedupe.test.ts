@@ -104,15 +104,32 @@ describe("client live query deduplication", () => {
     sub.unsubscribe();
   });
 
-  test("errors are never deduplicated", async () => {
+  test("errors are never deduplicated", () => {
+    const subject = makeSubject<any>();
+    const client = { subscription: () => subject.source } as any;
+    const sub = makeGraphQLSubscriptionRequest({
+      subscriptionName: "items",
+      schema,
+      input: { id: true, name: true },
+      client,
+    }).subscribe({ next: () => {} });
+    // a plain subscription surfaces errors by throwing; identical errors must both get through
+    expect(() => subject.next({ error: new Error("boom") })).toThrow("boom");
+    expect(() => subject.next({ error: new Error("boom") })).toThrow("boom");
+    sub.unsubscribe();
+  });
+
+  test("a live query's failed update keeps the last data, and a repeat of it still dedupes", async () => {
     const { promise, subject } = setup([{ id: "1", name: "a" }]);
     const result = await promise;
 
-    const sub = result.subscribe({ next: () => {} });
+    const received: any[] = [];
+    const sub = result.subscribe({ next: (v: any) => received.push(v) });
     await tick();
-    // the pipeline surfaces errors by throwing; identical errors must both get through
-    expect(() => subject.next({ error: new Error("boom") })).toThrow("boom");
-    expect(() => subject.next({ error: new Error("boom") })).toThrow("boom");
+    const before = received.length;
+    expect(() => subject.next({ error: new Error("boom") })).not.toThrow();
+    subject.next({ data: { items: [{ id: "1", name: "a" }] } });
+    expect(received.length).toBe(before);
     sub.unsubscribe();
   });
 
