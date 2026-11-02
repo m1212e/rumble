@@ -176,14 +176,16 @@ export function createInputGuard<DB extends DrizzleInstance>({
 
     const schema = tableHelper({ db, table });
     return (aliased: any, { asc, desc }: any) =>
-      entries.map(([key, direction]) => {
-        const condition = visibility(key);
-        const column = aliased[key];
-        const value =
-          condition === true
-            ? column
-            : condition === false
-              ? null
+      entries
+        // a column no row exposes is empty everywhere and orders nothing,
+        // and Postgres refuses a bare `order by null`
+        .filter(([key]) => visibility(key) !== false)
+        .map(([key, direction]) => {
+          const condition = visibility(key);
+          const column = aliased[key];
+          const value =
+            condition === true
+              ? column
               : // the column only counts where it is exposed
                 sql`case when ${relationsFilterToSQL(
                   aliased,
@@ -191,8 +193,8 @@ export function createInputGuard<DB extends DrizzleInstance>({
                   schema.relations,
                   db._.relations,
                 )} then ${column} end`;
-        return (direction === "asc" ? asc : desc)(value ?? sql`null`);
-      });
+          return (direction === "asc" ? asc : desc)(value);
+        });
   };
 
   return {

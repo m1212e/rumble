@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { parse } from "graphql";
 import { makeSeededDBInstanceForTest } from "./db/db";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
@@ -145,6 +145,34 @@ describe("filter arguments respect column masks", async () => {
       0,
       asc.data.users.length - 1,
     ]);
+  });
+
+  test("sorting by a column no rule exposes leaves the order alone", async () => {
+    const fresh = makeRumbleSeedInstance(db, data.users[0]!.id);
+    fresh.rumble.abilityBuilder.users.allow("read").when({
+      columns: { id: true, firstName: true },
+    });
+    const { executor } = fresh.build();
+    const statements = spyOn(db.$client, "query");
+    const r: any = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          users(orderBy: { email: asc, firstName: desc }) {
+            firstName
+          }
+        }
+      `),
+    });
+    expect(r.errors).toBeUndefined();
+    // SQLite takes it, but Postgres refuses a bare `order by null`
+    expect(statements.mock.calls.flat().join("\n")).not.toMatch(
+      /order by null/i,
+    );
+    statements.mockRestore();
+    const names = r.data.users.map((u: any) => u.firstName);
+    expect(names).toEqual(
+      names.toSorted((a: string, b: string) => (a < b ? 1 : a > b ? -1 : 0)),
+    );
   });
 
   test("without masks nothing changes", async () => {
