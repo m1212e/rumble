@@ -1,6 +1,6 @@
 import type { AttributeValue } from "@opentelemetry/api";
-import { relationsFilterToSQL } from "drizzle-orm";
 import { mergeFilters, realWhere } from "../helpers/mergeFilters";
+import { relationsFilterToSQL } from "../helpers/relationsFilterToSQL";
 import { sanitizeFilterValue } from "../helpers/sanitizeFilterValue";
 import { createDistinctValuesFromSQLType } from "../helpers/sqlTypes/distinctValuesFromSQLType";
 import { tableHelper } from "../helpers/tableHelpers";

@@ -1,6 +1,7 @@
-import { relationsFilterToSQL, type SQL } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import { once } from "es-toolkit";
 import { mergeFilters } from "../helpers/mergeFilters";
+import { relationsFilterToSQL } from "../helpers/relationsFilterToSQL";
 import { sanitizeFilterValue } from "../helpers/sanitizeFilterValue";
 import type {
   DrizzleInstance,
@@ -145,15 +146,12 @@ export function createFilterResponder<
     );
 
     const sqlTransformedWhere = once(() => {
-      const casing = (db._ as any).session?.dialect?.casing;
-
       return where
         ? relationsFilterToSQL(
             tableSchema.foundRelation.table,
             sanitizeFilterValue(where) as any,
             tableSchema.relations,
             db._.relations,
-            casing,
           )
         : undefined;
     });

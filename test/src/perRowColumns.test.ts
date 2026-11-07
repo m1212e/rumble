@@ -535,9 +535,12 @@ describe("per row column abilities", async () => {
       t.field({
         type: [SearchResult],
         resolve: async (_root, _args, ctx) =>
-          db.query.users.findMany(
-            (await ctx.abilities.users.filter("read")).query.many as any,
-          ),
+          // a config typed `any` makes drizzle's result a union of every shape
+          (await db.query.users.findMany(
+            (
+              await ctx.abilities.users.filter("read")
+            ).query.many as any,
+          )) as (typeof schema.users.$inferSelect)[],
       }),
     );
 

@@ -1,4 +1,5 @@
-import { relationsFilterToSQL, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
+import { relationsFilterToSQL } from "../helpers/relationsFilterToSQL";
 import { sanitizeFilterValue } from "../helpers/sanitizeFilterValue";
 import { tableHelper } from "../helpers/tableHelpers";
 import type { DrizzleInstance } from "../types/drizzleInstanceType";

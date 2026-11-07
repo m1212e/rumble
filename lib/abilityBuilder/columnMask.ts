@@ -1,5 +1,6 @@
-import { or, relationsFilterToSQL, sql } from "drizzle-orm";
+import { or, sql } from "drizzle-orm";
 import { realWhere } from "../helpers/mergeFilters";
+import { relationsFilterToSQL } from "../helpers/relationsFilterToSQL";
 import { sanitizeFilterValue } from "../helpers/sanitizeFilterValue";
 import type {
   DrizzleInstance,

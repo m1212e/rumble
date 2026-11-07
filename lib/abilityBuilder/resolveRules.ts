@@ -1,9 +1,10 @@
-import { relationsFilterToSQL, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { unionAll as mysqlUnionAll } from "drizzle-orm/mysql-core";
 import { unionAll as pgUnionAll } from "drizzle-orm/pg-core";
 import { unionAll as sqliteUnionAll } from "drizzle-orm/sqlite-core";
 import { determineDBDialectFromSchema } from "../helpers/determineDialectFromSchema";
 import { realWhere } from "../helpers/mergeFilters";
+import { relationsFilterToSQL } from "../helpers/relationsFilterToSQL";
 import { sanitizeFilterValue } from "../helpers/sanitizeFilterValue";
 import type { DrizzleInstance } from "../types/drizzleInstanceType";
 import type { AbilitySettings, TableSchema } from "./types";

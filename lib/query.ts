@@ -97,11 +97,14 @@ export const createQueryImplementer = <
      */
     listAction?: Action;
 
+    // The handlers return rows, or a drizzle query (a thenable) that resolves to them. Not
+    // typed as `ReturnType` of drizzle's own findMany/findFirst: since drizzle 1.0.0-rc.5
+    // that is a driver-kinded type `ReturnType` cannot resolve, and it came out as `any`.
     findMany?: (p: {
       tx: DB | Parameters<Parameters<DB["transaction"]>[0]>[0];
       filter: Parameters<DrizzleQueryFunction<DB>[TableName]["findMany"]>[0];
       queryArgs: Parameters<DrizzleQueryFunction<DB>[TableName]["findMany"]>[0];
-    }) => ReturnType<DrizzleQueryFunction<DB>[TableName]["findMany"]>;
+    }) => PromiseLike<Record<string, unknown>[]>;
 
     findFirst?: (p: {
       tx: DB;
@@ -109,7 +112,7 @@ export const createQueryImplementer = <
       queryArgs: Parameters<
         DrizzleQueryFunction<DB>[TableName]["findFirst"]
       >[0];
-    }) => ReturnType<DrizzleQueryFunction<DB>[TableName]["findFirst"]>;
+    }) => PromiseLike<Record<string, unknown> | undefined>;
   }) => {
     const WhereArg = whereArgImplementer({
       table: table,

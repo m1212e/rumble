@@ -1,4 +1,4 @@
-import type { Table } from "drizzle-orm";
+import type { InferSelectModel, Table } from "drizzle-orm";
 import type { MySqlAsyncDatabase } from "drizzle-orm/mysql-core";
 import type { PgAsyncDatabase } from "drizzle-orm/pg-core";
 import type { SQLiteAsyncDatabase } from "drizzle-orm/sqlite-core";
@@ -37,10 +37,18 @@ export type DrizzleQueryFunctionInput<
 
 /**
  * Type representing the type of a record in a specific table of the Drizzle instance.
+ *
+ * Read from the table (what a `findFirst()` without config returns), not from
+ * `findFirst`'s return type: since drizzle 1.0.0-rc.5 that is a driver-kinded
+ * type `ReturnType` cannot resolve, and it came out as `any`.
  */
 export type DrizzleTableValueType<
   DB extends DrizzleInstance,
   QueryField extends keyof DrizzleQueryFunction<DB>,
-> = NonNullable<
-  Awaited<ReturnType<DrizzleQueryFunction<DB>[QueryField]["findFirst"]>>
->;
+> = QueryField extends keyof DB["_"]["relations"]
+  ? DB["_"]["relations"][QueryField] extends { table: infer TTable }
+    ? TTable extends Table<any>
+      ? InferSelectModel<TTable>
+      : never
+    : never
+  : never;

@@ -89,7 +89,7 @@ exports[`ability builder columns relational conditions render as exists subqueri
   "params": [
     "x",
   ],
-  "sql": "select case when exists (select * from "posts_table" as "f0" where (("users_table"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1) then 1 else 0 end from "users_table"",
+  "sql": "select case when exists (select * from "posts_table" as "f0" where (("users_table"."id" = "f0"."ownerId") and ("f0"."title" = ?))) then 1 else 0 end from "users_table"",
 }
 `;
 
@@ -99,7 +99,7 @@ exports[`ability builder columns relational conditions render as exists subqueri
     "a",
     "x",
   ],
-  "sql": "select case when (("users_table"."id" = ?) and (exists (select * from "posts_table" as "f0" where (("users_table"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))) then 1 else 0 end from "users_table"",
+  "sql": "select case when (("users_table"."id" = ?) and (exists (select * from "posts_table" as "f0" where (("users_table"."id" = "f0"."ownerId") and ("f0"."title" = ?))))) then 1 else 0 end from "users_table"",
 }
 `;
 
@@ -109,7 +109,7 @@ exports[`ability builder columns relational conditions render as exists subqueri
     "a",
     "x",
   ],
-  "sql": "select case when (("users_table"."id" = ?) or (exists (select * from "posts_table" as "f0" where (("users_table"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1))) then 1 else 0 end from "users_table"",
+  "sql": "select case when (("users_table"."id" = ?) or (exists (select * from "posts_table" as "f0" where (("users_table"."id" = "f0"."ownerId") and ("f0"."title" = ?))))) then 1 else 0 end from "users_table"",
 }
 `;
 
@@ -118,7 +118,7 @@ exports[`ability builder columns relational conditions render as exists subqueri
   "params": [
     "x",
   ],
-  "sql": "select case when not (exists (select * from "posts_table" as "f0" where (("users_table"."id" = "f0"."ownerId") and ("f0"."title" = ?)) limit 1)) then 1 else 0 end from "users_table"",
+  "sql": "select case when not (exists (select * from "posts_table" as "f0" where (("users_table"."id" = "f0"."ownerId") and ("f0"."title" = ?)))) then 1 else 0 end from "users_table"",
 }
 `;
 
