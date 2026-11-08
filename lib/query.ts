@@ -13,7 +13,7 @@ import {
   traceCorrelationFields,
 } from "./helpers/telemetry";
 import type { MakePubSubInstanceType } from "./pubsub";
-import { adjustQueryArgsForSearch } from "./search";
+import { adjustQueryArgsForSearch, type SearchColumnRegistry } from "./search";
 import type {
   DrizzleInstance,
   DrizzleQueryFunction,
@@ -42,7 +42,9 @@ export const createQueryImplementer = <
   whereArgImplementer,
   orderArgImplementer,
   makePubSubInstance,
+  searchColumns,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig, Schema> & {
+  searchColumns: SearchColumnRegistry;
   schemaBuilder: SchemaBuilderType<
     UserContext,
     DB,
@@ -150,7 +152,9 @@ export const createQueryImplementer = <
         search: t.arg.string({ required: false }),
       };
 
-      if (!search?.enabled) {
+      // read here, while the schema is built, so the order objects and queries
+      // are registered in does not matter
+      if (!search?.enabled || !searchColumns.isEnabled(tableSchema.tsName)) {
         delete (manyArgs as any).search;
       }
 
@@ -189,6 +193,7 @@ export const createQueryImplementer = <
 
             adjustQueryArgsForSearch({
               search,
+              searchColumns,
               args,
               tableSchema,
               abilities: await ctx.abilities[table].filter(listAction),

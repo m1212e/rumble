@@ -8,7 +8,120 @@ import {
   isStringLikeSQLTypeString,
 } from "./helpers/sqlTypes/types";
 import type { tableHelper } from "./helpers/tableHelpers";
+import { RumbleError } from "./types/rumbleError";
 import type { RumbleInput } from "./types/rumbleInput";
+
+/**
+ * Which columns of a table search looks at, as `object({ search })` sets it:
+ * `false` switches search off for the table, a column list limits it to those
+ * columns. Without a setting every text and id column is searched.
+ */
+export type ObjectSearchConfig<ColumnName extends string = string> =
+  | false
+  | { columns: readonly ColumnName[] };
+
+type TableSchema = ReturnType<typeof tableHelper>;
+
+const isSearchableColumn = (col: any) =>
+  isStringLikeSQLTypeString(col.getSQLType()) ||
+  isIDLikeSQLTypeString(col.getSQLType());
+
+/**
+ * The search settings of every table, by its ts name. Filled when the tables'
+ * objects are created and read while the schema is built and requests resolve,
+ * so a table's settings apply wherever it is searched: its list query and every
+ * relation field leading to it.
+ */
+export function createSearchColumnRegistry() {
+  const configs = new Map<string, ObjectSearchConfig>();
+
+  return {
+    register({
+      tableSchema,
+      config,
+    }: {
+      tableSchema: TableSchema;
+      config: ObjectSearchConfig;
+    }) {
+      const table = tableSchema.tsName;
+      if (config !== false) {
+        if (config.columns.length === 0) {
+          throw new RumbleError(
+            `Search on "${table}" names no columns. Use \`search: false\` to switch it off.`,
+          );
+        }
+        for (const key of config.columns) {
+          const column = tableSchema.columns[key];
+          if (!column) {
+            throw new RumbleError(
+              `Search on "${table}" names the column "${key}", which the table does not have.`,
+            );
+          }
+          if (!isSearchableColumn(column)) {
+            throw new RumbleError(
+              `Search on "${table}" names the column "${key}", which is neither a text nor an id column.`,
+            );
+          }
+        }
+      }
+
+      const existing = configs.get(table);
+      if (existing !== undefined && !sameConfig(existing, config)) {
+        throw new RumbleError(
+          `The table "${table}" has objects with different search settings. Give every object of a table the same \`search\`.`,
+        );
+      }
+      configs.set(table, config);
+    },
+    /** `false` when search is switched off for the table */
+    isEnabled(table: string) {
+      return configs.get(table) !== false;
+    },
+    configOf(table: string) {
+      return configs.get(table);
+    },
+  };
+}
+
+export type SearchColumnRegistry = ReturnType<
+  typeof createSearchColumnRegistry
+>;
+
+function sameConfig(a: ObjectSearchConfig, b: ObjectSearchConfig) {
+  if (a === false || b === false) return a === b;
+  return (
+    a.columns.length === b.columns.length &&
+    a.columns.every((column) => b.columns.includes(column))
+  );
+}
+
+/**
+ * The columns a search looks at: the ones the table's object names, or every
+ * text and id column, of which only those the caller may read on every row.
+ * A column only some rows expose would otherwise tell by whether a row matches
+ * what it holds.
+ */
+function columnsToSearch({
+  tableSchema,
+  abilities,
+  searchColumns,
+}: {
+  tableSchema: TableSchema;
+  abilities: any;
+  searchColumns: SearchColumnRegistry;
+}) {
+  const config = searchColumns.configOf(tableSchema.tsName);
+  const candidates = config
+    ? config.columns.map((key) => [key, tableSchema.columns[key]] as const)
+    : Object.entries(tableSchema.columns).filter(([, col]) =>
+        isSearchableColumn(col),
+      );
+  const columnMask: ColumnMask | undefined = abilities[columnMaskKey];
+  // without a mask every column is guaranteed
+  return columnMask
+    ? candidates.filter(([key]) => columnMask.guaranteed.has(key))
+    : candidates;
+}
 
 export async function initSearchIfApplicable(
   input: RumbleInput<any, any, any, any, any, any>,
@@ -72,46 +185,45 @@ export async function initSearchIfApplicable(
  */
 export function adjustQueryArgsForSearch({
   search,
+  searchColumns,
   args,
   tableSchema,
   abilities,
 }: Pick<RumbleInput<any, any, any, any, any, any>, "search"> & {
+  searchColumns: SearchColumnRegistry;
   //TODO types
   args: any;
-  tableSchema: ReturnType<typeof tableHelper>;
+  tableSchema: TableSchema;
   //TODO types
   abilities: any;
 }) {
+  if (!searchColumns.isEnabled(tableSchema.tsName)) {
+    delete args.search;
+    return;
+  }
   if (search?.enabled && args.search && args.search.length > 0) {
-    // this prevents columns beeing searched which are not accessible to the user
-    // if the abilities defined the user not to be allowed to read something, we need
-    // to prevent it from beeing included in the search since this could
-    // leak information. The same goes for columns only some rows may expose.
-    const columnMask: ColumnMask | undefined = abilities[columnMaskKey];
-    // without a mask every column is guaranteed
-    const columnsToSearch = (
-      columnMask
-        ? Object.entries(tableSchema.columns).filter(([key]) =>
-            columnMask.guaranteed.has(key),
-          )
-        : Object.entries(tableSchema.columns)
-    ).filter(
-      ([_key, col]) =>
-        isStringLikeSQLTypeString(col.getSQLType()) ||
-        isIDLikeSQLTypeString(col.getSQLType()),
-    );
+    const columns = columnsToSearch({ tableSchema, abilities, searchColumns });
+
+    // nothing the caller may search: no row matches, rather than every one
+    if (columns.length === 0) {
+      delete args.search;
+      args.where = {
+        AND: [cloneDeep(args.where) ?? {}, { RAW: () => sql`false` }],
+      };
+      return;
+    }
 
     const searchParam = sql`${args.search}`;
 
-    args.extras = {
-      search_distance: (table: any) =>
-        sql`${sql.join(
-          columnsToSearch.map(([key]) => {
-            return sql`COALESCE((${table[key]}::TEXT <-> ${searchParam}), 1)`;
-          }),
-          sql.raw(" + "),
-        )}`,
-    };
+    const searchDistance = (table: any) =>
+      sql`(${sql.join(
+        columns.map(([key]) => {
+          return sql`COALESCE((${table[key]}::TEXT <-> ${searchParam}), 1)`;
+        }),
+        sql.raw(" + "),
+      )})`;
+
+    args.extras = { search_distance: searchDistance };
 
     const originalOrderBy =
       typeof args.orderBy === "function"
@@ -135,7 +247,10 @@ export function adjustQueryArgsForSearch({
         sql.raw(", "),
       );
 
-      const searchSQL = sql`search_distance ASC`;
+      // the expression, not the `search_distance` alias: with relations in the
+      // selection drizzle orders and limits in a subquery that only selects the
+      // table's columns, where the alias does not exist
+      const searchSQL = sql`${searchDistance(table)} ASC`;
 
       const ret = originalOrderBy
         ? sql.join([argsOrderBySQL, searchSQL], sql.raw(", "))
@@ -153,7 +268,7 @@ export function adjustQueryArgsForSearch({
         {
           RAW: (table: any) =>
             sql`(${sql.join(
-              columnsToSearch.map(([key]) => {
+              columns.map(([key]) => {
                 return sql`${table[key]} % ${searchParam}`;
               }),
               sql.raw(" OR "),

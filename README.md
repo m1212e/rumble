@@ -275,6 +275,20 @@ This will add a search field to all list queries and many relations created by t
 ```
 Additionally, a search distance will be returned for each result if the search argument is used (null otherwise). The results are returned sorted by their distance with the best matching fields in the first place. The search will respect all text fields (IDs included) on the table, you always search for all text columns at once. Matches in multiple columns stack and therefore result in a better matching score. So if you search for "alice" and there is a user with the name "Alice" and an email "alice@example.com", the two matching columns will result in a better score than e.g. "al007@example.com"/"Alice".
 > If you have abilities in place which prevent a caller from accessing certain columns, the search will not respect those columns to prevent leaking information.
+
+#### Choosing the searched columns
+
+By default every text column of a table is searched. A table's `object` can name the columns instead, or switch search off for the table:
+
+```ts
+object({
+  table: "users",
+  search: { columns: ["name", "email", "id"] },
+});
+object({ table: "files", search: false }); // no search argument for files
+```
+
+The setting applies wherever the table is searched: its list query and every many relation leading to it. Only the named columns count for the match and the search distance, so columns that never match (an address, a foreign key) no longer dilute the score. A named column the caller may not read on every row is still left out. Naming a column the table does not have, or one that is not a text or id column, throws when the object is created, as does giving two objects of the same table different settings.
 #### Pro tip: Indexing
 
 In case your table grows large, it can be a good idea to create an index to increase performance. Under the hood, searching uses the [pg_trgm](https://www.postgresql.org/docs/current/pgtrgm.html#PGTRGM-INDEX) extension. To create indexes for our searchable columns, we can adjust our drizzle schema accordingly:
@@ -301,7 +315,7 @@ export const user = pgTable(
   ],
 );
 ```
-> When deciding to create indexes for faster searches, ensure that you create them for all text based columns that exist in your table. This includes `text`, `char`, `varchar` and so on. Since rumble always searches all the text columns, it is recommended to create indexes for all text columns in your table, otherwise the search might not be as fast as possible.
+> When deciding to create indexes for faster searches, ensure that you create them for all text based columns that exist in your table. This includes `text`, `char`, `varchar` and so on. Unless the table's `object` names the searched columns, rumble searches all the text columns, so it is recommended to create indexes for all of them (or only for the named ones), otherwise the search might not be as fast as possible.
 
 In case you never started rumble with the search mode activated and you want to create the indexes in your migration, please ensure that the `pg_trgm` extension is installed and enabled in your database. You can do this by running the following SQL command:
 ```sql

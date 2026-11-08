@@ -22,7 +22,11 @@ import {
   traceCorrelationFields,
 } from "./helpers/telemetry";
 import type { MakePubSubInstanceType } from "./pubsub";
-import { adjustQueryArgsForSearch } from "./search";
+import {
+  adjustQueryArgsForSearch,
+  type ObjectSearchConfig,
+  type SearchColumnRegistry,
+} from "./search";
 import type {
   DrizzleInstance,
   DrizzleTableValueType,
@@ -84,7 +88,9 @@ export const createObjectImplementer = <
   orderArgImplementer,
   enumImplementer,
   abilityBuilder,
+  searchColumns,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig, Schema> & {
+  searchColumns: SearchColumnRegistry;
   schemaBuilder: SchemaBuilderType<
     UserContext,
     DB,
@@ -154,6 +160,7 @@ export const createObjectImplementer = <
     table,
     refName,
     readAction = "read" as Action,
+    search: searchConfig,
     adjust,
   }: {
     /**
@@ -170,6 +177,15 @@ export const createObjectImplementer = <
      * Defaults to "read".
      */
     readAction?: Action;
+    /**
+     * Which columns a search of this table looks at, in its list query and in
+     * every relation field leading to it. `false` removes the `search`
+     * argument for the table. Without it every text and id column is searched.
+     * Either way only the columns the caller may read on every row are.
+     */
+    search?: ObjectSearchConfig<
+      Extract<keyof DrizzleTableValueType<DB, TableName>, string>
+    >;
     /**
      * A function which can be used to adjust the fields of the object.
      * You can extend the object by specifying fields that do not exist as
@@ -189,6 +205,9 @@ export const createObjectImplementer = <
   }) => {
     const tableSchema = tableHelper({ db, table });
     abilityBuilder._.registerReadAction(table, readAction);
+    if (searchConfig !== undefined) {
+      searchColumns.register({ tableSchema, config: searchConfig });
+    }
 
     if (Object.keys(tableSchema.primaryKey).length === 0) {
       warn(
@@ -474,7 +493,11 @@ export const createObjectImplementer = <
               search: t.arg.string({ required: false }),
             };
 
-            if (!search?.enabled || !isMany) {
+            if (
+              !search?.enabled ||
+              !isMany ||
+              !searchColumns.isEnabled(relationSchema.tsName)
+            ) {
               delete (args as any).search;
             }
 
@@ -502,6 +525,7 @@ export const createObjectImplementer = <
                   if (isMany) {
                     adjustQueryArgsForSearch({
                       search,
+                      searchColumns,
                       args,
                       tableSchema: relationSchema,
                       abilities:

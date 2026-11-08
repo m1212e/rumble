@@ -38,7 +38,7 @@ import { createObjectImplementer } from "./object";
 import { createPubSubInstance } from "./pubsub";
 import { createQueryImplementer } from "./query";
 import { createSchemaBuilder } from "./schemaBuilder";
-import { initSearchIfApplicable } from "./search";
+import { createSearchColumnRegistry, initSearchIfApplicable } from "./search";
 import type { DrizzleInstance } from "./types/drizzleInstanceType";
 import { RumbleError } from "./types/rumbleError";
 import type {
@@ -227,6 +227,8 @@ export const r = rumble({
     schemaBuilder,
   });
 
+  const searchColumns = createSearchColumnRegistry();
+
   const object = createObjectImplementer<
     UserContext,
     DB,
@@ -242,6 +244,7 @@ export const r = rumble({
     orderArgImplementer: orderArg,
     enumImplementer: enum_,
     abilityBuilder,
+    searchColumns,
   });
 
   const query = createQueryImplementer<
@@ -257,6 +260,7 @@ export const r = rumble({
     whereArgImplementer: whereArg,
     orderArgImplementer: orderArg,
     makePubSubInstance,
+    searchColumns,
   });
 
   const countQuery = createCountQueryImplementer({
