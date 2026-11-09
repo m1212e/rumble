@@ -82,14 +82,33 @@ function recordingClient(subscription = makeSubject<any>().source) {
   return { client, queries };
 }
 
-function request(client: any, enableSubscription: boolean) {
+function request(
+  client: any,
+  enableSubscription: boolean,
+  onError?: (error: any) => void,
+) {
   return makeGraphQLQueryRequest({
     queryName: "items",
     schema,
     input: { id: true, name: true },
     client,
     enableSubscription,
+    onError,
   }) as Promise<any>;
+}
+
+/** A client whose queries answer only when told to, recording how many it was asked to run. */
+function pendingClient() {
+  const answers = makeSubject<any>();
+  let queries = 0;
+  const client = {
+    query: () => {
+      queries++;
+      return answers.source;
+    },
+    subscription: () => makeSubject<any>().source,
+  } as any;
+  return { client, answer: answers.next, queries: () => queries };
 }
 
 describe("the requests a live query makes", () => {
@@ -140,5 +159,58 @@ describe("the requests a live query makes", () => {
       subscription: () => makeSubject<any>().source,
     } as any;
     await expect(request(client, true)).rejects.toThrow("nope");
+  });
+
+  test("subscribing before the first result joins its query rather than asking again", async () => {
+    // without a cache exchange, a second query would go to the network
+    const { client, answer, queries } = pendingClient();
+    const result = request(client, true);
+    const seen: string[] = [];
+    (result as any).subscribe((items: any) => seen.push(items?.[0]?.name));
+    await tick();
+    answer({ data: { items: [{ id: "1", name: "a" }] } });
+    expect((await result)[0].name).toBe("a");
+    await tick();
+
+    expect(queries()).toBe(1);
+    expect(seen).toContain("a");
+  });
+
+  test("subscribe answers the unsubscribe function, which also carries it as unsubscribe", async () => {
+    const subject = makeSubject<any>();
+    const { client } = recordingClient(subject.source);
+    const result = await request(client, true);
+    const seen: string[] = [];
+    const unsubscribe = result.subscribe((items: any) =>
+      seen.push(items?.[0]?.name),
+    );
+    expect(typeof unsubscribe).toBe("function");
+    expect(unsubscribe.unsubscribe).toBe(unsubscribe);
+
+    // an update replaces the data underneath; the result keeps its subscribe
+    subject.next({ data: { items: [{ id: "1", name: "c" }] } });
+    await tick();
+    expect(result[0].name).toBe("c");
+    expect(typeof result.subscribe).toBe("function");
+
+    unsubscribe();
+    subject.next({ data: { items: [{ id: "1", name: "b" }] } });
+    await tick();
+    expect(seen).not.toContain("b");
+  });
+
+  test("a failed update reaches onError", async () => {
+    const subject = makeSubject<any>();
+    const { client } = recordingClient(subject.source);
+    const errors: unknown[] = [];
+    const result = await request(client, true, (error) => errors.push(error));
+    result.subscribe(() => {});
+    await tick();
+
+    const failure = new Error("Server responded with 502");
+    subject.next({ error: failure });
+    await tick();
+    expect(errors).toEqual([failure]);
+    expect(result[0].name).toBe("a");
   });
 });

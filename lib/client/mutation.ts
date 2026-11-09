@@ -3,14 +3,18 @@ import type { IntrospectionQuery } from "graphql";
 import { makeGraphQLMutationRequest } from "./request";
 import type { QueryableObjectFromGeneratedTypes } from "./types";
 
-export function makeMutation<Mutation extends Record<string, any>>({
+export function makeMutation<
+  Mutation extends Record<string, any>,
+  IdField extends string = never,
+>({
   urqlClient,
   schema,
   autoIncludeIdField,
 }: {
   urqlClient: Client;
   schema: IntrospectionQuery;
-  autoIncludeIdField?: string;
+  // any string, so a call naming its type arguments without the id field still compiles
+  autoIncludeIdField?: IdField | string;
 }) {
   return new Proxy(
     {},
@@ -27,5 +31,5 @@ export function makeMutation<Mutation extends Record<string, any>>({
         };
       },
     },
-  ) as QueryableObjectFromGeneratedTypes<Mutation, false>;
+  ) as QueryableObjectFromGeneratedTypes<Mutation, false, IdField>;
 }

@@ -10,9 +10,14 @@ import type {
 
 //TODO: Find out how to sanely refactor these types
 
+/**
+ * `IdField` is the field the client adds to every selection of a type that has it
+ * (`autoIncludeIdField`), so the result types carry it without it being selected.
+ */
 export type QueryableObjectFromGeneratedTypes<
   Q,
   ForceReactivity extends boolean,
+  IdField extends string = never,
 > = {
   // do we have a simple type or a function that returns a type?
   [Key in keyof Q]: Q[Key] extends (p: infer QueryArgs) => infer QueryResponse
@@ -34,7 +39,11 @@ export type QueryableObjectFromGeneratedTypes<
               // transfer array-ness from the original response type to the returned type
               QueryResponse,
               // apply the selection to get the final type
-              ApplySelection<ExtractGQLTypeFromField<QueryResponse>, Selected>
+              ApplySelection<
+                ExtractGQLTypeFromField<QueryResponse>,
+                Selected,
+                IdField
+              >
             >,
             ForceReactivity
           >
@@ -71,24 +80,39 @@ export type ObjectFieldSelection<O> = RequireAtLeastOneFieldSet<{
 }>;
 
 /**
- * Apply a selection to an object type
+ * Apply a selection to an object type, with `IdField` added wherever the type has it, as the
+ * client adds it at runtime
  */
-export type ApplySelection<Object, Selection> = {
-  [Key in keyof Selection & keyof Object]: Object[Key] extends (
+export type ApplySelection<
+  Object,
+  Selection,
+  IdField extends string = never,
+> = {
+  [Key in (keyof Selection | IdField) & keyof Object]: Object[Key] extends (
     p: infer _RequestArgs,
   ) => infer FieldResponse
     ? DeriveNullability<
         FieldResponse,
         DeriveArrayType<
           NonNullable<FieldResponse>,
-          ApplySelection<ExtractGQLTypeFromField<FieldResponse>, Selection[Key]>
+          ApplySelection<
+            ExtractGQLTypeFromField<FieldResponse>,
+            Key extends keyof Selection ? Selection[Key] : never,
+            IdField
+          >
         >
       >
     : Object[Key];
 };
 
+/**
+ * What `subscribe` answers: the function that ends the subscription, which also carries it as
+ * `unsubscribe`, so it serves Svelte's store contract and the observable one alike.
+ */
+export type Unsubscriber = (() => void) & { unsubscribe: () => void };
+
 export type Subscribeable<Data> = {
-  subscribe: (subscription: (value: Data) => void) => () => void;
+  subscribe: (subscription: (value: Data) => void) => Unsubscriber;
 };
 
 type Response<

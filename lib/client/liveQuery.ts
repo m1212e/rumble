@@ -1,4 +1,4 @@
-import type { Client } from "@urql/core";
+import type { Client, CombinedError } from "@urql/core";
 import type { IntrospectionQuery } from "graphql";
 import { makeGraphQLQueryRequest } from "./request";
 import type { QueryableObjectFromGeneratedTypes } from "./types";
@@ -6,18 +6,23 @@ import type { QueryableObjectFromGeneratedTypes } from "./types";
 export function makeLiveQuery<
   Query extends Record<string, any>,
   ForceReactivity extends boolean = false,
+  IdField extends string = never,
 >({
   urqlClient,
   availableSubscriptions,
   forceReactivity,
   schema,
   autoIncludeIdField,
+  onError,
 }: {
   urqlClient: Client;
   schema: IntrospectionQuery;
   availableSubscriptions: Set<string>;
   forceReactivity?: ForceReactivity;
-  autoIncludeIdField?: string;
+  // any string, so a call naming its type arguments without the id field still compiles
+  autoIncludeIdField?: IdField | string;
+  /** Hears every error result a live result skips, keeping its last data. */
+  onError?: (error: CombinedError) => void;
 }) {
   return new Proxy(
     {},
@@ -32,9 +37,10 @@ export function makeLiveQuery<
             forceReactivity,
             schema,
             autoIncludeIdField,
+            onError,
           });
         };
       },
     },
-  ) as QueryableObjectFromGeneratedTypes<Query, ForceReactivity>;
+  ) as QueryableObjectFromGeneratedTypes<Query, ForceReactivity, IdField>;
 }

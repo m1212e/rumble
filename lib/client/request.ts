@@ -1,4 +1,4 @@
-import type { Client } from "@urql/core";
+import type { Client, CombinedError } from "@urql/core";
 import { capitalize, isEqual, once } from "es-toolkit";
 import type {
   IntrospectionInputValue,
@@ -20,6 +20,7 @@ const svelteReactivityReady: Promise<void> = import("svelte/reactivity")
 import {
   filter,
   fromValue,
+  lazy,
   map,
   merge,
   onStart,
@@ -30,6 +31,25 @@ import {
   take,
   toObservable,
 } from "wonka";
+import type { Unsubscriber } from "./types";
+
+type Observable = ReturnType<typeof toObservable<any>>;
+
+/**
+ * The observable as the client hands it out: `subscribe` answers something that both is the
+ * unsubscribe function (Svelte's store contract, and what the types promise) and carries
+ * `unsubscribe` (the observable contract wonka's `toObservable` follows).
+ */
+function asSubscribeable(observable: Observable) {
+  return {
+    ...observable,
+    subscribe(next: (value: any) => void): Unsubscriber {
+      const subscription = observable.subscribe(next);
+      const unsubscribe = () => subscription.unsubscribe();
+      return Object.assign(unsubscribe, { unsubscribe });
+    },
+  };
+}
 
 /**
  * Drops results whose data is deeply equal to the previously emitted one, so
@@ -169,6 +189,7 @@ export function makeGraphQLQueryRequest({
   enableSubscription = false,
   forceReactivity,
   autoIncludeIdField,
+  onError,
 }: {
   queryName: string;
   schema: IntrospectionQuery;
@@ -177,12 +198,21 @@ export function makeGraphQLQueryRequest({
   enableSubscription?: boolean;
   forceReactivity?: boolean;
   autoIncludeIdField?: string;
+  /**
+   * Hears every error result the live result skips (it keeps its last data). The first result's
+   * error also rejects the promise.
+   */
+  onError?: (error: CombinedError) => void;
 }) {
   let currentData: any;
+  // `subscribe` and the observable symbol, served by the proxy itself: assigned onto the data, they
+  // went with it at the first update, which replaces `currentData`
+  let ownMembers: Record<PropertyKey, unknown> = {};
   const dataProxy = once(
     () =>
       new Proxy(currentData, {
         get(_target, prop, receiver) {
+          if (Object.hasOwn(ownMembers, prop)) return ownMembers[prop];
           svelteSubscriber();
           const val = Reflect.get(currentData, prop, receiver);
           if (typeof val === "function") {
@@ -203,12 +233,27 @@ export function makeGraphQLQueryRequest({
     autoIncludeIdField,
   });
 
-  const observableSources: Source<any>[] = [
+  // The promise's query. Shared, so an observable started while it is still on its way joins it
+  // rather than asking a second time: without a cache exchange, the observable's own query would
+  // go to the network too.
+  let firstResultArrived = false;
+  const firstQuery = pipe(
+    client.query(operationString, variables) as Source<any>,
+    share,
+  );
+
+  // Once the first result is in, a (re)started observable asks again: from the cache when a
+  // subscription pushes the current state anyway, with the client's policy otherwise, its only way
+  // to refresh.
+  const laterQuery = () =>
     client.query(
       operationString,
       variables,
       enableSubscription ? { requestPolicy: "cache-first" } : undefined,
-    ),
+    ) as Source<any>;
+
+  const observableSources: Source<any>[] = [
+    lazy(() => (firstResultArrived ? laterQuery() : firstQuery)),
   ];
   if (enableSubscription) {
     const { operationString: subOpString, variables: subVars } = makeOperation({
@@ -225,9 +270,13 @@ export function makeGraphQLQueryRequest({
       merge(observableSources),
       dedupeResults(queryName),
       // A failed update keeps the last data. Thrown from here it would escape into whichever source
-      // pushed it (a subscription transport, a network exchange) as an uncaught error, and readers
-      // would not see it either way. The first result's error rejects the promise below.
-      filter((v: any) => !v.error),
+      // pushed it (a subscription transport, a network exchange) as an uncaught error, so it goes to
+      // `onError` instead. The first result's error rejects the promise below.
+      filter((v: any) => {
+        if (!v.error) return true;
+        onError?.(v.error);
+        return false;
+      }),
       share,
       map((v: any) => {
         const data = v.data?.[queryName];
@@ -239,6 +288,7 @@ export function makeGraphQLQueryRequest({
       }),
     ),
   );
+  const subscribeable = asSubscribeable(observable);
 
   const subscriberReady = svelteReactivityReady.then(() => {
     svelteSubscriber = createSubscriber((update) => {
@@ -254,9 +304,10 @@ export function makeGraphQLQueryRequest({
 
   const promise = new Promise<any>((resolve, reject) => {
     pipe(
-      client.query(operationString, variables) as any,
+      firstQuery,
       take(1),
       subscribe((v: any) => {
+        firstResultArrived = true;
         if (v.error) {
           reject(v.error);
           return;
@@ -268,7 +319,7 @@ export function makeGraphQLQueryRequest({
           return;
         }
         if (typeof forceReactivity === "boolean" && forceReactivity) {
-          subscriberReady.then(() => resolve(observable));
+          subscriberReady.then(() => resolve(subscribeable));
           return;
         }
 
@@ -277,9 +328,8 @@ export function makeGraphQLQueryRequest({
 
         subscriberReady.then(() => {
           try {
-            const r = dataProxy();
-            Object.assign(r, observable);
-            resolve(r);
+            ownMembers = subscribeable;
+            resolve(dataProxy());
           } catch (err) {
             reject(err);
           }
@@ -288,7 +338,7 @@ export function makeGraphQLQueryRequest({
     );
   });
 
-  Object.assign(promise, observable);
+  Object.assign(promise, subscribeable);
   return promise;
 }
 
@@ -342,7 +392,7 @@ export function makeGraphQLMutationRequest({
     );
   });
 
-  Object.assign(promise, observable);
+  Object.assign(promise, asSubscribeable(observable));
   return promise;
 }
 
@@ -367,17 +417,19 @@ export function makeGraphQLSubscriptionRequest({
     autoIncludeIdField,
   });
 
-  return pipe(
-    client.subscription(operationString, variables) as any,
-    dedupeResults(subscriptionName),
-    map((v: any) => {
-      if (v.error) {
-        throw v.error;
-      }
+  return asSubscribeable(
+    pipe(
+      client.subscription(operationString, variables) as any,
+      dedupeResults(subscriptionName),
+      map((v: any) => {
+        if (v.error) {
+          throw v.error;
+        }
 
-      return v.data?.[subscriptionName];
-    }),
-    toObservable,
+        return v.data?.[subscriptionName];
+      }),
+      toObservable,
+    ),
   ) as any;
 }
 

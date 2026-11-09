@@ -49,8 +49,15 @@ export function generateClient({
     typeof forceReactivity === "boolean" && forceReactivity
       ? `\n    forceReactivity: true`
       : "";
-  const forceReactivityTypeString =
-    typeof forceReactivity === "boolean" && forceReactivity ? ", true" : "";
+  const idField =
+    typeof autoIncludeId === "string"
+      ? autoIncludeId
+      : autoIncludeId === true
+        ? "id"
+        : undefined;
+  // the field the client adds to every selection, so the result types carry it too
+  const idTypeString = idField ? `, '${idField}'` : "";
+  const queryTypeArgs = `, ${typeof forceReactivity === "boolean" && forceReactivity}${idTypeString}`;
 
   code += `
 export const defaultOptions: ConstructorParameters<Client>[0] = {
@@ -80,7 +87,7 @@ export const client = {
    *
    * Internally, this does some magic to make the data reactive with Svelte's reactivity system. But it can be used with other frameworks as well.
    */
-  liveQuery: makeLiveQuery<Query${forceReactivityTypeString}>({
+  liveQuery: makeLiveQuery<Query${queryTypeArgs}>({
 	  urqlClient,
 	  availableSubscriptions: new Set([${availableSubscriptions
       .values()
@@ -92,21 +99,21 @@ export const client = {
   /**
    * A mutation that can be used to e.g. create, update or delete data.
    */
-  mutate: makeMutation<Mutation>({
+  mutate: makeMutation<Mutation${idTypeString}>({
 	  urqlClient,
 		schema,${idInclude}
   }),
   /**
    * A continuous stream of results that updates when the server sends new data.
    */
-  subscribe: makeSubscription<Subscription>({
+  subscribe: makeSubscription<Subscription${idTypeString}>({
 	  urqlClient,
 		schema,${idInclude}
   }),
   /**
    * A one-time fetch of data.
    */
-  query: makeQuery<Query${forceReactivityTypeString}>({
+  query: makeQuery<Query${queryTypeArgs}>({
 	  urqlClient,
 		schema,${forceReactivityFieldString}${idInclude}
   }),
