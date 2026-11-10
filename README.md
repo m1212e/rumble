@@ -313,6 +313,23 @@ object({ table: "files", search: false }); // no search argument for files
 
 The setting applies wherever the table is searched: its list query and every many relation leading to it. Only the named columns count for the match and the search distance, so columns that never match (an address, a foreign key) no longer dilute the score. A named column the caller may not read on every row is still left out. Naming a column the table does not have, or one that is not a text or id column, throws when the object is created, as does giving two objects of the same table different settings.
 
+#### Narrowing the searched columns from the client
+
+The `search` argument takes either the term alone or an object naming the columns to search. A term searches every column the server selected; with `columns` only the overlap of the client's and the server's columns is searched:
+
+```graphql
+{
+  users(search: "alice") {
+    id
+  } # every column the server searches
+  users(search: { search: "alice", columns: ["email"] }) {
+    id
+  } # only email
+}
+```
+
+The server keeps the last word: a column the server does not search, or the caller may not read, is ignored rather than added, and if nothing of the named columns is left the search finds no rows. The argument's type is the `Search` scalar, so a document declaring a variable for it uses `$search: Search` (the generated client does that by itself and types it as `string | { search: string; columns?: string[] }`).
+
 #### Pro tip: Indexing
 
 In case your table grows large, it can be a good idea to create an index to increase performance. Under the hood, searching uses the [pg_trgm](https://www.postgresql.org/docs/current/pgtrgm.html#PGTRGM-INDEX) extension. To create indexes for our searchable columns, we can adjust our drizzle schema accordingly:

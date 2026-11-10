@@ -490,7 +490,7 @@ export const createObjectImplementer = <
                     limit: t.arg.int({ required: false }),
                   }
                 : {}),
-              search: t.arg.string({ required: false }),
+              search: t.arg({ type: "Search", required: false }),
             };
 
             if (

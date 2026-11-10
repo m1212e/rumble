@@ -88,14 +88,14 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
   }
 
   const BOOKS = /* GraphQL */ `
-    query ($search: String) {
+    query ($search: Search) {
       books(search: $search) {
         id
       }
     }
   `;
   const AUTHORS = /* GraphQL */ `
-    query ($search: String) {
+    query ($search: Search) {
       authors(search: $search) {
         id
       }
@@ -160,7 +160,7 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
   test("works with a relation and a limit in the selection", async () => {
     const result = await makeInstance()(
       /* GraphQL */ `
-        query ($search: String) {
+        query ($search: Search) {
           books(search: $search, limit: 2) {
             id
             author {
@@ -213,7 +213,7 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
         bookSearch: { columns: ["title"] },
       })(
         /* GraphQL */ `
-          query ($search: String) {
+          query ($search: Search) {
             authors {
               id
               books(search: $search) {
@@ -252,6 +252,87 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
 
       expect(result.errors).toBeUndefined();
       expect(result.data.authors).toEqual([]);
+    });
+  });
+
+  describe("the columns a client names", () => {
+    test("narrow the search to them", async () => {
+      // by every column "Small gods" is b2's blurb and b3's title
+      const result = await makeInstance()(BOOKS, {
+        search: { search: "Small Gods", columns: ["title"] },
+      });
+
+      expect(result.errors).toBeUndefined();
+      expect(result.data.books.map((b: any) => b.id)).toEqual(["b3"]);
+    });
+
+    test("work as an inline literal too", async () => {
+      const result = await makeInstance()(
+        /* GraphQL */ `
+          {
+            books(search: { search: "Small Gods", columns: ["blurb"] }) {
+              id
+            }
+          }
+        `,
+        {},
+      );
+
+      expect(result.errors).toBeUndefined();
+      expect(result.data.books.map((b: any) => b.id)).toEqual(["b2"]);
+    });
+
+    test("cannot add a column the server does not search", async () => {
+      const result = await makeInstance({
+        bookSearch: { columns: ["title"] },
+      })(BOOKS, {
+        search: {
+          search: "A tortoise and a prophet",
+          columns: ["title", "blurb"],
+        },
+      });
+
+      expect(result.errors).toBeUndefined();
+      expect(result.data.books).toEqual([]);
+    });
+
+    test("cannot add a column the caller may not read", async () => {
+      const result = await makeInstance({
+        authorColumns: { id: true, name: true },
+      })(AUTHORS, {
+        search: { search: "Wrote about a flat world", columns: ["bio"] },
+      });
+
+      expect(result.errors).toBeUndefined();
+      expect(result.data.authors).toEqual([]);
+    });
+
+    test("without an overlap with the server's find no rows, not every row", async () => {
+      const result = await makeInstance({
+        bookSearch: { columns: ["title"] },
+      })(BOOKS, { search: { search: "Small Gods", columns: ["nonsense"] } });
+
+      expect(result.errors).toBeUndefined();
+      expect(result.data.books).toEqual([]);
+    });
+
+    test("apply to the relation fields too", async () => {
+      const result = await makeInstance()(
+        /* GraphQL */ `
+          query ($search: Search) {
+            authors(where: { id: { eq: "a1" } }) {
+              books(search: $search) {
+                id
+              }
+            }
+          }
+        `,
+        { search: { search: "Small Gods", columns: ["title"] } },
+      );
+
+      expect(result.errors).toBeUndefined();
+      // b2 has it only in its blurb
+      expect(result.data.authors[0].books).toEqual([]);
     });
   });
 });

@@ -149,7 +149,7 @@ export const createQueryImplementer = <
         orderBy: t.arg({ type: OrderArg, required: false }),
         limit: t.arg.int({ required: false }),
         offset: t.arg.int({ required: false }),
-        search: t.arg.string({ required: false }),
+        search: t.arg({ type: "Search", required: false }),
       };
 
       // read here, while the schema is built, so the order objects and queries
@@ -222,10 +222,12 @@ export const createQueryImplementer = <
               ? (tx: DB) => findMany({ tx, filter: filter as any, queryArgs })
               : (tx: any) => (tx.query as any)[table].findMany(queryArgs);
 
+            // adjustQueryArgsForSearch left only the term in `search`
+            const searchTerm: unknown = (args as { search?: unknown }).search;
             if (
               search?.enabled &&
-              args.search &&
-              args.search.length > 0 &&
+              typeof searchTerm === "string" &&
+              searchTerm.length > 0 &&
               search?.cpu_operator_cost
             ) {
               return db.transaction(async (tx: any) => {

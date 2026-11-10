@@ -8,6 +8,7 @@ import {
   isStringLikeSQLTypeString,
 } from "./helpers/sqlTypes/types";
 import type { tableHelper } from "./helpers/tableHelpers";
+import { normalizeSearch } from "./scalars/search";
 import { RumbleError } from "./types/rumbleError";
 import type { RumbleInput } from "./types/rumbleInput";
 
@@ -105,17 +106,24 @@ function columnsToSearch({
   tableSchema,
   abilities,
   searchColumns,
+  requested,
 }: {
   tableSchema: TableSchema;
   abilities: any;
   searchColumns: SearchColumnRegistry;
+  /** the columns the client asked for; the server's selection without */
+  requested?: readonly string[];
 }) {
   const config = searchColumns.configOf(tableSchema.tsName);
-  const candidates = config
+  const serverSelected = config
     ? config.columns.map((key) => [key, tableSchema.columns[key]] as const)
     : Object.entries(tableSchema.columns).filter(([, col]) =>
         isSearchableColumn(col),
       );
+  // the client can only narrow what the server selected, never widen it
+  const candidates = requested
+    ? serverSelected.filter(([key]) => requested.includes(key))
+    : serverSelected;
   const columnMask: ColumnMask | undefined = abilities[columnMaskKey];
   // without a mask every column is guaranteed
   return columnMask
@@ -201,8 +209,20 @@ export function adjustQueryArgsForSearch({
     delete args.search;
     return;
   }
-  if (search?.enabled && args.search && args.search.length > 0) {
-    const columns = columnsToSearch({ tableSchema, abilities, searchColumns });
+  if (args.search === undefined || args.search === null) return;
+
+  // a term, or `{ search, columns }` narrowing it to some of the columns; from
+  // here on `args.search` is just the term
+  const { search: term, columns: requested } = normalizeSearch(args.search);
+  args.search = term;
+
+  if (search?.enabled && term.length > 0) {
+    const columns = columnsToSearch({
+      tableSchema,
+      abilities,
+      searchColumns,
+      requested,
+    });
 
     // nothing the caller may search: no row matches, rather than every one
     if (columns.length === 0) {

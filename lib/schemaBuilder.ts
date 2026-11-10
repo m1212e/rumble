@@ -66,6 +66,7 @@ import {
 import { EmailAddressResolver } from "./scalars/emailAddress";
 import { PersonNameResolver } from "./scalars/personName";
 import { PhoneNumberResolver } from "./scalars/phoneNumber";
+import { type SearchInput, SearchResolver } from "./scalars/search";
 import type { DrizzleInstance } from "./types/drizzleInstanceType";
 import type {
   CustomRumblePothosConfig,
@@ -147,6 +148,10 @@ export const createSchemaBuilder = <
       PersonName: {
         Input: string;
         Output: string;
+      };
+      Search: {
+        Input: SearchInput;
+        Output: never;
       };
     };
     Inputs: {
@@ -252,6 +257,7 @@ export const createSchemaBuilder = <
   schemaBuilder.addScalarType("PhoneNumber", PhoneNumberResolver);
   schemaBuilder.addScalarType("Locale", LocaleResolver);
   schemaBuilder.addScalarType("PersonName", PersonNameResolver);
+  schemaBuilder.addScalarType("Search", SearchResolver);
   implementDefaultWhereInputArgs(schemaBuilder);
   implementDefaultAddressTypes(schemaBuilder);
 
