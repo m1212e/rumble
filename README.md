@@ -69,6 +69,8 @@ abilityBuilder.posts.allow("read").when({
 
 Condition functions are functions that return condition objects. They are called each time an evaluation takes place and can dynamically decide if something should be allowed or not. They receive the request context as a parameter to decide e.g. based on cookies or headers if something is allowed or not.
 
+They run once per snapshot: again whenever a root field starts to resolve (a mutation after another, a subscription event, a live query refetching), so ids an async function loads stay current. Sibling root fields of one query share a run. A resolver that writes and then reads within the same root field calls `refreshAbilities(ctx.abilities)` in between.
+
 ```ts
 // only the author can update posts
 abilityBuilder.posts

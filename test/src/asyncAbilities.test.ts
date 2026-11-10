@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { parse } from "graphql";
+import { refreshAbilities } from "../../lib";
 import { makeSeededDBInstanceForTest } from "./db/db";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
@@ -251,6 +252,72 @@ describe("async abilities", async () => {
       await run(`query { users { id } }`);
 
       expect(calls).toBe(2);
+    });
+  });
+
+  describe("refreshing the snapshot", () => {
+    const ctx = () => ({ userId: "u1" }) as any;
+
+    test("a refresh runs a finished async when() again and applies its new result", async () => {
+      let allowed = ["a"];
+      let calls = 0;
+      rumble.abilityBuilder.users.allow("read").when(async () => {
+        calls++;
+        await later(null);
+        return { where: { id: { in: [...allowed] } } };
+      });
+      const abilities = rumble.abilityBuilder._.build()(ctx());
+
+      expect((await abilities.users.filter("read")).query.many.where).toEqual({
+        id: { in: ["a"] },
+      });
+
+      // e.g. a write in between: the snapshot stands until a refresh
+      allowed = ["b"];
+      expect((await abilities.users.filter("read")).query.many.where).toEqual({
+        id: { in: ["a"] },
+      });
+      expect(calls).toBe(1);
+
+      refreshAbilities(abilities);
+      expect((await abilities.users.filter("read")).query.many.where).toEqual({
+        id: { in: ["b"] },
+      });
+      expect(calls).toBe(2);
+    });
+
+    test("a refresh keeps an async when() that is still running", async () => {
+      let calls = 0;
+      rumble.abilityBuilder.users.allow("read").when(async () => {
+        calls++;
+        await later(null);
+        return { where: { id: { in: ["a"] } } };
+      });
+      const abilities = rumble.abilityBuilder._.build()(ctx());
+
+      // sibling root fields of one query start in the same tick
+      const first = abilities.users.filter("read");
+      refreshAbilities(abilities);
+      const second = abilities.users.filter("read");
+      await Promise.all([first, second]);
+
+      expect(calls).toBe(1);
+    });
+
+    test("a rejected async when() runs again after a refresh", async () => {
+      let fail = true;
+      rumble.abilityBuilder.users.allow("read").when(async () => {
+        await later(null);
+        if (fail) throw new Error("not yet");
+        return "allow" as const;
+      });
+      const abilities = rumble.abilityBuilder._.build()(ctx());
+
+      await expect(abilities.users.filter("read")).rejects.toThrow("not yet");
+
+      fail = false;
+      refreshAbilities(abilities);
+      await expect(abilities.users.filter("read")).resolves.toBeDefined();
     });
   });
 

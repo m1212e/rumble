@@ -282,15 +282,24 @@ export const createTableAbilities = <
   return {
     withContext: (userContext: UserContext) => {
       // the (possibly async) callbacks may be expensive, e.g. calling an
-      // external service, so they run once per request and action
-      const evaluated = new Map<Action, Promise<DynamicResults>>();
+      // external service, so they run once per snapshot and action
+      const evaluated = new Map<
+        Action,
+        { results: Promise<DynamicResults>; settled: boolean }
+      >();
       const evaluate = (action: Action) => {
-        let results = evaluated.get(action);
-        if (!results) {
-          results = evaluateDynamicFilters(userContext, action);
-          evaluated.set(action, results);
+        let entry = evaluated.get(action);
+        if (!entry) {
+          const results = evaluateDynamicFilters(userContext, action);
+          const started = { results, settled: false };
+          const settle = () => {
+            started.settled = true;
+          };
+          results.then(settle, settle);
+          evaluated.set(action, started);
+          entry = started;
         }
-        return results;
+        return entry.results;
       };
 
       const prepare = (action: Action) =>
@@ -324,11 +333,19 @@ export const createTableAbilities = <
       // kept out of the type: declaration emit can't name the internal key
       (abilities as any)[resolvedFilterKey] = (action: Action) =>
         resolved.get(action);
-      // Resolved primary keys are a snapshot. Every root field starting to
-      // resolve (a mutation after another, a live query refetching) takes a
-      // new one, so rows related to the caller since then show up. The
-      // evaluated callbacks are kept.
+      // The evaluated callbacks and the resolved primary keys are a snapshot.
+      // Every root field starting to resolve (a mutation after another, a
+      // subscription event, a live query refetching) takes a new one, so an
+      // async callback loading ids sees what changed since, just as rows
+      // related to the caller since then show up. A callback still running is
+      // kept: it started in this tick, e.g. for a sibling root field of the
+      // same query, which runs in parallel and shares it.
       (abilities as any)[refreshAbilitiesKey] = () => {
+        for (const [action, entry] of evaluated) {
+          if (!entry.settled) continue;
+          evaluated.delete(action);
+          cache.delete(action);
+        }
         if (resolveRules) cache = new Map();
       };
       return abilities;

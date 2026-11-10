@@ -10,11 +10,12 @@ import { registerPluginOnce } from "../helpers/registerPlugin";
 export const refreshAbilitiesPluginName = "RefreshAbilitiesPlugin" as const;
 
 /**
- * Starts a new snapshot of the resolved relational rules whenever a root
+ * Starts a new snapshot of the abilities (the `when()` callbacks and, with
+ * `resolveRelationalRules`, the resolved relational rules) whenever a root
  * field (query, mutation or subscription event) starts to resolve, see
- * `resolveRelationalRules`. A mutation's second root field sees what the first
- * wrote, and a live query refetching sees the rows related to the caller by
- * now. A no-op unless rules are resolved.
+ * `refreshAbilities`. A mutation's second root field sees what the first
+ * wrote, and a subscription event or a live query refetching sees the rows
+ * related to the caller by now.
  */
 export class RefreshAbilitiesPlugin<
   Types extends SchemaTypes,
