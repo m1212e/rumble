@@ -178,3 +178,6 @@ test/test_database.sqlite
 
 example/src/generated-client
 .fallow/
+
+# Claude Code local settings
+.claude/settings.local.json

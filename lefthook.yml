@@ -1,14 +1,24 @@
+# Mirrors the CI checks (.github/workflows) so failures surface locally first.
 pre-commit:
+  parallel: true
   commands:
-    check:
-      glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
-      run: bunx @biomejs/biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --colors=off {staged_files}
+    biome:
+      # no glob: let biome decide which files it handles (js/ts/json/css/md/...)
+      run: bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --colors=off {staged_files}
       stage_fixed: true
     fallow:
       glob: "*.{js,ts,cjs,mjs,jsx,tsx,svelte}"
       run: bunx fallow audit
+
 pre-push:
+  parallel: true
   commands:
-    check:
-      glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
-      run: bunx @biomejs/biome check --no-errors-on-unmatched --files-ignore-unknown=true --colors=off {push_files}
+    biome:
+      # same as code_quality.yml
+      run: bunx biome ci . --colors=off
+    typecheck:
+      run: bun run typecheck
+    test:
+      run: bun test
+    fallow:
+      run: bunx fallow audit

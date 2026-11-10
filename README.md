@@ -15,11 +15,13 @@ rumble is a combined ability and graphql builder built around [drizzle](https://
 The following example is an excerpt from the example setup you can find [here](./example). If you are interested in a real world app thats using rumble (and is still work in progress) please see [CHASE](https://github.com/DeutscheModelUnitedNations/munify-chase).
 
 First, install rumble into your project:
+
 ```
 bun add @m1212e/rumble graphql graphql-yoga drizzle-orm
 npm i @m1212e/rumble graphql graphql-yoga drizzle-orm
 ```
 then call the rumble creator:
+
 ```ts
 import * as schema from "./db/schema";
 import * as relations from "./db/relations";
@@ -43,6 +45,7 @@ Abilities are the way you define who can do things in your app. You can imagine 
 ### Wildcard
 
 Wildcard abilities allow everyone to do a thing. The `allow` call takes a single `action` or an array of `action` strings. You can customize the available actions when calling the rumble initializer.
+
 ```ts
 // everyone can read posts
 abilityBuilder.posts.allow("read");
@@ -54,6 +57,7 @@ abilityBuilder.posts.allow(["read", "write"]);
 ### Condition Object
 
 Condition object abilities allow a thing under a certain, fixed condition which does not change. **Note, that the object has the same type as a drizzle query call.**
+
 ```ts
 // everyone can read published posts
 abilityBuilder.posts.allow("read").when({
@@ -64,6 +68,7 @@ abilityBuilder.posts.allow("read").when({
 ### Condition Function
 
 Condition functions are functions that return condition objects. They are called each time an evaluation takes place and can dynamically decide if something should be allowed or not. They receive the request context as a parameter to decide e.g. based on cookies or headers if something is allowed or not.
+
 ```ts
 // only the author can update posts
 abilityBuilder.posts
@@ -78,6 +83,7 @@ abilityBuilder.posts.allow("read").when(async ({ userId }) => ({
 ### Application level filters
 
 In some cases you can't implement all your checks via a database query filter. Say, for example, you want to query an external api which handles your authorization, before you return the data to the user. This can be done with application layer filters. They can be set very similar to abilities:
+
 ```ts
 abilityBuilder.users.filter("read").by(({ context, entities }) => {
   // const allowed = await queryExternalAuthorizationService(context.user, entities);
@@ -89,10 +95,10 @@ abilityBuilder.users.filter("read").by(({ context, entities }) => {
 ```
 The default implementation helpers automatically respect and call the filters, if you set any. Filters work in addition to abilities. They run on the completed query, which in most cases has had an ability applied, hence abilities have higher priority than filters. If you need to apply a filter to a manually implemented object, please use the `applyFilters` config field as shown in the example project.
 
-
 ### Column masks and filter arguments
 
 An ability may grant columns only on the rows its `where` matches. The other rows are returned without them:
+
 ```ts
 abilityBuilder.users
   .allow("read")
@@ -100,6 +106,7 @@ abilityBuilder.users
 abilityBuilder.users.allow("read").when({ columns: { id: true, name: true } }); // the rest on any other
 ```
 Masking happens after the query ran, but a `where` or `orderBy` argument is applied by the database to the real values: `users(where: { email: { eq: "a@b.c" } })` would reveal whose email that is. The default helpers (`query`, `countQuery` and the generated relations) therefore restrict these arguments to what the caller may read:
+
 - a condition on a column only matches rows which expose that column, on all other rows it is false (also inside `NOT`/`OR`)
 - sorting by a column treats it as empty on rows which do not expose it
 - a relation filter is restricted to the related rows the caller may read and requires the columns the relation joins on to be exposed on them
@@ -110,6 +117,7 @@ In your own resolvers, pass client arguments through `guardFilterInput(ctx.abili
 ### Applying abilities
 
 As you might have noticed, abilities resolve around drizzle query filters. This means, that we can use them to query the database with filters applied that directly restrict what the user is allowed to see, update and retrieve.
+
 ```ts
 schemaBuilder.queryFields((t) => {
   return {
@@ -131,6 +139,7 @@ schemaBuilder.queryFields((t) => {
 #### Applying filters
 
 Applying filters on objects is done automatically if you use the helpers. If you manually implement an object ref, you can use the `applyFilters` config field to ensure the filters run as expected:
+
 ```ts
 const PostRef = schemaBuilder.drizzleObject("posts", {
 	name: "Post",
@@ -146,6 +155,7 @@ const PostRef = schemaBuilder.drizzleObject("posts", {
 ## Context & Configuration
 
 The `rumble` initiator offers various configuration options which you can pass. Most importantly, the `context` provider function which creates the request context that is passed to your abilities and resolvers.
+
 ```ts
 rumble({
   db,
@@ -166,6 +176,7 @@ Rumble offers various helpers to make it easy and fast to implement your api. Of
 ### whereArg
 
 `whereArg` is a helper to implement query arguments for filtering the results of a query for certain results. In many cases you would implement arguments for a query with something as `matchUsername: t.arg.string()` which is supposed to restrict the query to users which have that username. The whereArg helper implements such a filter tailored to the specific entity which you then can directly pass on to the database query.
+
 ```ts
 const WhereArgs = whereArg({
   table: "posts",
@@ -197,6 +208,7 @@ schemaBuilder.queryFields((t) => {
 ### object
 
 `object` is a helper to implement an object with relations. Don't worry about abilities, they are automatically applied. The helper returns the object reference which you can use in the rest of your api, for an example on how to use a type, see the above code snippet (`type: [PostRef],`).
+
 ```ts
 const UserRef = object({
   table: "users",
@@ -206,6 +218,7 @@ const UserRef = object({
 ### query
 
 The `query` helper is even simpler. It implements a `findFirst` and `findMany` query for the specified entity named as singular and plural of the entities name.
+
 ```ts
 query({
   table: "users",
@@ -215,12 +228,14 @@ query({
 ### pubsub
 
 In case you want to use subscriptions, `rumble` has got you covered! The rumble helpers all use the `smart subscriptions plugin` from `pothos`. The `pubsub` helper lets you easily hook into the subscription notification logic.
+
 ```ts
 const { updated, created, removed } = pubsub({
   table: "users",
 });
 ```
 Now just call the functions whenever your application does the respective action and your subscriptions will get notified:
+
 ```ts
 updateUsernameHandler() => {
   await db.updateTheUsername();
@@ -241,6 +256,7 @@ All `query` and `object` helper implementations will automatically update and wo
 ### enum_
 
 The `enum_` helper is a little different to the others, as it will get called internally automatically if another helpers like `object` or `arg` detects an enum field. In most cases you should be good without calling it manually but in case you would like to have a reference to an enum object, you can get it from this helper.
+
 ```ts
 const enumRef = enum_({
   tsName: "moodEnum",
@@ -253,6 +269,7 @@ const enumRef = enum_({
 > Search is currently only supported in postgres!
 
 rumble and its helpers offer out of the box search capabilities. You can activate this functionality by passing the `search` parameter to the `createRumble` function.
+
 ```ts
 const rumble = createRumble({
   ...
@@ -263,6 +280,7 @@ const rumble = createRumble({
 });
 ```
 This will add a search field to all list queries and many relations created by the rumble helper functions. E.g. if you have a `users` table with a `name` and `email` field, and use the `object` and `query` helpers to implement queries for this table, you will get a search argument like this:
+
 ```graphql
 {
   users(limit: 10, search: "alice") {
@@ -274,6 +292,7 @@ This will add a search field to all list queries and many relations created by t
 }
 ```
 Additionally, a search distance will be returned for each result if the search argument is used (null otherwise). The results are returned sorted by their distance with the best matching fields in the first place. The search will respect all text fields (IDs included) on the table, you always search for all text columns at once. Matches in multiple columns stack and therefore result in a better matching score. So if you search for "alice" and there is a user with the name "Alice" and an email "alice@example.com", the two matching columns will result in a better score than e.g. "al007@example.com"/"Alice".
+
 > If you have abilities in place which prevent a caller from accessing certain columns, the search will not respect those columns to prevent leaking information.
 
 #### Choosing the searched columns
@@ -289,9 +308,11 @@ object({ table: "files", search: false }); // no search argument for files
 ```
 
 The setting applies wherever the table is searched: its list query and every many relation leading to it. Only the named columns count for the match and the search distance, so columns that never match (an address, a foreign key) no longer dilute the score. A named column the caller may not read on every row is still left out. Naming a column the table does not have, or one that is not a text or id column, throws when the object is created, as does giving two objects of the same table different settings.
+
 #### Pro tip: Indexing
 
 In case your table grows large, it can be a good idea to create an index to increase performance. Under the hood, searching uses the [pg_trgm](https://www.postgresql.org/docs/current/pgtrgm.html#PGTRGM-INDEX) extension. To create indexes for our searchable columns, we can adjust our drizzle schema accordingly:
+
 ```ts
 export const user = pgTable(
   "user",
@@ -318,6 +339,7 @@ export const user = pgTable(
 > When deciding to create indexes for faster searches, ensure that you create them for all text based columns that exist in your table. This includes `text`, `char`, `varchar` and so on. Unless the table's `object` names the searched columns, rumble searches all the text columns, so it is recommended to create indexes for all of them (or only for the named ones), otherwise the search might not be as fast as possible.
 
 In case you never started rumble with the search mode activated and you want to create the indexes in your migration, please ensure that the `pg_trgm` extension is installed and enabled in your database. You can do this by running the following SQL command:
+
 ```sql
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 ```
@@ -336,6 +358,7 @@ See [the example file](./example/src/main.ts) or clone it and let intellisense g
 ## Running the server
 
 In case you directly want to run a server from your rumble instance, you can do so by using the `createYoga` function. It returns a graphql `yoga` instance which can be used to provide a graphql api in [a multitude of ways](https://the-guild.dev/graphql/yoga-server/docs/integrations/z-other-environments).
+
 ```ts
 import { createServer } from "node:http";
 const server = createServer(createYoga());
@@ -350,6 +373,7 @@ server.listen(3000, () => {
 ## Usage & client generation
 
 You can use the GraphQL api with any client you like. However, rumble provides a generation api which can output a TypeScript client from a rumble instance. To perform a generation, use the exported function from your rumble instance like this:
+
 ```ts
 
 const {	clientCreator } = rumble(...);
@@ -375,8 +399,8 @@ This way of generating code is especially helpful in monorepos, where it is conv
 
 > The generated client contains metadata about the schema to function properly. Depending on the project and schema, this might be quite large and will increase bundle size. Additionally, this can provide sensitive information about the structure of your system. If you are concerned about this, it is recommended to use a different client.
 
-
 An example usage might look like this:
+
 ```ts
 import { client } from "./generated-client/client";
 
@@ -411,6 +435,7 @@ console.log(users.firstName);
 ### Alternative decoupled client generation
 
 As an alternative to use the client generator with a fully instanciated rumble instance, you can also import the `generateFromSchema` function from rumble and pass it a standard `GraphQLSchema` object to generate the client:
+
 ```ts
 import { generateFromSchema } from "@m1212e/rumble/client/generate";
 
