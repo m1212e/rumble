@@ -1,11 +1,11 @@
 import { EnvelopArmorPlugin } from "@escape.tech/graphql-armor";
-import { useDisableIntrospection } from "@graphql-yoga/plugin-disable-introspection";
 import type { useSofa } from "@m1212e/sofa-api";
 import { trace } from "@opentelemetry/api";
 import { merge, once } from "es-toolkit";
-import { GraphQLSchema } from "graphql";
+import { GraphQLSchema, NoSchemaIntrospectionCustomRule } from "graphql";
 import type { ServerOptions } from "graphql-ws";
 import {
+  Logger,
   createYoga as nativeCreateYoga,
   type Plugin,
   type YogaServerOptions,
@@ -45,6 +45,17 @@ import type {
   CustomRumblePothosConfig,
   RumbleInput,
 } from "./types/rumbleInput";
+
+/**
+ * Rejects introspection queries. This is all rumble needs from
+ * `@graphql-yoga/plugin-disable-introspection`, so it is inlined instead of
+ * pulling in that package.
+ */
+const disableIntrospection: Plugin = {
+  onValidate({ addValidationRule }) {
+    addValidationRule(NoSchemaIntrospectionCustomRule);
+  },
+};
 
 /**
  * Mirrors sofa's own default error handler: it derives the HTTP status from
@@ -313,8 +324,8 @@ export const r = rumble({
   });
 
   /**
-   * Adapts the configured rumble logger to the logger interface yoga expects,
-   * so yoga's own diagnostics end up in the same structured stream (with the
+   * Wraps the configured rumble logger in the hive `Logger` yoga expects, so
+   * yoga's own diagnostics end up in the same structured stream (with the
    * same `rumble.transport` and trace correlation fields) as rumble's entries.
    */
   const yogaLogging = () => {
@@ -342,12 +353,20 @@ export const r = rumble({
         );
       };
 
-    return {
-      debug: emit("debug"),
-      info: emit("info"),
-      warn: emit("warn"),
-      error: emit("error"),
-    };
+    return new Logger({
+      // let the rumble logger decide what to drop
+      level: "debug",
+      writers: [
+        {
+          // the hive logger already turned errors into plain objects here
+          write: (level, attrs, msg) =>
+            emit(level === "trace" ? "debug" : level)(
+              ...(msg ? [msg] : []),
+              ...(attrs == null ? [] : [attrs]),
+            ),
+        },
+      ],
+    });
   };
 
   const createYoga = (
@@ -401,7 +420,7 @@ export const r = rumble({
         ...(args?.plugins ?? []),
         ...(enableApiDocs
           ? []
-          : [useDisableIntrospection(), EnvelopArmorPlugin(args?.armorConfig)]),
+          : [disableIntrospection, EnvelopArmorPlugin(args?.armorConfig)]),
         telemetryEnabled(rumbleInput)
           ? ({
               // TODO: add trace header per default in http response
