@@ -37,7 +37,7 @@
     "fallow": "^3.38.1",
     "graphql": "^17.0.2",
     "graphql-ws": "^6.4.1",
-    "graphql-yoga": "^5.24.6",
+    "graphql-yoga": "^6.0.1",
     "lefthook": "^2.2.2",
     "mitata": "^1.0.34",
     "pg": "^8.23.1",
