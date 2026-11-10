@@ -16,8 +16,8 @@ The following example is an excerpt from the example setup you can find [here](.
 
 First, install rumble into your project:
 ```
-bun add @m1212e/rumble
-npm i @m1212e/rumble
+bun add @m1212e/rumble graphql graphql-yoga drizzle-orm
+npm i @m1212e/rumble graphql graphql-yoga drizzle-orm
 ```
 then call the rumble creator:
 ```ts
