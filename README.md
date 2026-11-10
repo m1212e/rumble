@@ -80,6 +80,10 @@ abilityBuilder.posts.allow("read").when(async ({ userId }) => ({
 }));
 ```
 
+> [!TIP]
+> Every relation in a condition renders as an `exists` subquery, which gets expensive for the database to plan. Keep conditions flat where you can:
+> - compare a foreign key column instead of going through the relation: `{ authorId: userId }` instead of `{ author: { id: userId } }`, which adds a subquery just to compare an id the row already holds
+
 ### Application level filters
 
 In some cases you can't implement all your checks via a database query filter. Say, for example, you want to query an external api which handles your authorization, before you return the data to the user. This can be done with application layer filters. They can be set very similar to abilities:
