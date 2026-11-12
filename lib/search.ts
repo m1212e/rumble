@@ -1,6 +1,7 @@
 import { asc, desc, sql } from "drizzle-orm";
 import { cloneDeep } from "es-toolkit";
 import { type ColumnMask, columnMaskKey } from "./abilityBuilder";
+import type { SearchArg } from "./args/searchArg";
 import { isPostgresDB } from "./helpers/determineDialectFromSchema";
 import { errorLogField } from "./helpers/errorLogging";
 import {
@@ -8,7 +9,6 @@ import {
   isStringLikeSQLTypeString,
 } from "./helpers/sqlTypes/types";
 import type { tableHelper } from "./helpers/tableHelpers";
-import { normalizeSearch } from "./scalars/search";
 import { RumbleError } from "./types/rumbleError";
 import type { RumbleInput } from "./types/rumbleInput";
 
@@ -97,8 +97,27 @@ function sameConfig(a: ObjectSearchConfig, b: ObjectSearchConfig) {
 }
 
 /**
- * The columns a search looks at: the ones the table's object names, or every
- * text and id column, of which only those the caller may read on every row.
+ * The columns the server searches a table by: the ones its object names, or
+ * every text and id column. These are the values a client can pick from.
+ */
+export function serverSearchColumnKeys({
+  tableSchema,
+  searchColumns,
+}: {
+  tableSchema: TableSchema;
+  searchColumns: SearchColumnRegistry;
+}) {
+  const config = searchColumns.configOf(tableSchema.tsName);
+  return config
+    ? [...config.columns]
+    : Object.entries(tableSchema.columns)
+        .filter(([, col]) => isSearchableColumn(col))
+        .map(([key]) => key);
+}
+
+/**
+ * The columns a search looks at: the server's selection, narrowed to what the
+ * client asked for, of which only those the caller may read on every row.
  * A column only some rows expose would otherwise tell by whether a row matches
  * what it holds.
  */
@@ -112,22 +131,17 @@ function columnsToSearch({
   abilities: any;
   searchColumns: SearchColumnRegistry;
   /** the columns the client asked for; the server's selection without */
-  requested?: readonly string[];
+  requested?: readonly string[] | null;
 }) {
-  const config = searchColumns.configOf(tableSchema.tsName);
-  const serverSelected = config
-    ? config.columns.map((key) => [key, tableSchema.columns[key]] as const)
-    : Object.entries(tableSchema.columns).filter(([, col]) =>
-        isSearchableColumn(col),
-      );
-  // the client can only narrow what the server selected, never widen it
+  const serverSelected = serverSearchColumnKeys({ tableSchema, searchColumns });
+  // the enum already keeps the client inside the server's selection
   const candidates = requested
-    ? serverSelected.filter(([key]) => requested.includes(key))
+    ? serverSelected.filter((key) => requested.includes(key))
     : serverSelected;
   const columnMask: ColumnMask | undefined = abilities[columnMaskKey];
   // without a mask every column is guaranteed
   return columnMask
-    ? candidates.filter(([key]) => columnMask.guaranteed.has(key))
+    ? candidates.filter((key) => columnMask.guaranteed.has(key))
     : candidates;
 }
 
@@ -211,9 +225,8 @@ export function adjustQueryArgsForSearch({
   }
   if (args.search === undefined || args.search === null) return;
 
-  // a term, or `{ search, columns }` narrowing it to some of the columns; from
-  // here on `args.search` is just the term
-  const { search: term, columns: requested } = normalizeSearch(args.search);
+  // from here on `args.search` is just the term
+  const { term, fields: requested } = args.search as SearchArg;
   args.search = term;
 
   if (search?.enabled && term.length > 0) {
@@ -237,7 +250,7 @@ export function adjustQueryArgsForSearch({
 
     const searchDistance = (table: any) =>
       sql`(${sql.join(
-        columns.map(([key]) => {
+        columns.map((key) => {
           return sql`COALESCE((${table[key]}::TEXT <-> ${searchParam}), 1)`;
         }),
         sql.raw(" + "),
@@ -288,7 +301,7 @@ export function adjustQueryArgsForSearch({
         {
           RAW: (table: any) =>
             sql`(${sql.join(
-              columns.map(([key]) => {
+              columns.map((key) => {
                 return sql`${table[key]} % ${searchParam}`;
               }),
               sql.raw(" OR "),

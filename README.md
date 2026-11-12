@@ -289,7 +289,7 @@ This will add a search field to all list queries and many relations created by t
 
 ```graphql
 {
-  users(limit: 10, search: "alice") {
+  users(limit: 10, search: { term: "alice" }) {
     id
     name
     email
@@ -297,7 +297,7 @@ This will add a search field to all list queries and many relations created by t
   }
 }
 ```
-Additionally, a search distance will be returned for each result if the search argument is used (null otherwise). The results are returned sorted by their distance with the best matching fields in the first place. The search will respect all text fields (IDs included) on the table, you always search for all text columns at once. Matches in multiple columns stack and therefore result in a better matching score. So if you search for "alice" and there is a user with the name "Alice" and an email "alice@example.com", the two matching columns will result in a better score than e.g. "al007@example.com"/"Alice".
+The argument is an input object per table, e.g. `UsersSearchInputArgument`, holding the `term` and optionally the `fields` to search (see below). Additionally, a search distance will be returned for each result if the search argument is used (null otherwise). The results are returned sorted by their distance with the best matching fields in the first place. The search will respect all text fields (IDs included) on the table, you always search for all text columns at once. Matches in multiple columns stack and therefore result in a better matching score. So if you search for "alice" and there is a user with the name "Alice" and an email "alice@example.com", the two matching columns will result in a better score than e.g. "al007@example.com"/"Alice".
 
 > If you have abilities in place which prevent a caller from accessing certain columns, the search will not respect those columns to prevent leaking information.
 
@@ -313,24 +313,26 @@ object({
 object({ table: "files", search: false }); // no search argument for files
 ```
 
-The setting applies wherever the table is searched: its list query and every many relation leading to it. Only the named columns count for the match and the search distance, so columns that never match (an address, a foreign key) no longer dilute the score. A named column the caller may not read on every row is still left out. Naming a column the table does not have, or one that is not a text or id column, throws when the object is created, as does giving two objects of the same table different settings.
+The setting applies wherever the table is searched: its list query and every many relation leading to it. Only the named columns count for the match and the search distance, so columns that never match (an address, a foreign key) no longer dilute the score. A named column the caller may not read on every row is still left out. Naming a column the table does not have, or one that is not a text or id column, throws when the object is created, as does giving two objects of the same table different settings. A table without any text or id column gets no search argument.
 
 #### Narrowing the searched columns from the client
 
-The `search` argument takes either the term alone or an object naming the columns to search. A term searches every column the server selected; with `columns` only the overlap of the client's and the server's columns is searched:
+Without `fields` the search looks at every column the server selected. `fields` narrows it to some of them. Its type is an enum per table, e.g. `UsersSearchFieldEnum`, listing exactly the columns the server searches, so a client can only pick from those and the generated client types it as a union of their names:
 
 ```graphql
 {
-  users(search: "alice") {
+  users(search: { term: "alice" }) {
     id
   } # every column the server searches
-  users(search: { search: "alice", columns: ["email"] }) {
+  users(search: { term: "alice", fields: [email] }) {
     id
   } # only email
 }
 ```
 
-The server keeps the last word: a column the server does not search, or the caller may not read, is ignored rather than added, and if nothing of the named columns is left the search finds no rows. The argument's type is the `Search` scalar, so a document declaring a variable for it uses `$search: Search` (the generated client does that by itself and types it as `string | { search: string; columns?: string[] }`).
+A document declaring a variable for it uses the table's input type, e.g. `$search: UsersSearchInputArgument`. Over REST the argument is passed as JSON, e.g. `?search={"term":"alice","fields":["email"]}`.
+
+The server keeps the last word: a named column the caller may not read on every row is left out, and if nothing of the named fields is left (or `fields` is empty) the search finds no rows.
 
 #### Pro tip: Indexing
 

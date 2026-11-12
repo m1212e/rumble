@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import pluralize from "pluralize";
 import { guardFilterInput } from "./abilityBuilder";
 import type { OrderArgImplementerType } from "./args/orderArg";
+import type { SearchArgImplementerType } from "./args/searchArg";
 import type { WhereArgImplementerType } from "./args/whereArg";
 import { assertFindFirstExists } from "./helpers/asserts";
 import { isPostgresDB } from "./helpers/determineDialectFromSchema";
@@ -43,8 +44,16 @@ export const createQueryImplementer = <
   orderArgImplementer,
   makePubSubInstance,
   searchColumns,
+  searchArgImplementer,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig, Schema> & {
   searchColumns: SearchColumnRegistry;
+  searchArgImplementer: SearchArgImplementerType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig
+  >;
   schemaBuilder: SchemaBuilderType<
     UserContext,
     DB,
@@ -144,19 +153,19 @@ export const createQueryImplementer = <
     }
 
     return schemaBuilder.queryFields((t) => {
+      // read here, while the schema is built, so the order objects and queries
+      // are registered in does not matter
+      const SearchArg = searchArgImplementer({ dbName: tableSchema.dbName });
+
       const manyArgs = {
         where: t.arg({ type: WhereArg, required: false }),
         orderBy: t.arg({ type: OrderArg, required: false }),
         limit: t.arg.int({ required: false }),
         offset: t.arg.int({ required: false }),
-        search: t.arg({ type: "Search", required: false }),
+        ...(SearchArg
+          ? { search: t.arg({ type: SearchArg, required: false }) }
+          : {}),
       };
-
-      // read here, while the schema is built, so the order objects and queries
-      // are registered in does not matter
-      if (!search?.enabled || !searchColumns.isEnabled(tableSchema.tsName)) {
-        delete (manyArgs as any).search;
-      }
 
       return {
         [pluralName]: t.drizzleField({

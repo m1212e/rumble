@@ -1,6 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { GraphQLObjectType } from "graphql";
+import { defineRelations } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/bun-sqlite";
+import * as sqlite from "drizzle-orm/sqlite-core";
+import {
+  GraphQLEnumType,
+  GraphQLInputObjectType,
+  GraphQLObjectType,
+} from "graphql";
 import { rumble as makeRumble } from "../../lib";
+import { makeTSRepresentation } from "../../lib/client/generate/tsRepresentation";
 import { makeSeededDBInstanceForTest } from "./db/db";
 import * as schema from "./db/schema";
 
@@ -98,5 +106,121 @@ describe("search columns on objects", async () => {
     const user = argsOf(r, "User");
     expect(user.posts).not.toContain("search");
     expect(user.comments).toContain("search");
+  });
+
+  describe("the search argument", () => {
+    /** Registers every object, so relations resolve, with `users` configurable */
+    function registerAll(
+      r: ReturnType<typeof makeInstance>,
+      userSearch?: { columns: ("email" | "firstName" | "lastName" | "id")[] },
+    ) {
+      r.object({ table: "users", refName: "User", search: userSearch });
+      r.object({ table: "posts", refName: "Post" });
+      r.object({ table: "comments", refName: "Comment" });
+    }
+
+    /** The values of a table's search field enum */
+    function searchFieldsOf(r: ReturnType<typeof makeInstance>, base: string) {
+      const fieldEnum = r.buildSchema().getType(`${base}SearchFieldEnum`);
+      if (!(fieldEnum instanceof GraphQLEnumType)) throw new Error(base);
+      return fieldEnum.getValues().map((value) => value.name);
+    }
+
+    test("takes a required term and an optional list of fields", () => {
+      const r = makeInstance();
+      registerAll(r);
+      r.query({ table: "users" });
+
+      const schema = r.buildSchema();
+      const input = schema.getType("UsersSearchInputArgument");
+      if (!(input instanceof GraphQLInputObjectType)) throw new Error();
+      const fields = input.getFields();
+      expect(Object.keys(fields).sort()).toEqual(["fields", "term"]);
+      expect(fields.term.type.toString()).toEqual("String!");
+      expect(fields.fields.type.toString()).toEqual("[UsersSearchFieldEnum!]");
+
+      const usersQuery = (
+        schema.getType("Query") as GraphQLObjectType
+      ).getFields().users;
+      const searchArg = usersQuery.args.find((arg) => arg.name === "search");
+      expect(searchArg?.type.toString()).toEqual("UsersSearchInputArgument");
+    });
+
+    test("offers every text and id column by default", () => {
+      const r = makeInstance();
+      registerAll(r);
+      r.query({ table: "comments" });
+
+      expect(searchFieldsOf(r, "Comments").sort()).toEqual([
+        "id",
+        "ownerId",
+        "postId",
+        "text",
+      ]);
+    });
+
+    test("offers only the columns the object names", () => {
+      const r = makeInstance();
+      // the query is registered before the object that names the columns
+      r.query({ table: "users" });
+      registerAll(r, { columns: ["email", "firstName"] });
+
+      expect(searchFieldsOf(r, "Users").sort()).toEqual(["email", "firstName"]);
+    });
+
+    test("types the fields as the column names in the generated client", () => {
+      const r = makeInstance();
+      registerAll(r, { columns: ["email", "firstName"] });
+      r.query({ table: "users" });
+
+      const schema = r.buildSchema();
+      const fieldEnum = schema.getType("UsersSearchFieldEnum");
+      const input = schema.getType("UsersSearchInputArgument");
+      if (!(fieldEnum instanceof GraphQLEnumType)) throw new Error();
+      if (!(input instanceof GraphQLInputObjectType)) throw new Error();
+      expect(makeTSRepresentation(fieldEnum)).toEqual('"email" | "firstName"');
+      expect(makeTSRepresentation(input)).toContain(
+        "fields?: UsersSearchFieldEnum[]",
+      );
+    });
+
+    test("is shared by the list query and the relations of a table", () => {
+      const r = makeInstance();
+      registerAll(r);
+      r.query({ table: "posts" });
+
+      const schema = r.buildSchema();
+      const postsArg = (schema.getType("Query") as GraphQLObjectType)
+        .getFields()
+        .posts.args.find((arg) => arg.name === "search");
+      const relationArg = (schema.getType("User") as GraphQLObjectType)
+        .getFields()
+        .posts.args.find((arg) => arg.name === "search");
+      expect(postsArg?.type).toBe(relationArg?.type);
+    });
+
+    test("is left out for a table without text or id columns", () => {
+      const counters = sqlite.sqliteTable("counters", {
+        value: sqlite.integer().notNull(),
+      });
+      const r = makeRumble({
+        db: drizzle(":memory:", {
+          relations: defineRelations({ counters }),
+        }),
+        schema: { counters },
+        context: () => ({}),
+        search: { enabled: true },
+      });
+      r.abilityBuilder.counters.allow("read");
+      r.object({ table: "counters", refName: "Counter" });
+      r.query({ table: "counters" });
+
+      const schema = r.buildSchema();
+      const countersQuery = (
+        schema.getType("Query") as GraphQLObjectType
+      ).getFields().counters;
+      expect(countersQuery.args.map((arg) => arg.name)).not.toContain("search");
+      expect(schema.getType("CountersSearchInputArgument")).toBeUndefined();
+    });
   });
 });

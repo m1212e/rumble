@@ -206,8 +206,6 @@ const SCALAR_TS_TYPES: Record<string, string> = {
   PersonName: "string",
   PhoneNumber: "string",
   Locale: "string",
-  // a term, or a term narrowed to some of the columns the server searches
-  Search: "string | { search: string; columns?: string[] }",
 };
 
 function mapGraphqlScalarToTSTypeString(arg: any) {

@@ -48,17 +48,19 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
   const pool = new Pool({ connectionString: DATABASE_URL });
   const db = drizzle({ client: pool, relations });
 
-  /** A fresh instance, since a table's search setting is fixed once its object exists. */
-  function makeInstance({
-    authorSearch,
-    bookSearch,
-    authorColumns,
-  }: {
+  type InstanceOptions = {
     authorSearch?: ObjectSearchConfig<"id" | "name" | "bio">;
     bookSearch?: ObjectSearchConfig<"id" | "title" | "blurb" | "authorId">;
     /** the author columns the caller may read; all without */
     authorColumns?: Partial<Record<"id" | "name" | "bio", true>>;
-  } = {}) {
+  };
+
+  /** A fresh rumble, since a table's search setting is fixed once its object exists. */
+  function makeRumbleInstance({
+    authorSearch,
+    bookSearch,
+    authorColumns,
+  }: InstanceOptions = {}) {
     const r = makeRumble({
       db,
       schema,
@@ -75,7 +77,12 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
     r.object({ table: "book", search: bookSearch });
     r.query({ table: "author" });
     r.query({ table: "book" });
-    const yoga = r.createYoga();
+    return r;
+  }
+
+  /** Runs GraphQL documents against a fresh instance */
+  function makeInstance(options: InstanceOptions = {}) {
+    const yoga = makeRumbleInstance(options).createYoga();
 
     return async (document: string, variables: Record<string, unknown>) => {
       const response = await yoga.fetch("http://localhost/graphql", {
@@ -88,14 +95,14 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
   }
 
   const BOOKS = /* GraphQL */ `
-    query ($search: Search) {
+    query ($search: BookSearchInputArgument) {
       books(search: $search) {
         id
       }
     }
   `;
   const AUTHORS = /* GraphQL */ `
-    query ($search: Search) {
+    query ($search: AuthorSearchInputArgument) {
       authors(search: $search) {
         id
       }
@@ -148,7 +155,9 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
   });
 
   test("ranks the closest match first", async () => {
-    const result = await makeInstance()(BOOKS, { search: "The Dispossessed" });
+    const result = await makeInstance()(BOOKS, {
+      search: { term: "The Dispossessed" },
+    });
 
     expect(result.errors).toBeUndefined();
     expect(result.data.books[0].id).toEqual("b1");
@@ -160,7 +169,7 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
   test("works with a relation and a limit in the selection", async () => {
     const result = await makeInstance()(
       /* GraphQL */ `
-        query ($search: Search) {
+        query ($search: BookSearchInputArgument) {
           books(search: $search, limit: 2) {
             id
             author {
@@ -169,7 +178,7 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
           }
         }
       `,
-      { search: "Small Gods" },
+      { search: { term: "Small Gods" } },
     );
 
     expect(result.errors).toBeUndefined();
@@ -182,13 +191,13 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
   describe("the columns an object names", () => {
     test("a term only an unnamed column holds finds nothing", async () => {
       const everyColumn = await makeInstance()(BOOKS, {
-        search: "A tortoise and a prophet",
+        search: { term: "A tortoise and a prophet" },
       });
       expect(everyColumn.data.books.map((b: any) => b.id)).toContain("b3");
 
       const titleOnly = await makeInstance({
         bookSearch: { columns: ["title"] },
-      })(BOOKS, { search: "A tortoise and a prophet" });
+      })(BOOKS, { search: { term: "A tortoise and a prophet" } });
 
       expect(titleOnly.errors).toBeUndefined();
       expect(titleOnly.data.books).toEqual([]);
@@ -197,12 +206,14 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
     test("only the named columns count for the ranking", async () => {
       // "Small gods" is b2's blurb and b3's title: by every column b2 also
       // matches, by the title alone only b3 does
-      const everyColumn = await makeInstance()(BOOKS, { search: "Small Gods" });
+      const everyColumn = await makeInstance()(BOOKS, {
+        search: { term: "Small Gods" },
+      });
       expect(everyColumn.data.books.map((b: any) => b.id)).toContain("b2");
 
       const titleOnly = await makeInstance({
         bookSearch: { columns: ["title"] },
-      })(BOOKS, { search: "Small Gods" });
+      })(BOOKS, { search: { term: "Small Gods" } });
 
       expect(titleOnly.errors).toBeUndefined();
       expect(titleOnly.data.books.map((b: any) => b.id)).toEqual(["b3"]);
@@ -213,7 +224,7 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
         bookSearch: { columns: ["title"] },
       })(
         /* GraphQL */ `
-          query ($search: Search) {
+          query ($search: BookSearchInputArgument) {
             authors {
               id
               books(search: $search) {
@@ -222,7 +233,7 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
             }
           }
         `,
-        { search: "An anarchist moon" },
+        { search: { term: "An anarchist moon" } },
       );
 
       expect(result.errors).toBeUndefined();
@@ -236,11 +247,15 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
         authorColumns: { id: true, name: true },
       });
 
-      const byBio = await run(AUTHORS, { search: "Wrote about a flat world" });
+      const byBio = await run(AUTHORS, {
+        search: { term: "Wrote about a flat world" },
+      });
       expect(byBio.errors).toBeUndefined();
       expect(byBio.data.authors).toEqual([]);
 
-      const byName = await run(AUTHORS, { search: "Terry Pratchett" });
+      const byName = await run(AUTHORS, {
+        search: { term: "Terry Pratchett" },
+      });
       expect(byName.data.authors.map((a: any) => a.id)).toEqual(["a2"]);
     });
 
@@ -248,18 +263,18 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
       const result = await makeInstance({
         authorSearch: { columns: ["bio"] },
         authorColumns: { id: true, name: true },
-      })(AUTHORS, { search: "Wrote about a flat world" });
+      })(AUTHORS, { search: { term: "Wrote about a flat world" } });
 
       expect(result.errors).toBeUndefined();
       expect(result.data.authors).toEqual([]);
     });
   });
 
-  describe("the columns a client names", () => {
+  describe("the fields a client names", () => {
     test("narrow the search to them", async () => {
       // by every column "Small gods" is b2's blurb and b3's title
       const result = await makeInstance()(BOOKS, {
-        search: { search: "Small Gods", columns: ["title"] },
+        search: { term: "Small Gods", fields: ["title"] },
       });
 
       expect(result.errors).toBeUndefined();
@@ -270,7 +285,7 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
       const result = await makeInstance()(
         /* GraphQL */ `
           {
-            books(search: { search: "Small Gods", columns: ["blurb"] }) {
+            books(search: { term: "Small Gods", fields: [blurb] }) {
               id
             }
           }
@@ -282,35 +297,34 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
       expect(result.data.books.map((b: any) => b.id)).toEqual(["b2"]);
     });
 
-    test("cannot add a column the server does not search", async () => {
+    test("cannot name a column the server does not search", async () => {
       const result = await makeInstance({
         bookSearch: { columns: ["title"] },
       })(BOOKS, {
         search: {
-          search: "A tortoise and a prophet",
-          columns: ["title", "blurb"],
+          term: "A tortoise and a prophet",
+          fields: ["title", "blurb"],
         },
       });
 
-      expect(result.errors).toBeUndefined();
-      expect(result.data.books).toEqual([]);
+      expect(result.errors?.[0]?.message).toMatch(/blurb/);
     });
 
     test("cannot add a column the caller may not read", async () => {
       const result = await makeInstance({
         authorColumns: { id: true, name: true },
       })(AUTHORS, {
-        search: { search: "Wrote about a flat world", columns: ["bio"] },
+        search: { term: "Wrote about a flat world", fields: ["bio"] },
       });
 
       expect(result.errors).toBeUndefined();
       expect(result.data.authors).toEqual([]);
     });
 
-    test("without an overlap with the server's find no rows, not every row", async () => {
-      const result = await makeInstance({
-        bookSearch: { columns: ["title"] },
-      })(BOOKS, { search: { search: "Small Gods", columns: ["nonsense"] } });
+    test("an empty list finds no rows, not every row", async () => {
+      const result = await makeInstance()(BOOKS, {
+        search: { term: "Small Gods", fields: [] },
+      });
 
       expect(result.errors).toBeUndefined();
       expect(result.data.books).toEqual([]);
@@ -319,7 +333,7 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
     test("apply to the relation fields too", async () => {
       const result = await makeInstance()(
         /* GraphQL */ `
-          query ($search: Search) {
+          query ($search: BookSearchInputArgument) {
             authors(where: { id: { eq: "a1" } }) {
               books(search: $search) {
                 id
@@ -327,12 +341,27 @@ describe.skipIf(!DATABASE_URL)("search on Postgres", () => {
             }
           }
         `,
-        { search: { search: "Small Gods", columns: ["title"] } },
+        { search: { term: "Small Gods", fields: ["title"] } },
       );
 
       expect(result.errors).toBeUndefined();
       // b2 has it only in its blurb
       expect(result.data.authors[0].books).toEqual([]);
     });
+  });
+
+  test("works over REST, with the argument as JSON", async () => {
+    const sofa = await makeRumbleInstance().createSofa({ basePath: "/api" });
+    const search = JSON.stringify({ term: "Small Gods", fields: ["title"] });
+    const response = await sofa.handleRequest(
+      new Request(
+        `http://localhost/api/books?search=${encodeURIComponent(search)}`,
+      ),
+      {},
+    );
+
+    expect(response.status).toBe(200);
+    const books = (await response.json()) as { id: string }[];
+    expect(books.map((b) => b.id)).toEqual(["b3"]);
   });
 });

@@ -11,6 +11,7 @@ import {
   relationExposure,
 } from "./abilityBuilder";
 import type { OrderArgImplementerType } from "./args/orderArg";
+import type { SearchArgImplementerType } from "./args/searchArg";
 import type { WhereArgImplementerType } from "./args/whereArg";
 import { type EnumImplementerType, isEnumSchema } from "./enum";
 import { buildPothosResponseTypeFromGraphQLType } from "./helpers/sqlTypes/mapDrizzleTypeToGraphQlType";
@@ -89,8 +90,16 @@ export const createObjectImplementer = <
   enumImplementer,
   abilityBuilder,
   searchColumns,
+  searchArgImplementer,
 }: RumbleInput<UserContext, DB, RequestEvent, Action, PothosConfig, Schema> & {
   searchColumns: SearchColumnRegistry;
+  searchArgImplementer: SearchArgImplementerType<
+    UserContext,
+    DB,
+    RequestEvent,
+    Action,
+    PothosConfig
+  >;
   schemaBuilder: SchemaBuilderType<
     UserContext,
     DB,
@@ -481,6 +490,10 @@ export const createObjectImplementer = <
               return acc;
             }
 
+            const SearchArg = isMany
+              ? searchArgImplementer({ dbName: relationSchema.dbName })
+              : undefined;
+
             const args = {
               where: t.arg({ type: WhereArg, required: false }),
               orderBy: t.arg({ type: OrderArg, required: false }),
@@ -490,16 +503,10 @@ export const createObjectImplementer = <
                     limit: t.arg.int({ required: false }),
                   }
                 : {}),
-              search: t.arg({ type: "Search", required: false }),
+              ...(SearchArg
+                ? { search: t.arg({ type: SearchArg, required: false }) }
+                : {}),
             };
-
-            if (
-              !search?.enabled ||
-              !isMany ||
-              !searchColumns.isEnabled(relationSchema.tsName)
-            ) {
-              delete (args as any).search;
-            }
 
             (acc as any)[key] = t.relation(
               key as any,

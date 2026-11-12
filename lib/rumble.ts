@@ -13,6 +13,7 @@ import {
 import packagejson from "../package.json";
 import { createAbilityBuilder } from "./abilityBuilder";
 import { createOrderArgImplementer } from "./args/orderArg";
+import { createSearchArgImplementer } from "./args/searchArg";
 import { createWhereArgImplementer } from "./args/whereArg";
 import { clientCreatorImplementer } from "./client/client";
 import { createContextFunction } from "./context";
@@ -239,6 +240,11 @@ export const r = rumble({
   });
 
   const searchColumns = createSearchColumnRegistry();
+  const searchArg = createSearchArgImplementer({
+    ...rumbleInput,
+    schemaBuilder,
+    searchColumns,
+  });
 
   const object = createObjectImplementer<
     UserContext,
@@ -256,6 +262,7 @@ export const r = rumble({
     enumImplementer: enum_,
     abilityBuilder,
     searchColumns,
+    searchArgImplementer: searchArg,
   });
 
   const query = createQueryImplementer<
@@ -272,6 +279,7 @@ export const r = rumble({
     orderArgImplementer: orderArg,
     makePubSubInstance,
     searchColumns,
+    searchArgImplementer: searchArg,
   });
 
   const countQuery = createCountQueryImplementer({
