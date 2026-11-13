@@ -397,6 +397,50 @@ describe("test rumble abilities and filters", async () => {
     expect((r as any).errors.length).toEqual(1);
   });
 
+  test("prefetch throw without entities to filter is not an unhandled rejection", async () => {
+    rumble.abilityBuilder.users.allow(["read"]);
+    rumble.abilityBuilder.posts.allow(["read"]);
+    const prefetch = mock(async () => {
+      throw new Error("Prefetch error");
+    });
+    rumble.abilityBuilder.users
+      .filter("read")
+      .prefetch(prefetch)
+      .by(({ entities }) => entities);
+
+    await db
+      .update(schema.posts)
+      .set({ ownerId: null })
+      .where(eq(schema.posts.id, data.posts[0].id));
+
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+
+    try {
+      const { executor, yogaInstance: _yogaInstance } = build();
+      const r = await executor({
+        document: parse(/* GraphQL */ `
+          query {
+            post(id: "${data.posts[0].id}") {
+              author {
+                id
+              }
+            }
+          }
+        `),
+      });
+      // give a dangling rejection the chance to surface
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(prefetch).toHaveBeenCalled();
+      expect((r as any).data.post.author).toBeNull();
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
   test("nested prefetching", async () => {
     rumble.abilityBuilder.users.allow(["read"]);
     const prefetch = mock(async () => {

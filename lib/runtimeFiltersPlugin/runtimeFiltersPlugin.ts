@@ -59,6 +59,9 @@ export class RuntimeFiltersPlugin<
       const prefetchPromise = filter.prefetch
         ? filter.prefetch({ context })
         : undefined;
+      // the loader may never run (resolver threw or had nothing to filter), the
+      // batch function still awaits the original promise and surfaces the error
+      prefetchPromise?.catch(() => {});
 
       loader = new DataLoader<any, any>(
         async (entities) => {
