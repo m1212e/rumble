@@ -145,7 +145,10 @@ export class RuntimeFiltersPlugin<
           resolved = await resolver(parent, args, context, info);
         }
 
-        const entities: any[] = Array.isArray(resolved) ? resolved : [resolved];
+        // nullable relations can resolve to null, which DataLoader refuses as a key
+        const entities: any[] = (
+          Array.isArray(resolved) ? resolved : [resolved]
+        ).filter((entity) => entity != null);
 
         // load() instead of loadMany() so a thrown filter still rejects here
         // instead of getting swallowed into an Error value

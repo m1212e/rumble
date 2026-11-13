@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { eq } from "drizzle-orm";
 import { parse } from "graphql";
 import { makeSeededDBInstanceForTest } from "./db/db";
+import * as schema from "./db/schema";
 import { makeRumbleSeedInstance } from "./rumble/baseInstance";
 
 describe("test rumble abilities and filters", async () => {
@@ -134,6 +136,37 @@ describe("test rumble abilities and filters", async () => {
     expect(
       (r as any).data.users.filter((u: any) => u.posts.length > 0).length,
     ).toEqual(0);
+  });
+
+  test("nullable one relation without a related row resolves to null", async () => {
+    rumble.abilityBuilder.users.allow(["read"]);
+    rumble.abilityBuilder.posts.allow(["read"]);
+    rumble.abilityBuilder.users.filter("read").by(({ entities }) => entities);
+
+    await db
+      .update(schema.posts)
+      .set({ ownerId: null })
+      .where(eq(schema.posts.id, data.posts[0].id));
+
+    const { executor, yogaInstance: _yogaInstance } = build();
+    const r = await executor({
+      document: parse(/* GraphQL */ `
+        query {
+          post(id: "${data.posts[0].id}") {
+            id
+            author {
+              id
+            }
+          }
+        }
+      `),
+    });
+
+    expect((r as any).errors).toBeUndefined();
+    expect((r as any).data.post).toEqual({
+      id: data.posts[0].id,
+      author: null,
+    });
   });
 
   test("batches application level filter calls across sibling relations into a single invocation", async () => {
