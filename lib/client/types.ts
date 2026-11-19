@@ -34,7 +34,7 @@ export type QueryableObjectFromGeneratedTypes<
           // transfer nullability from the original response type to the returned type
           QueryResponse,
           // wrap it in a return
-          Response<
+          QueryResult<
             DeriveArrayType<
               // transfer array-ness from the original response type to the returned type
               QueryResponse,
@@ -51,9 +51,9 @@ export type QueryableObjectFromGeneratedTypes<
       : // scalar return type with args — args passed via __args key, no field selection needed
         (p: {
           [argsKey]: QueryArgs;
-        }) => Response<QueryResponse, ForceReactivity>
+        }) => QueryResult<QueryResponse, ForceReactivity>
     : // if it's a simple type with no args, we just return the type wrapped in a response
-      () => Response<Q[Key], ForceReactivity>;
+      () => QueryResult<Q[Key], ForceReactivity>;
 };
 
 /**
@@ -115,7 +115,10 @@ export type Subscribeable<Data> = {
   subscribe: (subscription: (value: Data) => void) => Unsubscriber;
 };
 
-type Response<
+/**
+ * What a query or mutation field answers: a promise of the data that also streams updates.
+ */
+export type QueryResult<
   Data,
   ForceReactivity extends boolean,
 > = ForceReactivity extends true
