@@ -82,7 +82,7 @@
     "devalue": "^6.0.3",
     "es-toolkit": "^1.53.2",
     "graphql-scalars": "^2.0.1",
-    "libphonenumber-js": "^1.13.16",
+    "libphonenumber-js": "^1.13.17",
     "pluralize": "^8.0.0",
     "wonka": "^6.3.6",
     "zod": "^4.6.7"
