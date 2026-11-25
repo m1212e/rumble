@@ -69,7 +69,7 @@
     "@escape.tech/graphql-armor": "^3.2.0",
     "@opentelemetry/api": "^1.10.0",
     "@opentelemetry/semantic-conventions": "^1.45.0",
-    "@pothos/core": "^4.17.0",
+    "@pothos/core": "^4.18.0",
     "@pothos/plugin-drizzle": "^0.20.3",
     "@pothos/plugin-smart-subscriptions": "^4.1.7",
     "@pothos/plugin-tracing": "^1.1.4",
