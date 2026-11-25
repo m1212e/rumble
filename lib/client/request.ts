@@ -511,6 +511,14 @@ function stringifySelection({
 ${ret} }`;
 }
 
+/**
+ * The entries to send: `undefined` means "not given", so it is left out like a missing key. Only an
+ * explicit `null` is sent as null, which resolvers may tell apart (clear a value vs. keep it).
+ */
+function givenEntries(obj: object): [string, any][] {
+  return Object.entries(obj).filter(([, value]) => value !== undefined);
+}
+
 function serializeArguments({
   args,
   fieldArgs,
@@ -522,7 +530,7 @@ function serializeArguments({
   types: readonly IntrospectionType[];
   varCtx: VarContext;
 }) {
-  const entries = Object.entries(args);
+  const entries = givenEntries(args);
 
   if (entries.length > 0) {
     return `(${entries
@@ -593,7 +601,7 @@ function serializeInputObject({
   }
 
   const result: Record<string, any> = {};
-  for (const [key, value] of Object.entries(arg)) {
+  for (const [key, value] of givenEntries(arg)) {
     const subArgType = referenceInputObject.inputFields.find(
       (t) => t.name === key,
     );
@@ -642,6 +650,7 @@ function serializeArgValue({
 }
 
 function serializePrimitive(arg: unknown) {
+  // only list items get here undefined, and a list has no way to leave one out
   if (arg === undefined) {
     return null;
   }
